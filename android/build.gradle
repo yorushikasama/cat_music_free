@@ -1,0 +1,51 @@
+buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 35
+        targetSdkVersion = 30
+        ndkVersion = "26.1.10909125"
+        kotlinVersion = "1.9.24"
+    }
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/central'}
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+apply plugin: "com.facebook.react.rootproject"
+
+import com.android.build.api.variant.AndroidComponentsExtension
+
+subprojects { sub ->
+    sub.pluginManager.withPlugin("com.android.application") {
+        sub.extensions.getByType(AndroidComponentsExtension).finalizeDsl { ext ->
+            ext.compileOptions.sourceCompatibility = JavaVersion.VERSION_17
+            ext.compileOptions.targetCompatibility = JavaVersion.VERSION_17
+        }
+    }
+    sub.pluginManager.withPlugin("com.android.library") {
+        sub.extensions.getByType(AndroidComponentsExtension).finalizeDsl { ext ->
+            ext.compileOptions.sourceCompatibility = JavaVersion.VERSION_17
+            ext.compileOptions.targetCompatibility = JavaVersion.VERSION_17
+        }
+    }
+    sub.pluginManager.withPlugin("org.jetbrains.kotlin.android") {
+        sub.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions.jvmTarget = "17"
+        }
+    }
+    sub.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        sub.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions.jvmTarget = "17"
+        }
+    }
+}
