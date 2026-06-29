@@ -1,0 +1,13 @@
+{
+  "version": "0.6.3",
+  "changeLog": [
+    "统一页面容器、顶部栏、列表项、弹层和加载状态的视觉语言",
+    "新增插件广场入口，优化插件安装和批量安装体验",
+    "优化首页、搜索、设置、榜单、推荐歌单、播放详情和内容管理页面质感",
+    "播放失败时支持有限自动换源，并在成功播放后更新当前播放源"
+  ],
+  "download": [
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v0.6.3/app-universal-release.apk",
+    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v0.6.3/app-universal-release.apk"
+  ]
+}

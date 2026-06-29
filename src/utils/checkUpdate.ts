@@ -3,9 +3,9 @@ import { compare } from "compare-versions";
 import DeviceInfo from "react-native-device-info";
 
 const updateList = [
-    "https://gitee.com/maotoumao/CatMusicFree/raw/master/release/version.json",
-    "https://raw.githubusercontent.com/maotoumao/CatMusicFree/master/release/version.json",
-    "https://cdn.jsdelivr.net/gh/maotoumao/CatMusicFree@master/release/version.json",
+    "https://gitee.com/qianmeng_a/cat_music_free/raw/main/release/version.json",
+    "https://raw.githubusercontent.com/yorushikasama/cat_music_free/main/release/version.json",
+    "https://cdn.jsdelivr.net/gh/yorushikasama/cat_music_free@main/release/version.json",
 ];
 
 interface IUpdateInfo {
