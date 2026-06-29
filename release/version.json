@@ -7,7 +7,7 @@
     "播放失败时支持有限自动换源，并在成功播放后更新当前播放源"
   ],
   "download": [
-    "https://gitee.com/qianmeng_a/cat_music_free/raw/main/release/v0.6.4/app-universal-release.apk",
-    "https://gitee.com/qianmeng_a/cat_music_free/raw/main/release/v0.6.4/app-universal-release.apk"
+    "https://raw.githubusercontent.com/yorushikasama/cat_music_free/main/release/v0.6.4/app-universal-release.apk",
+    "https://cdn.jsdelivr.net/gh/yorushikasama/cat_music_free@main/release/v0.6.4/app-universal-release.apk"
   ]
 }
