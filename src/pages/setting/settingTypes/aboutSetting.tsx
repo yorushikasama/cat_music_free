@@ -6,144 +6,266 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import rpx from "@/utils/rpx";
-import { ImgAsset } from "@/constants/assetsConst";
-import ThemeText from "@/components/base/themeText";
+import deviceInfoModule from "react-native-device-info";
+import Color from "color";
+
 import LinkText from "@/components/base/linkText";
+import ThemeText from "@/components/base/themeText";
+import { ImgAsset } from "@/constants/assetsConst";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
+import useColors from "@/hooks/useColors";
 import useCheckUpdate from "@/hooks/useCheckUpdate.ts";
 import useOrientation from "@/hooks/useOrientation";
-import Divider from "@/components/base/divider";
+import rpx from "@/utils/rpx";
+
+const CURRENT_GITHUB = "https://github.com/yorushikasama/cat_music_free";
+const CURRENT_GITEE = "https://gitee.com/qianmeng_a/cat_music_free";
+const UPSTREAM_MUSICFREE = "https://github.com/maotoumao/MusicFree";
+const UPSTREAM_CATMUSICFREE = "https://github.com/maotoumao/CatMusicFree";
+const ORIGINAL_BILIBILI = "https://space.bilibili.com/12866223";
+
+interface ISectionProps {
+    title: string;
+    children: React.ReactNode;
+}
+
+interface IInfoRowProps {
+    label: string;
+    children: React.ReactNode;
+}
+
+function Section(props: ISectionProps) {
+    const colors = useColors();
+
+    return (
+        <View
+            style={[
+                style.section,
+                {
+                    backgroundColor: colors.surfacePrimary,
+                    borderColor: colors.divider,
+                },
+            ]}>
+            <ThemeText
+                fontSize="subTitle"
+                fontWeight="bold"
+                style={style.sectionTitle}>
+                {props.title}
+            </ThemeText>
+            {props.children}
+        </View>
+    );
+}
+
+function Paragraph(props: { children: React.ReactNode }) {
+    return (
+        <ThemeText
+            fontSize="content"
+            lineHeight
+            style={style.paragraph}>
+            {props.children}
+        </ThemeText>
+    );
+}
+
+function InfoRow(props: IInfoRowProps) {
+    return (
+        <View style={style.infoRow}>
+            <ThemeText
+                fontSize="description"
+                fontWeight="semibold"
+                fontColor="textSecondary"
+                style={style.infoLabel}>
+                {props.label}
+            </ThemeText>
+            <View style={style.infoContent}>{props.children}</View>
+        </View>
+    );
+}
 
 export default function AboutSetting() {
-    const checkAndShowResult = useCheckUpdate();
+    const checkAndShowResult = useCheckUpdate(false);
     const orientation = useOrientation();
+    const colors = useColors();
+    const appName = deviceInfoModule.getApplicationName();
+    const version = deviceInfoModule.getVersion();
+    const buildNumber = deviceInfoModule.getBuildNumber();
+    const primaryTint = Color(colors.primary).alpha(0.12).rgb().string();
 
     return (
         <View
             style={[
                 style.wrapper,
-                orientation === "horizontal"
-                    ? {
-                        flexDirection: "row",
-                    }
-                    : null,
+                orientation === "horizontal" ? style.horizontalWrapper : null,
             ]}>
             <View
                 style={[
-                    style.header,
-                    orientation === "horizontal" ? style.horizontalSize : null,
+                    style.hero,
+                    {
+                        backgroundColor: colors.surfacePrimary,
+                        borderColor: colors.divider,
+                    },
+                    orientation === "horizontal" ? style.horizontalHero : null,
                 ]}>
                 <TouchableOpacity
+                    activeOpacity={0.78}
                     onPress={() => {
                         checkAndShowResult(true);
                     }}>
-                    <Image
-                        source={ImgAsset.author}
-                        style={style.image}
-                        resizeMode="contain"
-                    />
+                    <View
+                        style={[
+                            style.logoFrame,
+                            {
+                                backgroundColor: primaryTint,
+                            },
+                        ]}>
+                        <Image
+                            source={ImgAsset.logo}
+                            style={style.logo}
+                            resizeMode="contain"
+                        />
+                    </View>
                 </TouchableOpacity>
-                <ThemeText style={style.margin}>软件作者: 猫头猫</ThemeText>
-                <ThemeText style={style.margin}>
-                    公众号: 【一只猫头猫】
+                <ThemeText
+                    fontSize="title"
+                    fontWeight="bold"
+                    numberOfLines={2}
+                    style={style.appName}>
+                    {appName}
                 </ThemeText>
-                <View style={style.contactContainer}>
-                    <ThemeText style={style.margin}>
-                        B站:{" "}
-                        <LinkText linkTo="https://space.bilibili.com/12866223">
+                <ThemeText fontSize="subTitle" fontColor="textSecondary">
+                    当前版本 {version} · Build {buildNumber}
+                </ThemeText>
+                <View style={style.badgeRow}>
+                    <View
+                        style={[
+                            style.badge,
+                            {
+                                backgroundColor: primaryTint,
+                            },
+                        ]}>
+                        <ThemeText
+                            fontSize="description"
+                            fontWeight="semibold"
+                            color={colors.primary}>
+                            AGPL-3.0 开源
+                        </ThemeText>
+                    </View>
+                    <View
+                        style={[
+                            style.badge,
+                            {
+                                backgroundColor: colors.surfaceSecondary,
+                            },
+                        ]}>
+                        <ThemeText
+                            fontSize="description"
+                            fontWeight="semibold"
+                            fontColor="textSecondary">
+                            Android 版本
+                        </ThemeText>
+                    </View>
+                </View>
+                <ThemeText
+                    fontSize="description"
+                    fontColor="textSecondary"
+                    lineHeight
+                    style={style.heroHint}>
+                    点击图标可手动检查更新
+                </ThemeText>
+            </View>
+
+            <ScrollView
+                style={style.scrollView}
+                contentContainerStyle={style.scrollViewContainer}
+                showsVerticalScrollIndicator={false}>
+                <Section title="当前版本">
+                    <Paragraph>
+                        这是 CatMusicFree 的当前维护分支，基于原开源项目继续开发，主要面向 Android
+                        端的日常听歌、搜索、歌单、本地音乐、下载、歌词和插件管理场景。
+                    </Paragraph>
+                    <Paragraph>
+                        当前版本重点完成了页面容器、顶部栏、搜索框、设置页、榜单、推荐歌单、播放详情、插件广场和弹层系统的统一，并加入播放失败后的有限自动换源逻辑。
+                    </Paragraph>
+                </Section>
+
+                <Section title="本版本仓库">
+                    <InfoRow label="GitHub">
+                        <LinkText linkTo={CURRENT_GITHUB}>
+                            yorushikasama/cat_music_free
+                        </LinkText>
+                    </InfoRow>
+                    <InfoRow label="Gitee">
+                        <LinkText linkTo={CURRENT_GITEE}>
+                            qianmeng_a/cat_music_free
+                        </LinkText>
+                    </InfoRow>
+                    <Paragraph>
+                        应用内检查更新会优先读取 Gitee，并保留 GitHub Raw 与 jsDelivr
+                        作为备用更新源。
+                    </Paragraph>
+                </Section>
+
+                <Section title="原作者与上游项目">
+                    <View style={style.authorBlock}>
+                        <Image
+                            source={ImgAsset.author}
+                            style={style.authorImage}
+                            resizeMode="cover"
+                        />
+                        <View style={style.authorText}>
+                            <ThemeText
+                                fontSize="content"
+                                fontWeight="bold">
+                                原作者：猫头猫
+                            </ThemeText>
+                            <ThemeText
+                                fontSize="description"
+                                fontColor="textSecondary"
+                                lineHeight
+                                style={style.authorDescription}>
+                                本版本是在原项目基础上的二次开发与界面改造，请在二次分发或修改版本中保留原作者和上游项目出处。
+                            </ThemeText>
+                        </View>
+                    </View>
+                    <InfoRow label="MusicFree">
+                        <LinkText linkTo={UPSTREAM_MUSICFREE}>
+                            maotoumao/MusicFree
+                        </LinkText>
+                    </InfoRow>
+                    <InfoRow label="CatMusicFree">
+                        <LinkText linkTo={UPSTREAM_CATMUSICFREE}>
+                            maotoumao/CatMusicFree
+                        </LinkText>
+                    </InfoRow>
+                    <InfoRow label="B站">
+                        <LinkText linkTo={ORIGINAL_BILIBILI}>
                             不想睡觉猫头猫
                         </LinkText>
-                    </ThemeText>
-                    <ThemeText style={style.margin}>
-                        小红书:{" "}
-                        <LinkText linkTo="https://www.xiaohongshu.com/user/profile/5ce6085200000000050213a6?xsec_token=YBqVNCKP4kpvphpU5sZI8WC93c5JINc3NhGtRBymgKvuo%3D&xsec_source=app_share&xhsshare=CopyLink&appuid=5ce6085200000000050213a6&apptime=1747275535&share_id=faef5820564a43be80e5b77da887e4b9&share_channel=copy_link">
-                            一只猫头猫
-                        </LinkText>
-                    </ThemeText>
-                </View>
-            </View>
-            <ScrollView
-                contentContainerStyle={style.scrollViewContainer}
-                style={style.scrollView}>
-                <ThemeText fontSize="title">开发者的话: </ThemeText>
-                <ThemeText style={style.content}>
-                    软件作者是<ThemeText fontWeight="bold">猫头猫</ThemeText>
-                    🐱，不是猫头鹰🦉，也不是什么其他的奇奇怪怪。软件没有其他版本，如果你下载到了付费版/广告版/挂羊头卖狗肉版，那说明你被坏蛋骗了😒。
-                </ThemeText>
-                <ThemeText style={style.content}>
-                    软件相关信息会发布在公众号【
-                    <ThemeText fontWeight="bold">一只猫头猫</ThemeText>
-                    】中👇，也简单做了个
-                    <LinkText linkTo="https://musicfree.catcat.work">
-                        官方网站
-                    </LinkText>
-                    。（手机版和桌面版的）下载地址、使用方式、插件开发方式、常见问题都在站点中。
-                </ThemeText>
-                <Image
-                    source={ImgAsset.wechatChannel}
-                    style={style.wcChannel}
-                />
-                <Divider style={style.content} />
+                    </InfoRow>
+                    <InfoRow label="公众号">
+                        <ThemeText fontSize="content">一只猫头猫</ThemeText>
+                    </InfoRow>
+                </Section>
 
-                <ThemeText style={style.content}>
-                    本软件完全免费，并基于{" "}
-                    <ThemeText fontWeight="bold">AGPL3.0 协议</ThemeText>{" "}
-                    开源，如果需要使用此代码进行二次开发，请遵守如下约定：
-                </ThemeText>
+                <Section title="开源协议">
+                    <Paragraph>
+                        本项目遵循 AGPL-3.0 协议。你可以学习、修改和分发代码，但二次分发版本也需要保持开源，并清楚标注修改内容、当前分支来源和原项目来源。
+                    </Paragraph>
+                    <Paragraph>
+                        本版本不代表原作者官方发布版本；如果你需要确认上游项目动态，请以前面的原作者仓库为准。
+                    </Paragraph>
+                </Section>
 
-                <ThemeText style={style.content}>
-                    1. 二次分发版必须同样遵循 AGPL 3.0 协议，开源且免费
-                </ThemeText>
-                <ThemeText style={style.content}>
-                    2. 合法合规使用代码，不要用于商业用途;
-                    修改后的软件造成的任何问题由使用此代码的开发者承担
-                </ThemeText>
-                <ThemeText style={style.content}>
-                    3.
-                    打包、二次分发时请保留代码出处：https://github.com/maotoumao/CatMusicFree
-                </ThemeText>
-                <ThemeText style={style.content}>
-                    4. 如果开源协议变更，将在此 Github 仓库更新，不另行通知
-                </ThemeText>
-                <ThemeText style={style.content}>
-                    代码已开源到{" "}
-                    <LinkText linkTo="https://github.com/maotoumao/CatMusicFree">
-                        Github
-                    </LinkText>
-                    ，如果打不开试试把链接中的 github 换成 gitcode。
-                </ThemeText>
-
-                <Divider style={style.content} />
-
-                <ThemeText style={style.content}>
-                    本软件需要通过插件来完成包括播放、搜索在内的大部分功能，如果你是从第三方下载的插件，
-                    <ThemeText fontWeight="bold">
-                        请一定谨慎识别这些插件的安全性，保护好自己。（注意：插件以及插件可能产生的数据与本软件无关，请使用者合理合法使用。）
-                    </ThemeText>
-                </ThemeText>
-
-                <ThemeText style={style.content}>
-                    <ThemeText fontWeight="bold">
-                        还请注意本软件只是个人的业余项目，距离稳定版也有很长一段距离。
-                    </ThemeText>
-                    如果你在找成熟稳定的音乐软件，可以考虑其他优秀的软件。当然我会一直维护，让它变得尽可能的完善一些。业余时间用爱发电，进度慢还请见谅。
-                </ThemeText>
-
-                <ThemeText style={style.content}>
-                    如果有问题或者建议，可以直接去 Github issue
-                    区留言，也可以去公众号【一只猫头猫】留言，也可以去{" "}
-                    <LinkText linkTo="https://qun.qq.com/qqweb/qunpro/share?_wv=3&_wwv=128&appChannel=share&inviteCode=1XgzeY8LfIa&businessType=9&from=246610&biz=ka&mainSourceId=share&subSourceId=others&jumpsource=shorturl">
-                        QQ 频道
-                    </LinkText>{" "}
-                    发帖。
-                </ThemeText>
-
-                <ThemeText style={style.content}>
-                    开发这个软件的最初目的是自用，顺便分享出来给有需要的人。如果这个软件能对你有些帮助，那这就是
-                    CatMusicFree 存在的意义。
-                </ThemeText>
-
-                <ThemeText style={style.content}>by: 猫头猫</ThemeText>
+                <Section title="插件与内容说明">
+                    <Paragraph>
+                        应用本身不内置音乐资源，搜索、播放、下载等能力主要依赖用户自行安装的插件。请只安装可信来源的插件，并合理合法使用。
+                    </Paragraph>
+                    <Paragraph>
+                        第三方插件及其产生的数据与应用本体相互独立，由插件来源和使用者自行判断风险。
+                    </Paragraph>
+                </Section>
             </ScrollView>
         </View>
     );
@@ -154,46 +276,107 @@ const style = StyleSheet.create({
         width: "100%",
         flex: 1,
     },
-    header: {
-        width: rpx(750),
-        height: rpx(400),
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    contactContainer: {
+    horizontalWrapper: {
         flexDirection: "row",
+    },
+    hero: {
+        marginHorizontal: spacing.md,
+        marginTop: spacing.lg,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xl,
+        borderRadius: radius.xl,
+        borderWidth: StyleSheet.hairlineWidth,
+        alignItems: "center",
+    },
+    horizontalHero: {
+        width: rpx(520),
+        marginBottom: spacing.lg,
+        justifyContent: "center",
+    },
+    logoFrame: {
+        width: rpx(132),
+        height: rpx(132),
+        borderRadius: radius.xl,
         alignItems: "center",
         justifyContent: "center",
-        gap: rpx(24),
     },
-    horizontalSize: {
-        width: rpx(600),
-        height: "100%",
+    logo: {
+        width: rpx(92),
+        height: rpx(92),
     },
-    image: {
-        width: rpx(150),
-        height: rpx(150),
-        borderRadius: rpx(28),
+    appName: {
+        marginTop: spacing.md,
+        marginBottom: spacing.xs,
+        textAlign: "center",
     },
-    margin: {
-        marginTop: rpx(24),
+    badgeRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        marginTop: spacing.md,
     },
-    content: {
-        marginTop: rpx(24),
-        lineHeight: rpx(48),
+    badge: {
+        height: rpx(44),
+        borderRadius: radius.pill,
+        paddingHorizontal: spacing.md,
+        alignItems: "center",
+        justifyContent: "center",
+        marginHorizontal: spacing.xs / 2,
+        marginBottom: spacing.xs,
     },
-    wcChannel: {
-        width: rpx(330),
-        height: rpx(330),
-        marginLeft: rpx(210),
-        marginTop: rpx(24),
+    heroHint: {
+        marginTop: spacing.xs,
+        textAlign: "center",
     },
     scrollView: {
         flex: 1,
-        paddingHorizontal: rpx(24),
-        paddingVertical: rpx(48),
     },
     scrollViewContainer: {
         paddingBottom: rpx(96),
+    },
+    section: {
+        marginHorizontal: spacing.md,
+        marginTop: spacing.lg,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.lg,
+        borderRadius: radius.xl,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    sectionTitle: {
+        marginBottom: spacing.sm,
+    },
+    paragraph: {
+        marginTop: spacing.sm,
+    },
+    infoRow: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        marginTop: spacing.md,
+    },
+    infoLabel: {
+        width: rpx(160),
+        paddingTop: rpx(2),
+    },
+    infoContent: {
+        flex: 1,
+        flexShrink: 1,
+    },
+    authorBlock: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: spacing.sm,
+        marginBottom: spacing.xs,
+    },
+    authorImage: {
+        width: rpx(92),
+        height: rpx(92),
+        borderRadius: radius.lg,
+        marginRight: spacing.md,
+    },
+    authorText: {
+        flex: 1,
+    },
+    authorDescription: {
+        marginTop: spacing.xs,
     },
 });
