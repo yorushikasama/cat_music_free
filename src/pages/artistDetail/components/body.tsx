@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import rpx from "@/utils/rpx";
 import { SceneMap, TabBar, TabView } from "react-native-tab-view";
 import { fontWeightConst } from "@/constants/uiConst";
@@ -9,6 +9,9 @@ import { queryResultAtom } from "../store/atoms";
 import content from "./content";
 import useColors from "@/hooks/useColors";
 import { useI18N } from "@/core/i18n";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
+import Color from "color";
 
 const sceneMap: Record<string, React.FC> = {
     album: BodyContentWrapper,
@@ -32,6 +35,12 @@ export default function Body() {
     const [index, setIndex] = useState(0);
     const colors = useColors();
     const { t } = useI18N();
+    const activeBg = Color(colors.primary).alpha(0.12).rgb().string();
+    const activeBorder = Color(colors.primary).alpha(0.18).rgb().string();
+    const activeLabelStyle = {
+        backgroundColor: activeBg,
+        borderColor: activeBorder,
+    };
 
     return (
         <TabView
@@ -45,26 +54,34 @@ export default function Body() {
                 <TabBar
                     {...props}
                     style={style.transparentColor}
-                    tabStyle={{
-                        width: "auto",
-                    }}
+                    contentContainerStyle={style.tabBarContent}
+                    tabStyle={style.tab}
                     renderIndicator={() => null}
                     pressColor="transparent"
                     inactiveColor={colors.text}
                     activeColor={colors.primary}
                     renderLabel={({ route, focused, color }) => (
-                        <Text
-                            numberOfLines={1}
-                            style={{
-                                width: rpx(160),
-                                fontWeight: focused
-                                    ? fontWeightConst.bolder
-                                    : fontWeightConst.medium,
-                                color,
-                                textAlign: "center",
-                            }}>
-                            {t(route.i18nKey as any) ?? route.title}
-                        </Text>
+                        <View
+                            style={[
+                                style.label,
+                                focused
+                                    ? activeLabelStyle
+                                    : style.inactiveLabel,
+                            ]}>
+                            <Text
+                                numberOfLines={1}
+                                style={[
+                                    style.labelText,
+                                    {
+                                        fontWeight: focused
+                                            ? fontWeightConst.bolder
+                                            : fontWeightConst.medium,
+                                        color,
+                                    },
+                                ]}>
+                                {t(route.i18nKey as any) ?? route.title}
+                            </Text>
+                        </View>
                     )}
                 />
             )}
@@ -97,5 +114,33 @@ const style = StyleSheet.create({
         backgroundColor: "transparent",
         shadowColor: "transparent",
         borderColor: "transparent",
+        minHeight: rpx(64),
+    },
+    tabBarContent: {
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xs,
+        alignItems: "center",
+    },
+    tab: {
+        width: "auto",
+        minHeight: rpx(52),
+        paddingHorizontal: 0,
+    },
+    label: {
+        minWidth: rpx(104),
+        height: rpx(44),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: spacing.md,
+        marginRight: spacing.xs,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    inactiveLabel: {
+        backgroundColor: "transparent",
+        borderColor: "transparent",
+    },
+    labelText: {
+        textAlign: "center",
     },
 });

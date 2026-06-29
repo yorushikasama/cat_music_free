@@ -76,8 +76,20 @@ export default function AppBar(props: IAppBarProps) {
     const colors = useColors();
     const navigation = useNavigation();
 
-    const bgColor = color(colors.appBar ?? colors.primary).toString();
-    const contentColor = _color ?? colors.appBarText;
+    const surfaceColor =
+        colors.surfacePrimary ??
+        colors.card ??
+        colors.pageBackground ??
+        colors.background;
+    const bgColor = color(surfaceColor)
+        .alpha(colors.hasCustomBackground ? 0.68 : 0.96)
+        .rgb()
+        .string();
+    const contentColor = _color ?? colors.text;
+    const dividerColor = color(colors.divider ?? contentColor)
+        .alpha(colors.hasCustomBackground ? 0.16 : 0.28)
+        .rgb()
+        .string();
 
     const [showMenu, setShowMenu] = useState(false);
     const [menuIconLayout, setMenuIconLayout] =
@@ -104,14 +116,19 @@ export default function AppBar(props: IAppBarProps) {
             <View
                 style={[
                     styles.container,
+                    {
+                        backgroundColor: bgColor,
+                        borderBottomColor: dividerColor,
+                        shadowColor: colors.shadow,
+                    },
+                    styles.elevated,
                     containerStyle,
-                    { backgroundColor: bgColor },
                 ]}>
                 <IconButton
                     name="arrow-left"
                     sizeType="normal"
                     color={contentColor}
-                    style={globalStyle.notShrink}
+                    style={[globalStyle.notShrink, styles.iconButton]}
                     onPress={
                         onBackPress ||
                         (() => {
@@ -123,7 +140,7 @@ export default function AppBar(props: IAppBarProps) {
                     {typeof children === "string" ? (
                         <ThemeText
                             fontSize="title"
-                            fontWeight="bold"
+                            fontWeight="semibold"
                             numberOfLines={1}
                             color={
                                 titleTextOpacity !== 1
@@ -144,7 +161,7 @@ export default function AppBar(props: IAppBarProps) {
                         name={action.icon}
                         sizeType="normal"
                         color={contentColor}
-                        style={[globalStyle.notShrink, styles.rightButton]}
+                        style={[globalStyle.notShrink, styles.rightButton, styles.iconButton]}
                         onPress={action.onPress}
                     />
                 ))}
@@ -157,7 +174,7 @@ export default function AppBar(props: IAppBarProps) {
                             setMenuIconLayout(evt.nativeEvent.layout);
                         }}
                         color={contentColor}
-                        style={[globalStyle.notShrink, styles.rightButton]}
+                        style={[globalStyle.notShrink, styles.rightButton, styles.iconButton]}
                         onPress={() => {
                             setShowMenu(true);
                         }}
@@ -240,19 +257,37 @@ const styles = StyleSheet.create({
     container: {
         width: "100%",
         zIndex: 10000,
-        height: rpx(88),
+        height: rpx(84),
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.sm,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     content: {
         flexDirection: "row",
         flexBasis: 0,
         alignItems: "center",
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.sm,
     },
     rightButton: {
-        marginLeft: spacing.md,
+        marginLeft: spacing.sm,
+    },
+    iconButton: {
+        width: rpx(56),
+        height: rpx(56),
+        minWidth: rpx(56),
+        borderRadius: radius.pill,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    elevated: {
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.03,
+        shadowRadius: 4,
+        elevation: 1,
     },
     blocker: {
         position: "absolute",

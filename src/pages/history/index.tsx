@@ -1,15 +1,12 @@
 import React, { memo, useCallback, useMemo } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import VerticalSafeAreaView from "@/components/base/verticalSafeAreaView";
 import globalStyle from "@/constants/globalStyle";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import { ImgAsset } from "@/constants/assetsConst";
-import StatusBar from "@/components/base/statusBar";
 import Color from "color";
 import musicHistory, { useMusicHistory } from "@/core/musicHistory";
-import MusicBar from "@/components/musicBar";
 import AppBar from "@/components/base/appBar";
 import { ROUTE_PATH, useNavigate } from "@/core/router";
 import { useI18N } from "@/core/i18n";
@@ -25,9 +22,14 @@ import { showDialog } from "@/components/dialogs/useDialog";
 import TitleAndTag from "@/components/mediaItem/titleAndTag";
 import LocalMusicSheet from "@/core/localMusicSheet";
 import ListEmpty from "@/components/base/listEmpty";
-import { RequestStateCode, musicHistorySheetId } from "@/constants/commonConst";
+import { RequestStateCode, internalSerializeKey, musicHistorySheetId } from "@/constants/commonConst";
+import PageShell from "@/components/base/pageShell";
+import dayjs from "dayjs";
 
 const ITEM_HEIGHT = rpx(152);
+type HistoryRow =
+    | { type: "section"; id: string; title: string }
+    | { type: "music"; id: string; musicItem: IMusic.IMusicItem; index: number };
 
 interface IHistoryItemProps {
     musicItem: IMusic.IMusicItem;
@@ -119,7 +121,7 @@ function HistoryHeader({ count }: { count: number }) {
                     fontSize="subTitle"
                     fontWeight="bold"
                     style={{ color: colors.text }}>
-                    {t("history.title")}
+                    {t("history.recentSection")}
                 </ThemeText>
                 <ThemeText
                     fontSize="description"
@@ -130,6 +132,29 @@ function HistoryHeader({ count }: { count: number }) {
             </View>
         </View>
     );
+}
+
+function getPlayedAt(musicItem: IMusic.IMusicItem) {
+    return (musicItem as any)[internalSerializeKey]?.playedAt as number | undefined;
+}
+
+function getHistorySectionTitle(
+    musicItem: IMusic.IMusicItem,
+    t: ReturnType<typeof useI18N>["t"],
+) {
+    const playedAt = getPlayedAt(musicItem);
+    if (!playedAt) {
+        return t("history.earlierSection");
+    }
+
+    const playedDay = dayjs(playedAt);
+    if (playedDay.isSame(dayjs(), "day")) {
+        return t("history.todaySection");
+    }
+    if (playedDay.isSame(dayjs().subtract(1, "day"), "day")) {
+        return t("history.yesterdaySection");
+    }
+    return t("history.earlierSection");
 }
 
 export default function History() {
@@ -147,59 +172,101 @@ export default function History() {
         [t, musicHistoryList],
     );
 
+    const historyRows = useMemo<HistoryRow[]>(() => {
+        if (!musicHistoryList.length) {
+            return [];
+        }
+        const rows: HistoryRow[] = [];
+        let previousSection = "";
+        musicHistoryList.forEach((musicItem, index) => {
+            const sectionTitle = getHistorySectionTitle(musicItem, t);
+            if (sectionTitle !== previousSection) {
+                rows.push({
+                    type: "section",
+                    id: `section-${sectionTitle}-${index}`,
+                    title: sectionTitle,
+                });
+                previousSection = sectionTitle;
+            }
+            rows.push({
+                type: "music",
+                id: `${getMediaUniqueKey(musicItem)}-${index}`,
+                musicItem,
+                index: index + 1,
+            });
+        });
+        return rows;
+    }, [musicHistoryList, t]);
+
     const renderItem = useCallback(
-        ({ item, index }: { item: IMusic.IMusicItem; index: number }) => (
-            <HistoryItem
-                musicItem={item}
-                index={index + 1}
-                musicSheet={musicSheet}
-            />
-        ),
+        ({ item }: { item: HistoryRow }) => {
+            if (item.type === "section") {
+                return (
+                    <View style={styles.sectionHeader}>
+                        <ThemeText
+                            fontSize="description"
+                            fontColor="textSecondary"
+                            fontWeight="semibold">
+                            {item.title}
+                        </ThemeText>
+                    </View>
+                );
+            }
+            return (
+                <HistoryItem
+                    musicItem={item.musicItem}
+                    index={item.index}
+                    musicSheet={musicSheet}
+                />
+            );
+        },
         [musicSheet],
     );
 
     return (
-        <VerticalSafeAreaView style={globalStyle.fwflex1}>
-            <StatusBar />
-            <AppBar
-                menu={[
-                    {
-                        icon: "trash-outline",
-                        title: t("history.clearHistory"),
-                        onPress() {
-                            if (musicHistoryList.length) {
-                                showDialog("SimpleDialog", {
-                                    title: t("history.clearHistory"),
-                                    content: t("history.clearHistoryConfirm"),
-                                    async onOk() {
-                                        musicHistory.clearMusic();
+        <PageShell
+            appBar={(
+                <AppBar
+                    menu={[
+                        {
+                            icon: "trash-outline",
+                            title: t("history.clearHistory"),
+                            onPress() {
+                                if (musicHistoryList.length) {
+                                    showDialog("SimpleDialog", {
+                                        title: t("history.clearHistory"),
+                                        content: t("history.clearHistoryConfirm"),
+                                        async onOk() {
+                                            musicHistory.clearMusic();
+                                        },
+                                    });
+                                }
+                            },
+                        },
+                        {
+                            icon: "pencil-square",
+                            title: t("common.edit"),
+                            onPress() {
+                                navigate(ROUTE_PATH.MUSIC_LIST_EDITOR, {
+                                    musicList: musicHistoryList,
+                                    musicSheet: {
+                                        id: musicHistorySheetId,
+                                        title: t("history.title"),
                                     },
                                 });
-                            }
+                            },
                         },
-                    },
-                    {
-                        icon: "pencil-square",
-                        title: t("common.edit"),
-                        onPress() {
-                            navigate(ROUTE_PATH.MUSIC_LIST_EDITOR, {
-                                musicList: musicHistoryList,
-                                musicSheet: {
-                                    id: musicHistorySheetId,
-                                    title: t("history.title"),
-                                },
-                            });
-                        },
-                    },
-                ]}>
-                {t("history.title")}
-            </AppBar>
+                    ]}>
+                    {t("history.title")}
+                </AppBar>
+            )}
+            musicBar>
             {musicHistoryList.length > 0 ? (
                 <FlashList
-                    data={musicHistoryList}
+                    data={historyRows}
                     renderItem={renderItem}
                     estimatedItemSize={ITEM_HEIGHT}
-                    keyExtractor={getMediaUniqueKey}
+                    keyExtractor={item => item.id}
                     ListHeaderComponent={
                         <HistoryHeader count={musicHistoryList.length} />
                     }
@@ -217,8 +284,7 @@ export default function History() {
                     </ThemeText>
                 </View>
             )}
-            <MusicBar />
-        </VerticalSafeAreaView>
+        </PageShell>
     );
 }
 
@@ -250,6 +316,11 @@ const styles = StyleSheet.create({
     },
     headerCount: {
         marginTop: rpx(4),
+    },
+    sectionHeader: {
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.xs,
+        paddingHorizontal: spacing.sm,
     },
     itemRow: {
         flexDirection: "row",

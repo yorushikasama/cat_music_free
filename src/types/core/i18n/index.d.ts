@@ -36,11 +36,15 @@ export interface ILanguageData {
     "common.name": string; // 名称
     "common.comment": string; // 评论
     "common.emptyList": string; // 空列表
+    "common.emptyListDescription": string; // 空列表说明
     "common.loading": string; // 加载中
+    "common.loadingDescription": string; // 加载说明
     "common.error": string; // 出错
+    "common.errorDescription": string; // 出错说明
     "common.clickToRetry": string; // 点击重试
     "common.failToLoad": string; // 加载失败
     "common.listReachEnd": string; // 列表到底
+    "setting.unknown": string; // 未知设置
 
     // 侧边栏相关
     "sidebar.basicSettings": string; // 基本设置
@@ -63,6 +67,15 @@ export interface ILanguageData {
     "home.topList": string; // 榜单
     "home.playHistory": string; // 播放历史
     "home.localMusic": string; // 本地音乐
+    "home.quickStart": string; // 快速开始
+    "home.quickRecommendDesc": string; // 推荐歌单快捷入口描述
+    "home.quickTopListDesc": string; // 榜单快捷入口描述
+    "home.quickHistoryDesc": string; // 播放历史快捷入口描述
+    "home.quickLocalDesc": string; // 本地音乐快捷入口描述
+    "home.emptyDiscoverTitle": string; // 发现页空态标题
+    "home.emptyDiscoverDescription": string; // 发现页空态描述
+    "home.emptyDiscoverPrimaryAction": string; // 发现页空态主要按钮
+    "home.emptyDiscoverSecondaryAction": string; // 发现页空态次要按钮
     "home.openSidebar.a11y": string; // 打开侧边栏
     "home.myPlaylists": string; // 我的歌单
     "home.starredPlaylists": string; // 我喜欢的歌单
@@ -72,6 +85,7 @@ export interface ILanguageData {
     "home.starredPlaylistsCount.a11y": string; // 我喜欢的歌单数量
     "home.songCount": string; // 歌曲数量
     "home.clickToSearch": string; // 点击搜索
+    "home.searchHint": string; // 搜索提示
     "home.discover": string; // 发现
     "home.sheets": string; // 歌单
     "home.profile": string; // 我的
@@ -99,6 +113,10 @@ export interface ILanguageData {
     "localMusic.scanLocalMusic": string; // 扫描本地音乐
     "localMusic.beginScan": string; // 开始扫描
     "localMusic.downloadList": string; // 下载列表
+    "localMusic.songCount": string; // 本地歌曲数量
+    "localMusic.artistCount": string; // 本地歌手数量
+    "localMusic.albumCount": string; // 本地专辑数量
+    "localMusic.lastScanAt": string; // 最近扫描时间
 
     // 歌词相关
     "lyric.lyricLinkedFrom": string; // 歌词来自
@@ -118,6 +136,8 @@ export interface ILanguageData {
     "permissionSetting.floatWindowPermissionDescription": string; // 悬浮窗权限说明
     "permissionSetting.fileReadWritePermission": string; // 文件读写权限
     "permissionSetting.fileReadWritePermissionDescription": string; // 文件读写权限说明
+    "permissionSetting.granted": string; // 已授权
+    "permissionSetting.goAuthorize": string; // 去授权
 
     // 推荐歌单相关
     "recommendSheet.title": string; // 推荐歌单
@@ -125,6 +145,11 @@ export interface ILanguageData {
     // 搜索音乐列表相关
     "searchMusicList.searchPlaceHolder": string; // 搜索音乐
     "searchMusicList.searchLabel.a11y": string; // 搜索音乐标签
+    "searchMusicList.resultCount": string; // 搜索结果数量
+    "searchMusicList.totalCount": string; // 列表总数
+    "searchMusicList.queryHint": string; // 搜索关键词提示
+    "searchMusicList.emptyTitle": string; // 搜索为空标题
+    "searchMusicList.emptyDescription": string; // 搜索为空说明
 
     // 搜索页面相关
     "searchPage.searchPlaceHolder": string; // 搜索
@@ -152,7 +177,11 @@ export interface ILanguageData {
     // 历史记录相关
     "history.title": string; // 历史记录
     "history.count": string; // 共 {count} 首
-            "history.emptyGuide": string; // 空白引导
+    "history.emptyGuide": string; // 空白引导
+    "history.recentSection": string; // 最近播放
+    "history.todaySection": string; // 今天
+    "history.yesterdaySection": string; // 昨天
+    "history.earlierSection": string; // 更早
     "history.clearHistory": string; // 清除历史记录
     "history.clearHistoryConfirm": string; // 清除历史记录确认内容
 
@@ -202,11 +231,46 @@ export interface ILanguageData {
     "pluginSetting.menu.pluginUpdateFailedDialogTitle": string; // 插件更新失败对话框标题
     "pluginSetting.fabOptions.installFromLocal": string; // 从本地安装
     "pluginSetting.fabOptions.installFromNetwork": string; // 从网络安装
+    "pluginSetting.fabOptions.batchInstall": string; // 批量安装插件
     "pluginSetting.fabOptions.updateAllPlugins": string; // 更新所有插件
     "pluginSetting.fabOptions.updateSubscription": string; // 更新订阅
+    "pluginSetting.fabOptions.pluginMarket": string; // 插件广场
+    "pluginSetting.market.title": string; // 插件广场
+    "pluginSetting.market.searchPlaceholder": string; // 插件广场搜索占位符
+    "pluginSetting.market.securityNotice": string; // 插件广场安全提示
+    "pluginSetting.market.filterAll": string; // 全部
+    "pluginSetting.market.filterNotInstalled": string; // 未安装
+    "pluginSetting.market.filterInstalled": string; // 已安装
+    "pluginSetting.market.filterWarning": string; // 需注意
+    "pluginSetting.market.installed": string; // 已安装
+    "pluginSetting.market.httpTag": string; // HTTP
+    "pluginSetting.market.nonJsTag": string; // 特殊链接
+    "pluginSetting.market.selectedCount": string; // 已选择插件数量
+    "pluginSetting.market.emptyTitle": string; // 插件广场空态标题
+    "pluginSetting.market.emptyDescription": string; // 插件广场空态说明
+    "pluginSetting.market.loadFailed": string; // 插件目录加载失败
     "pluginSetting.failReason": string; // 失败原因
     "pluginSetting.pluginInstallFailedDialogContent": string; // 插件安装失败对话框内容
     "pluginSetting.pluginUpdateFailedDialogContent": string; // 插件更新失败对话框内容
+    "pluginSetting.batchInstall.title": string; // 批量安装插件
+    "pluginSetting.batchInstall.install": string; // 安装
+    "pluginSetting.batchInstall.tabManualInput": string; // 手动输入
+    "pluginSetting.batchInstall.tabImportFile": string; // 导入文件
+    "pluginSetting.batchInstall.urlHint": string; // URL输入提示
+    "pluginSetting.batchInstall.urlInputLabel": string; // URL输入框标签
+    "pluginSetting.batchInstall.urlPlaceholder": string; // URL输入占位符
+    "pluginSetting.batchInstall.installFromListUrl": string; // 从列表URL安装
+    "pluginSetting.batchInstall.fileHint": string; // 文件导入提示
+    "pluginSetting.batchInstall.selectFile": string; // 选择文件
+    "pluginSetting.batchInstall.supportedFormats": string; // 支持格式
+    "pluginSetting.batchInstall.formatExamplesTitle": string; // 文件格式示例标题
+    "pluginSetting.batchInstall.noValidUrls": string; // 无有效URL
+    "pluginSetting.batchInstall.unsupportedFileType": string; // 不支持的文件格式
+    "pluginSetting.batchInstall.fileParseError": string; // 文件解析失败
+    "pluginSetting.batchInstall.installing": string; // 正在安装
+    "pluginSetting.batchInstall.allSuccess": string; // 全部安装成功
+    "pluginSetting.batchInstall.partialFailed": string; // 部分安装失败
+    "pluginSetting.batchInstall.allFailed": string; // 全部安装失败
 
     // 提示消息相关 - 插件操作
     "toast.pluginUpdateSuccess": string; // 插件更新成功
@@ -244,6 +308,9 @@ export interface ILanguageData {
 
     // 自定义主题相关
     "setCustomTheme.customizeBackground": string; // 自定义背景
+    "setCustomTheme.chooseBackground": string; // 选择背景
+    "setCustomTheme.changeBackground": string; // 更换背景
+    "setCustomTheme.clearBackground": string; // 清除背景
     "setCustomTheme.blur": string; // 模糊
     "setCustomTheme.opacity": string; // 不透明度
     "setCustomTheme.primaryColor": string; // 主题色
@@ -333,6 +400,12 @@ export interface ILanguageData {
     "basicSettings.download": string; // 下载
     "basicSettings.downloadPath": string; // 下载路径
     "basicSettings.fileSelector.selectFolder": string; // 选择文件夹
+    "fileSelector.storageRoots": string; // 存储位置
+    "fileSelector.currentLocation": string; // 当前位置
+    "fileSelector.parentFolder": string; // 返回上级
+    "fileSelector.selectedCount": string; // 已选数量
+    "fileSelector.emptyTitle": string; // 文件选择器空态标题
+    "fileSelector.emptyDescription": string; // 文件选择器空态说明
     "basicSettings.maxDownload": string; // 最大同时下载数目
     "basicSettings.defaultDownloadQuality": string; // 默认下载音质
     "basicSettings.downloadQualityOrder": string; // 默认下载音质缺失时

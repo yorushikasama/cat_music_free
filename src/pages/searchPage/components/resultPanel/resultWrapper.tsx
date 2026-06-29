@@ -1,15 +1,19 @@
 import ListEmpty from "@/components/base/listEmpty";
 import ListFooter from "@/components/base/listFooter";
-import Loading from "@/components/base/loading";
 import { RequestStateCode } from "@/constants/commonConst";
 import useOrientation from "@/hooks/useOrientation";
 import rpx from "@/utils/rpx";
 import { FlashList } from "@shopify/flash-list";
 import { useAtomValue } from "jotai";
 import React, { memo, useCallback, useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
 import useSearch from "../../hooks/useSearch";
 import { ISearchResult, queryAtom } from "../../store/atoms";
 import { renderMap } from "./results";
+import useColors from "@/hooks/useColors";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
+import SkeletonList from "@/components/base/skeleton";
 
 interface IResultWrapperProps<
     T extends ICommon.SupportMediaType = ICommon.SupportMediaType,
@@ -28,9 +32,11 @@ function ResultWrapper(props: IResultWrapperProps) {
     );
     const orientation = useOrientation();
     const query = useAtomValue(queryAtom);
+    const colors = useColors();
 
     const ResultComponent = renderMap[tab]!;
     const data: any = searchResult?.data ?? [];
+    const isSheet = tab === "sheet";
 
     const keyExtractor = useCallback(
         (item: any, i: number) => `${i}-${item.platform}-${item.id}`,
@@ -47,17 +53,37 @@ function ResultWrapper(props: IResultWrapperProps) {
         setSearchState(searchResult?.state ?? RequestStateCode.IDLE);
     }, [searchResult]);
 
-    const renderItem = ({ item, index }: any) => (
-        <ResultComponent
-            item={item}
-            index={index}
-            pluginHash={pluginHash}
-            pluginSearchResultRef={pluginSearchResultRef}
-        />
-    );
+    const renderItem = ({ item, index }: any) => {
+        const content = (
+            <ResultComponent
+                item={item}
+                index={index}
+                pluginHash={pluginHash}
+                pluginSearchResultRef={pluginSearchResultRef}
+            />
+        );
+
+        if (isSheet) {
+            return content;
+        }
+
+        return (
+            <View
+                style={[
+                    styles.resultCard,
+                    {
+                        backgroundColor: colors.surfacePrimary,
+                        borderColor: colors.divider,
+                        shadowColor: colors.shadow,
+                    },
+                ]}>
+                {content}
+            </View>
+        );
+    };
 
     return searchState === RequestStateCode.PENDING_FIRST_PAGE ? (
-        <Loading />
+        <SkeletonList count={7} />
     ) : (
         <FlashList
             extraData={searchState}
@@ -67,6 +93,8 @@ function ResultWrapper(props: IResultWrapperProps) {
             ListFooterComponent={data?.length ? <ListFooter state={searchState} onRetry={() => {
                 search(query, undefined, tab, pluginHash);
             }} /> : null}
+            ItemSeparatorComponent={isSheet ? undefined : Separator}
+            contentContainerStyle={isSheet ? styles.sheetContent : styles.listContent}
             data={data}
             refreshing={false}
             onRefresh={() => {
@@ -77,9 +105,9 @@ function ResultWrapper(props: IResultWrapperProps) {
                     searchState === RequestStateCode.IDLE) &&
                     search(undefined, undefined, tab, pluginHash);
             }}
-            estimatedItemSize={tab === "sheet" ? rpx(306) : rpx(120)}
+            estimatedItemSize={isSheet ? rpx(306) : rpx(134)}
             numColumns={
-                tab === "sheet" ? (orientation === "vertical" ? 3 : 4) : 1
+                isSheet ? (orientation === "vertical" ? 3 : 4) : 1
             }
             renderItem={renderItem}
             keyExtractor={keyExtractor}
@@ -88,3 +116,35 @@ function ResultWrapper(props: IResultWrapperProps) {
 }
 
 export default memo(ResultWrapper);
+
+function Separator() {
+    return <View style={styles.separator} />;
+}
+
+const styles = StyleSheet.create({
+    listContent: {
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.sm,
+        paddingBottom: rpx(180),
+    },
+    sheetContent: {
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.md,
+        paddingBottom: rpx(180),
+    },
+    resultCard: {
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        overflow: "hidden",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+        elevation: 1,
+    },
+    separator: {
+        height: spacing.sm,
+    },
+});

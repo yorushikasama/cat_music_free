@@ -15,6 +15,12 @@ import Icon from "@/components/base/icon.tsx";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 
+type IMusicBarVariant = "default" | "floating";
+
+interface IMusicBarProps {
+    variant?: IMusicBarVariant;
+}
+
 function CircularPlayBtn() {
     const progress = useProgress();
     const musicState = useMusicState();
@@ -63,38 +69,61 @@ function CircularPlayBtn() {
     );
 }
 
-function MusicBar() {
+function MusicBar(props: IMusicBarProps) {
+    const { variant = "default" } = props;
     const musicItem = useCurrentMusic();
     const colors = useColors();
     const safeAreaInsets = useSafeAreaInsets();
     const theme = Theme.useTheme();
 
+    const isFloating = variant === "floating";
     const barBgColor = colors.musicBar ?? colors.surfacePrimary;
     const playlistIconColor = colors.playlistIconColor;
 
-    const wrapperBorderRadius = theme.dark ? radius.md : radius.xl;
+    const wrapperBorderRadius = isFloating
+        ? radius.xxl
+        : theme.dark
+            ? radius.md
+            : radius.xl;
+    const horizontalInset = isFloating ? spacing.md : 0;
+    const musicInfoPaddingLeft = isFloating ? spacing.md : undefined;
+    const wrapperVariantStyle = isFloating
+        ? styles.floatingWrapper
+        : styles.dockedWrapper;
+    const actionGroupVariantStyle = isFloating
+        ? styles.floatingActionGroup
+        : null;
+    const shadowStyle = isFloating
+        ? styles.floatingShadow
+        : styles.dockedShadow;
 
     return (
         <View
             style={[
                 styles.wrapper,
+                wrapperVariantStyle,
+                shadowStyle,
                 {
-                    borderTopLeftRadius: wrapperBorderRadius,
-                    borderTopRightRadius: wrapperBorderRadius,
+                    borderRadius: wrapperBorderRadius,
                     backgroundColor: barBgColor,
-                    paddingRight: safeAreaInsets.right + spacing.md,
+                    marginHorizontal: horizontalInset,
+                    paddingRight:
+                        (isFloating ? 0 : safeAreaInsets.right) + spacing.md,
                     shadowColor: colors.shadowMedium,
-                    shadowOffset: { width: 0, height: -2 },
-                    shadowOpacity: 1,
-                    shadowRadius: 8,
-                    elevation: 8,
                 },
             ]}
             accessible
             accessibilityLabel={`歌曲: ${musicItem?.title} 歌手: ${musicItem?.artist}`}
         >
-            <MusicInfo musicItem={musicItem} />
-            <View style={styles.actionGroup}>
+            <MusicInfo
+                musicItem={musicItem}
+                paddingLeft={musicInfoPaddingLeft}
+            />
+            <View
+                style={[
+                    styles.actionGroup,
+                    actionGroupVariantStyle,
+                ]}>
                 <CircularPlayBtn />
                 <Icon
                     accessible
@@ -116,11 +145,30 @@ export default memo(MusicBar);
 
 const styles = StyleSheet.create({
     wrapper: {
-        width: "100%",
         height: rpx(132),
         flexDirection: "row",
         alignItems: "center",
         overflow: "hidden",
+    },
+    dockedWrapper: {
+        width: "100%",
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+    },
+    floatingWrapper: {
+        height: rpx(112),
+    },
+    dockedShadow: {
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 1,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    floatingShadow: {
+        shadowOffset: { width: 0, height: rpx(8) },
+        shadowOpacity: 0.18,
+        shadowRadius: rpx(12),
+        elevation: 10,
     },
     actionGroup: {
         width: rpx(200),
@@ -128,7 +176,10 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
     },
+    floatingActionGroup: {
+        width: rpx(172),
+    },
     actionIcon: {
-        marginLeft: rpx(36),
+        marginLeft: rpx(28),
     },
 });

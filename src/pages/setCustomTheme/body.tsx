@@ -17,11 +17,14 @@ import { copyFile } from "react-native-fs";
 import { ScrollView, TouchableOpacity } from "react-native-gesture-handler";
 import ImageColors from "react-native-image-colors";
 import { launchImageLibrary } from "react-native-image-picker";
+import Icon from "@/components/base/icon";
 
 export default function Body() {
     const theme = Theme.useTheme();
     const backgroundInfo = Theme.useBackground();
     const { t } = useI18N();
+    const hasBackground = !!backgroundInfo?.url;
+    const primaryTextColor = readableOn(theme.colors.primary);
 
     async function onImageClick() {
         try {
@@ -116,6 +119,51 @@ export default function Body() {
                 />
             </TouchableOpacity>
 
+            <View style={styles.backgroundActions}>
+                <TouchableOpacity
+                    activeOpacity={0.78}
+                    onPress={onImageClick}
+                    style={[
+                        styles.backgroundActionPrimary,
+                        { backgroundColor: theme.colors.primary },
+                    ]}>
+                    <Icon
+                        name="arrow-up-tray"
+                        size={rpx(26)}
+                        color={primaryTextColor}
+                    />
+                    <ThemeText
+                        fontSize="description"
+                        fontWeight="semibold"
+                        color={primaryTextColor}>
+                        {hasBackground
+                            ? t("setCustomTheme.changeBackground")
+                            : t("setCustomTheme.chooseBackground")}
+                    </ThemeText>
+                </TouchableOpacity>
+                {hasBackground ? (
+                    <TouchableOpacity
+                        activeOpacity={0.72}
+                        onPress={Theme.clearBackground}
+                        style={[
+                            styles.backgroundActionSecondary,
+                            { borderColor: theme.colors.divider },
+                        ]}>
+                        <Icon
+                            name="trash-outline"
+                            size={rpx(26)}
+                            color={theme.colors.danger ?? theme.colors.text}
+                        />
+                        <ThemeText
+                            fontSize="description"
+                            fontWeight="semibold"
+                            style={{ color: theme.colors.danger ?? theme.colors.text }}>
+                            {t("setCustomTheme.clearBackground")}
+                        </ThemeText>
+                    </TouchableOpacity>
+                ) : null}
+            </View>
+
             <View style={styles.sliderWrapper}>
                 <ThemeText>{t("setCustomTheme.blur")}</ThemeText>
                 <Slider
@@ -201,6 +249,17 @@ export default function Body() {
     );
 }
 
+function readableOn(color: string) {
+    try {
+        const base = Color(color);
+        const light = Color("#ffffff");
+        const dark = Color("#111111");
+        return base.contrast(light) >= base.contrast(dark) ? "#ffffff" : "#111111";
+    } catch {
+        return "#ffffff";
+    }
+}
+
 const styles = StyleSheet.create({
     container: {
         width: "100%",
@@ -212,6 +271,33 @@ const styles = StyleSheet.create({
         width: rpx(460),
         height: rpx(690),
         alignSelf: "center",
+    },
+    backgroundActions: {
+        marginTop: rpx(24),
+        paddingHorizontal: rpx(24),
+        flexDirection: "row",
+        justifyContent: "center",
+        flexWrap: "wrap",
+        gap: rpx(18),
+    },
+    backgroundActionPrimary: {
+        minHeight: rpx(56),
+        borderRadius: rpx(999),
+        paddingHorizontal: rpx(26),
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: rpx(10),
+    },
+    backgroundActionSecondary: {
+        minHeight: rpx(56),
+        borderRadius: rpx(999),
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: rpx(26),
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: rpx(10),
     },
     sliderWrapper: {
         marginTop: rpx(48),

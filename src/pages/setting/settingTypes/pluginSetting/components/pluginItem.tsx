@@ -16,6 +16,8 @@ import { IIconName } from "@/components/base/icon.tsx";
 import { useI18N } from "@/core/i18n";
 import IconButton from "@/components/base/iconButton";
 import useRerender from "@/hooks/useRerender";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
 
 interface IPluginItemProps {
     plugin: Plugin;
@@ -204,7 +206,8 @@ function _PluginItem(props: IPluginItemProps) {
             style={[
                 styles.container,
                 {
-                    backgroundColor: colors.card,
+                    backgroundColor: colors.surfacePrimary,
+                    borderColor: colors.divider,
                 },
             ]}>
             <View style={styles.header}>
@@ -262,6 +265,13 @@ function _PluginItem(props: IPluginItemProps) {
                         <IconTextButton
                             key={index}
                             icon={it.icon}
+                            containerStyle={[
+                                styles.optionButton,
+                                {
+                                    backgroundColor: colors.surfaceSecondary,
+                                    borderColor: colors.divider,
+                                },
+                            ]}
                             onPress={it.onPress}>
                             {it.title}
                         </IconTextButton>
@@ -269,45 +279,6 @@ function _PluginItem(props: IPluginItemProps) {
                 )}
             </View>
         </View>
-        // <List.Accordion
-        //     theme={{
-        //         colors: {
-        //             primary: colors.textHighlight,
-        //         },
-        //     }}
-        //     style={{
-        //         height: ITEM_HEIGHT_BIG,
-        //     }}
-        //     titleStyle={[
-        //         {
-        //             fontSize: fontSizeConst.title,
-        //             fontWeight: fontWeightConst.semibold,
-        //         },
-        //         plugin.state === 'error' ? {color: 'red'} : undefined,
-        //     ]}
-        //     key={`plg-${plugin.hash}`}
-        //     title={`${plugin.name}${
-        //         plugin.instance.version ? `(${plugin.instance.version})` : ''
-        //     }`}
-        //     description={
-        //         plugin.stateCode === PluginStateCode.VersionNotMatch
-        //             ? '插件和app版本不兼容'
-        //             : plugin.stateCode === PluginStateCode.CannotParse
-        //             ? '无法解析插件'
-        //             : undefined
-        //     }>
-        //     {options.map(_ =>
-        //         _.show ? (
-        //             <ListItem
-        //                 withHorizontalPadding
-        //                 key={`${plugin.hash}${_.title}`}
-        //                 onPress={_.onPress}>
-        //                 <ListItem.ListItemIcon icon={_.icon} />
-        //                 <ListItem.Content title={_.title} />
-        //             </ListItem>
-        //         ) : null,
-        //     )}
-        // </List.Accordion>
     );
 }
 
@@ -319,13 +290,14 @@ export default PluginItem;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        borderRadius: rpx(8),
-        marginHorizontal: rpx(24),
-        paddingVertical: rpx(18),
-        marginTop: rpx(36),
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        marginHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+        marginTop: spacing.md,
     },
     header: {
-        paddingHorizontal: rpx(16),
+        paddingHorizontal: spacing.md,
         flexDirection: "row",
         alignItems: "center",
     },
@@ -337,24 +309,29 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     author: {
-        marginLeft: rpx(24),
+        marginLeft: spacing.md,
         flexShrink: 1,
         flexGrow: 1,
     },
     description: {
-        marginHorizontal: rpx(16),
-        marginVertical: rpx(24),
+        marginHorizontal: spacing.md,
+        marginVertical: spacing.md,
         flexDirection: "row",
     },
     alternativePluginDescription: {
-        marginHorizontal: rpx(16),
-        marginBottom: rpx(24),
+        marginHorizontal: spacing.md,
+        marginBottom: spacing.md,
         flexDirection: "row",
     },
     contents: {
         flexDirection: "row",
-        justifyContent: "space-between",
         flexWrap: "wrap",
-        gap: rpx(16),
+        gap: spacing.sm,
+        paddingHorizontal: spacing.md,
+    },
+    optionButton: {
+        minHeight: rpx(56),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
     },
 });

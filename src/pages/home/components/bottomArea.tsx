@@ -12,8 +12,10 @@ import BottomTabBar from "./bottomTabBar";
 import MusicBar from "@/components/musicBar";
 import { useCurrentMusic } from "@/core/trackPlayer";
 import { timingConfig } from "@/constants/commonConst";
+import { spacing } from "@/constants/spacing";
 
-const MUSIC_BAR_HEIGHT = rpx(132);
+const FLOATING_MUSIC_BAR_HEIGHT = rpx(112);
+const FLOATING_MUSIC_BAR_GAP = spacing.sm;
 
 export default function BottomArea(props: BottomTabBarProps) {
     const musicItem = useCurrentMusic();
@@ -42,7 +44,9 @@ export default function BottomArea(props: BottomTabBarProps) {
         if (shouldShowBar !== prevShouldShowRef.current) {
             prevShouldShowRef.current = shouldShowBar;
             barHeight.value = withTiming(
-                shouldShowBar ? MUSIC_BAR_HEIGHT : 0,
+                shouldShowBar
+                    ? FLOATING_MUSIC_BAR_HEIGHT + FLOATING_MUSIC_BAR_GAP
+                    : 0,
                 timingConfig.animationFast,
             );
         }
@@ -54,9 +58,9 @@ export default function BottomArea(props: BottomTabBarProps) {
     }));
 
     return (
-        <View>
+        <View style={styles.container} pointerEvents="box-none">
             <Animated.View style={[styles.musicBarWrapper, musicBarWrapperStyle]}>
-                <MusicBar />
+                <MusicBar variant="floating" />
             </Animated.View>
             <BottomTabBar {...props} />
             <View style={{ height: safeAreaInsets.bottom }} />
@@ -65,7 +69,11 @@ export default function BottomArea(props: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
+    container: {
+        backgroundColor: "transparent",
+    },
     musicBarWrapper: {
         overflow: "hidden",
+        paddingBottom: FLOATING_MUSIC_BAR_GAP,
     },
 });

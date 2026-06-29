@@ -3,11 +3,12 @@ import { fontSizeConst } from "@/constants/uiConst";
 import useColors from "@/hooks/useColors";
 import rpx from "@/utils/rpx";
 import React from "react";
-import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import ThemeText from "./themeText";
 import { useI18N } from "@/core/i18n";
 import { spacing } from "@/constants/spacing";
-import { radius } from "@/constants/borderRadius";
+import Empty from "./empty";
+import Color from "color";
 
 interface IEmptyProps {
     state: RequestStateCode
@@ -20,29 +21,48 @@ export default function ListEmpty(props: IEmptyProps) {
     const { t } = useI18N();
 
     if (state === RequestStateCode.FINISHED || state === RequestStateCode.PARTLY_DONE) {
-        return <View style={style.wrapper}>
-            <ThemeText fontSize="title">
-                {t("common.emptyList")}
-            </ThemeText>
-        </View>;
+        return (
+            <Empty
+                icon="archive-box-x-mark"
+                title={t("common.emptyList")}
+                description={t("common.emptyListDescription")}
+                minHeight={rpx(540)}
+            />
+        );
     } else if (state === RequestStateCode.PENDING_FIRST_PAGE) {
         return <View style={style.wrapper}>
-            <ActivityIndicator animating color={colors.text} size={fontSizeConst.appbar}/>
+            <View style={[
+                style.loadingIndicator,
+                {
+                    backgroundColor: Color(colors.primary).alpha(0.12).rgb().string(),
+                },
+            ]}>
+                <ActivityIndicator animating color={colors.primary} size={fontSizeConst.appbar}/>
+            </View>
             <ThemeText
                 fontSize="title"
                 fontWeight="semibold">
                 {t("common.loading")}
             </ThemeText>
+            <ThemeText
+                fontSize="subTitle"
+                fontColor="textSecondary"
+                lineHeight
+                style={style.description}>
+                {t("common.loadingDescription")}
+            </ThemeText>
         </View>;
     } else if (state === RequestStateCode.ERROR) {
-        return <View style={style.wrapper}>
-            <ThemeText fontSize="title">
-                {t("common.error")}
-            </ThemeText>
-            <TouchableOpacity onPress={onRetry} style={[style.retryButton, { backgroundColor: colors.surfaceTertiary }]}>
-                <ThemeText>{t("common.clickToRetry")}</ThemeText>
-            </TouchableOpacity>
-        </View>;
+        return (
+            <Empty
+                icon="exclamation-circle"
+                title={t("common.error")}
+                description={t("common.errorDescription")}
+                actionText={t("common.clickToRetry")}
+                onAction={onRetry}
+                minHeight={rpx(540)}
+            />
+        );
     }
 
 }
@@ -54,11 +74,19 @@ const style = StyleSheet.create({
         minHeight: rpx(540),
         justifyContent: "center",
         alignItems: "center",
-        gap: spacing.xxxl,
-    },
-    retryButton: {
-        paddingVertical: spacing.md,
         paddingHorizontal: spacing.xxl,
-        borderRadius: radius.pill,
+    },
+    loadingIndicator: {
+        width: rpx(104),
+        height: rpx(104),
+        borderRadius: rpx(52),
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: spacing.md,
+    },
+    description: {
+        textAlign: "center",
+        marginTop: spacing.sm,
+        maxWidth: rpx(520),
     },
 });

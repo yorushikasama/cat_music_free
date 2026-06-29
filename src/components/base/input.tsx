@@ -6,6 +6,7 @@ import { StyleSheet, TextInput, TextInputProps, View } from "react-native";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 import ThemeText from "@/components/base/themeText";
+import Icon from "@/components/base/icon";
 
 type InputVariant = "filled" | "outlined" | "underline";
 
@@ -33,7 +34,7 @@ export default function Input(props: IInputProps) {
                 ? colors.primary
                 : colors.divider ?? "rgba(0,0,0,0.1)";
 
-    const borderWidth = focused || error || success ? 1.5 : variant === "underline" ? 1 : 0;
+    const borderWidth = focused || error || success ? 1.5 : variant === "underline" || variant === "outlined" ? 1 : 0;
 
     const variantStyle = (() => {
         switch (variant) {
@@ -61,7 +62,8 @@ export default function Input(props: IInputProps) {
         }
     })();
 
-    const statusIcon = error ? "✕" : success ? "✓" : null;
+    const statusIcon = error ? "x-mark" : success ? "check" : null;
+    const statusColor = error ? colors.danger : colors.success;
 
     return (
         <View style={styles.wrapper}>
@@ -86,16 +88,16 @@ export default function Input(props: IInputProps) {
             {(error || success) && (
                 <View style={styles.statusRow}>
                     {statusIcon && (
-                        <ThemeText
-                            color={error ? colors.danger : colors.success}
-                            fontSize="tag"
-                            style={styles.statusIcon}>
-                            {statusIcon}
-                        </ThemeText>
+                        <Icon
+                            name={statusIcon}
+                            size={rpx(18)}
+                            color={statusColor}
+                            style={styles.statusIcon}
+                        />
                     )}
                     {errorMessage && (
                         <ThemeText
-                            color={error ? colors.danger : colors.success}
+                            color={statusColor}
                             fontSize="tag">
                             {errorMessage}
                         </ThemeText>

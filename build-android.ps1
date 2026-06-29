@@ -149,11 +149,19 @@ if (-not (Test-Path $Gradlew)) {
 Write-Success "Project structure check passed"
 
 $defenderPaths = @($ProjectRoot, $AndroidDir)
-$nodePath = (Get-Command node -ErrorAction SilentlyContinue)?.Source
+$nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+$nodePath = $null
+if ($nodeCommand) {
+    $nodePath = $nodeCommand.Source
+}
 if ($nodePath) {
     $defenderPaths += $nodePath
 }
-$existingExclusions = (Get-MpPreference -ErrorAction SilentlyContinue)?.ExclusionPath
+$mpPreference = Get-MpPreference -ErrorAction SilentlyContinue
+$existingExclusions = @()
+if ($mpPreference) {
+    $existingExclusions = $mpPreference.ExclusionPath
+}
 foreach ($path in $defenderPaths) {
     if ($existingExclusions -notcontains $path) {
         try {

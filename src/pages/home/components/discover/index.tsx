@@ -3,12 +3,13 @@ import {
     StyleSheet,
     View,
     ScrollView,
-    Pressable,
     TouchableOpacity,
+    useWindowDimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { FlashList } from "@shopify/flash-list";
 import { useAtomValue } from "jotai";
+import Color from "color";
 
 import globalStyle from "@/constants/globalStyle";
 import { spacing } from "@/constants/spacing";
@@ -24,10 +25,11 @@ import { getMediaUniqueKey } from "@/utils/mediaUtils";
 
 import Tag from "@/components/base/tag";
 import ThemeText from "@/components/base/themeText";
-import Icon from "@/components/base/icon.tsx";
+import Icon, { IIconName } from "@/components/base/icon.tsx";
 import FastImage from "@/components/base/fastImage";
 import ListEmpty from "@/components/base/listEmpty";
-import Loading from "@/components/base/loading";
+import { SkeletonBlock } from "@/components/base/skeleton";
+import SearchInput from "@/components/base/searchInput";
 
 import { useI18N } from "@/core/i18n";
 import { ROUTE_PATH, useNavigate } from "@/core/router";
@@ -45,6 +47,27 @@ const SHEET_CARD_WIDTH = rpx(280);
 const SHEET_IMAGE_SIZE = rpx(280);
 const SONG_IMAGE_SIZE = rpx(112);
 const RECENT_PLAY_COUNT = 6;
+const QUICK_GRID_GAP = spacing.md;
+const HOME_BOTTOM_OVERLAY_SPACE = rpx(286);
+
+function alpha(color: string, value: number) {
+    try {
+        return Color(color).alpha(value).rgb().string();
+    } catch {
+        return color;
+    }
+}
+
+function readableOn(color: string) {
+    try {
+        const base = Color(color);
+        const light = Color("#ffffff");
+        const dark = Color("#111111");
+        return base.contrast(light) >= base.contrast(dark) ? "#ffffff" : "#111111";
+    } catch {
+        return "#ffffff";
+    }
+}
 
 // ==================== 类型 ====================
 interface IDiscoverSectionProps {
@@ -61,6 +84,13 @@ interface ISheetCardProps {
 
 interface ISongRowProps {
     music: IMusic.IMusicItem;
+}
+
+interface IQuickAction {
+    icon: IIconName;
+    title: string;
+    description: string;
+    onPress: () => void;
 }
 
 // ==================== 子组件 ====================
@@ -182,7 +212,15 @@ const SongRow = memo(function SongRow(props: ISongRowProps) {
                 {music.platform ? (
                     <Tag
                         tagName={music.platform}
-                        containerStyle={{ marginTop: rpx(4) }}
+                        numberOfLines={1}
+                        containerStyle={[
+                            styles.songSourceTag,
+                            {
+                                backgroundColor: alpha(colors.primary, 0.08),
+                                borderColor: alpha(colors.primary, 0.18),
+                            },
+                        ]}
+                        style={{ color: colors.textSecondary }}
                     />
                 ) : null}
             </View>
@@ -226,6 +264,62 @@ function HorizontalSheetList(props: {
                 `sheet-${item.platform}-${item.id}-${index}`
             }
         />
+    );
+}
+
+function SheetSkeletonRow() {
+    return (
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalListContent}>
+            {Array.from({ length: 4 }).map((_, index) => (
+                <View key={index} style={styles.sheetCard}>
+                    <SkeletonBlock
+                        width={SHEET_IMAGE_SIZE}
+                        height={SHEET_IMAGE_SIZE}
+                        radius={radius.xl}
+                    />
+                    <SkeletonBlock
+                        width="86%"
+                        height={rpx(28)}
+                        style={styles.sheetSkeletonTitle}
+                    />
+                    <SkeletonBlock
+                        width="58%"
+                        height={rpx(22)}
+                        style={styles.sheetSkeletonMeta}
+                    />
+                </View>
+            ))}
+        </ScrollView>
+    );
+}
+
+function TopListSkeletonSection() {
+    return (
+        <DiscoverSection title="">
+            <View style={styles.topListGroup}>
+                {Array.from({ length: 3 }).map((_, index) => (
+                    <View key={index} style={styles.topListItem}>
+                        <SkeletonBlock
+                            width={SONG_IMAGE_SIZE}
+                            height={SONG_IMAGE_SIZE}
+                            radius={radius.lg}
+                            style={styles.topListImage}
+                        />
+                        <View style={styles.topListInfo}>
+                            <SkeletonBlock width="64%" height={rpx(26)} />
+                            <SkeletonBlock
+                                width="42%"
+                                height={rpx(22)}
+                                style={styles.topListDesc}
+                            />
+                        </View>
+                    </View>
+                ))}
+            </View>
+        </DiscoverSection>
     );
 }
 
@@ -316,23 +410,17 @@ export default function Discover() {
     const { t } = useI18N();
     const navigate = useNavigate();
     const navigation = useNavigation<any>();
+    const { width } = useWindowDimensions();
 
-    const plugins = usePlugins();
+    usePlugins();
 
     // 获取支持推荐歌单的插件
-    const recommendPlugins = useMemo(
-        () =>
-            PluginManager.getSortedPluginsWithAbility(
-                "getRecommendSheetsByTag",
-            ),
-        [plugins],
+    const recommendPlugins = PluginManager.getSortedPluginsWithAbility(
+        "getRecommendSheetsByTag",
     );
 
     // 获取支持榜单的插件
-    const topListPlugins = useMemo(
-        () => PluginManager.getSortedPluginsWithAbility("getTopLists"),
-        [plugins],
-    );
+    const topListPlugins = PluginManager.getSortedPluginsWithAbility("getTopLists");
 
     // 推荐歌单数据
     const [recommendSheets, setRecommendSheets] = useState<
@@ -384,106 +472,186 @@ export default function Discover() {
     }, [firstTopListPlugin, getTopList]);
 
     // 快捷入口数据
-    const quickActions = useMemo(
+    const quickActions = useMemo<IQuickAction[]>(
         () => [
             {
-                icon: "fire" as const,
+                icon: "fire",
                 title: t("home.recommendSheet"),
+                description: t("home.quickRecommendDesc"),
                 onPress: () => navigate(ROUTE_PATH.RECOMMEND_SHEETS),
             },
             {
-                icon: "trophy" as const,
+                icon: "trophy",
                 title: t("home.topList"),
+                description: t("home.quickTopListDesc"),
                 onPress: () => navigate(ROUTE_PATH.TOP_LIST),
             },
             {
-                icon: "clock-outline" as const,
+                icon: "clock-outline",
                 title: t("home.playHistory"),
+                description: t("home.quickHistoryDesc"),
                 onPress: () => navigate(ROUTE_PATH.HISTORY),
             },
             {
-                icon: "folder-music-outline" as const,
+                icon: "folder-music-outline",
                 title: t("home.localMusic"),
+                description: t("home.quickLocalDesc"),
                 onPress: () => navigate(ROUTE_PATH.LOCAL),
             },
         ],
         [t, navigate],
     );
 
+    const showEmptyGuide = !firstRecommendPlugin && !firstTopListPlugin;
+    const quickGridWidth = width - spacing.lg * 2;
+    const quickActionWidth = Math.max(
+        rpx(138),
+        (quickGridWidth - QUICK_GRID_GAP * 3) / 4,
+    );
+
     return (
         <ScrollView
             style={globalStyle.fwflex1}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}>
-            {/* 顶部大标题 */}
-            <View style={styles.header}>
+            <View style={styles.hero}>
+                <View style={styles.heroHeader}>
+                    <View style={styles.heroCopy}>
+                        <ThemeText
+                            fontSize="appbar"
+                            fontWeight="bold"
+                            style={[styles.headerTitle, { color: colors.text }]}>
+                            {t("home.discover")}
+                        </ThemeText>
+                    </View>
+                </View>
+
+                <SearchInput
+                    containerStyle={styles.searchBar}
+                    accessible
+                    accessibilityLabel={t("home.clickToSearch")}
+                    placeholder={t("home.clickToSearch")}
+                    value=""
+                    editable={false}
+                    onPress={() => {
+                        navigation.navigate(ROUTE_PATH.SEARCH_PAGE);
+                    }}
+                />
+            </View>
+
+            <View style={styles.quickHeader}>
                 <ThemeText
-                    fontSize="appbar"
+                    fontSize="title"
                     fontWeight="bold"
-                    style={[styles.headerTitle, { color: colors.text }]}>
-                    {t("home.discover")}
+                    style={{ color: colors.text }}>
+                    {t("home.quickStart")}
                 </ThemeText>
             </View>
 
-            {/* 搜索栏 */}
-            <Pressable
-                style={[
-                    styles.searchBar,
-                    {
-                        backgroundColor: colors.surfaceTertiary,
-                    },
-                ]}
-                accessible
-                accessibilityLabel={t("home.clickToSearch")}
-                onPress={() => {
-                    navigation.navigate(ROUTE_PATH.SEARCH_PAGE);
-                }}>
-                <View style={styles.searchBarInner}>
-                    <Icon
-                        accessible={false}
-                        name="magnifying-glass"
-                        size={rpx(28)}
-                        color={colors.textSecondary}
-                    />
-                    <ThemeText
-                        accessible={false}
-                        fontSize="subTitle"
-                        fontColor="textSecondary"
-                        style={styles.searchText}>
-                        {t("home.clickToSearch")}
-                    </ThemeText>
-                </View>
-            </Pressable>
-
-            {/* 快捷入口 */}
-            <View style={[styles.quickActions, { backgroundColor: colors.surfacePrimary }]}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.quickGrid}>
                 {quickActions.map(action => (
                     <TouchableOpacity
                         key={action.title}
-                        activeOpacity={0.7}
-                        style={styles.quickActionItem}
+                        activeOpacity={0.75}
+                        accessibilityRole="button"
+                        accessibilityLabel={action.title}
+                        style={[
+                            styles.quickActionItem,
+                            { width: quickActionWidth },
+                        ]}
                         onPress={action.onPress}>
                         <View
                             style={[
                                 styles.quickActionIcon,
-                                {
-                                    backgroundColor: colors.surfaceTertiary,
-                                },
+                                { backgroundColor: alpha(colors.primary, 0.12) },
                             ]}>
                             <Icon
                                 name={action.icon}
-                                size={rpx(36)}
+                                size={rpx(32)}
                                 color={colors.primary}
                             />
                         </View>
                         <ThemeText
                             fontSize="description"
-                            fontWeight="medium"
-                            style={styles.quickActionText}>
+                            fontWeight="semibold"
+                            numberOfLines={1}
+                            style={{ color: colors.text }}>
                             {action.title}
                         </ThemeText>
                     </TouchableOpacity>
                 ))}
-            </View>
+            </ScrollView>
+
+            {showEmptyGuide ? (
+                <View
+                    style={[
+                        styles.emptyGuide,
+                        {
+                            backgroundColor: colors.surfacePrimary,
+                            borderColor: colors.divider,
+                        },
+                    ]}>
+                    <View
+                        style={[
+                            styles.emptyGuideIcon,
+                            { backgroundColor: alpha(colors.primary, 0.12) },
+                        ]}>
+                        <Icon
+                            name="folder-plus"
+                            size={rpx(38)}
+                            color={colors.primary}
+                        />
+                    </View>
+                    <ThemeText
+                        fontSize="title"
+                        fontWeight="bold"
+                        style={[styles.emptyGuideTitle, { color: colors.text }]}>
+                        {t("home.emptyDiscoverTitle")}
+                    </ThemeText>
+                    <ThemeText
+                        fontSize="description"
+                        fontColor="textSecondary"
+                        lineHeight
+                        style={styles.emptyGuideDesc}>
+                        {t("home.emptyDiscoverDescription")}
+                    </ThemeText>
+                    <View style={styles.emptyGuideActions}>
+                        <TouchableOpacity
+                            activeOpacity={0.78}
+                            accessibilityRole="button"
+                            style={[
+                                styles.emptyPrimaryAction,
+                                { backgroundColor: colors.primary },
+                            ]}
+                            onPress={() => navigate(ROUTE_PATH.SETTING, { type: "plugin" })}>
+                            <ThemeText
+                                fontSize="description"
+                                fontWeight="semibold"
+                                color={readableOn(colors.primary)}>
+                                {t("home.emptyDiscoverPrimaryAction")}
+                            </ThemeText>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            activeOpacity={0.78}
+                            accessibilityRole="button"
+                            style={[
+                                styles.emptySecondaryAction,
+                                { borderColor: colors.divider },
+                            ]}
+                            onPress={() => navigate(ROUTE_PATH.LOCAL)}>
+                            <ThemeText
+                                fontSize="description"
+                                fontWeight="semibold"
+                                style={{ color: colors.text }}>
+                                {t("home.emptyDiscoverSecondaryAction")}
+                            </ThemeText>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            ) : null}
 
             {/* 推荐歌单 */}
             {firstRecommendPlugin ? (
@@ -492,7 +660,7 @@ export default function Discover() {
                     actionText={t("common.view")}
                     onAction={() => navigate(ROUTE_PATH.RECOMMEND_SHEETS)}>
                     {recommendState === RequestStateCode.PENDING_FIRST_PAGE ? (
-                        <Loading />
+                        <SheetSkeletonRow />
                     ) : recommendSheets.length > 0 ? (
                         <HorizontalSheetList
                             sheets={recommendSheets}
@@ -523,7 +691,7 @@ export default function Discover() {
                     ))
             ) : firstTopListPlugin &&
               firstTopListData?.state === RequestStateCode.PENDING_REST_PAGE ? (
-                    <Loading />
+                    <TopListSkeletonSection />
                 ) : null}
 
             {/* 底部留白 */}
@@ -535,81 +703,117 @@ export default function Discover() {
 // ==================== 样式 ====================
 
 const styles = StyleSheet.create({
-    header: {
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.md,
-        paddingBottom: spacing.sm,
+    scrollContent: {
+        paddingTop: spacing.lg,
+    },
+    hero: {
+        marginHorizontal: spacing.lg,
+        marginBottom: spacing.xl,
+    },
+    heroHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        marginBottom: spacing.md,
+    },
+    heroCopy: {
+        flex: 1,
     },
     headerTitle: {
         fontSize: HEADER_TITLE_SIZE,
         fontWeight: fontWeightConst.bold as any,
     },
     searchBar: {
+        minHeight: rpx(68),
+    },
+    quickHeader: {
         marginHorizontal: spacing.lg,
-        height: rpx(72),
-        borderRadius: radius.pill,
-        overflow: "hidden",
-        marginBottom: spacing.lg,
-    },
-    searchBarInner: {
-        flexDirection: "row",
-        alignItems: "center",
-        flex: 1,
-        height: "100%",
-        paddingHorizontal: spacing.lg,
-        gap: rpx(8),
-    },
-    searchText: {
-        opacity: 0.6,
-        fontWeight: "400",
-    },
-    quickActions: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginHorizontal: spacing.lg,
-        marginBottom: spacing.xl,
-        paddingVertical: spacing.lg,
-        paddingHorizontal: spacing.md,
-        borderRadius: radius.lg,
-    },
-    quickActionItem: {
-        alignItems: "center",
-        width: rpx(140),
-    },
-    quickActionIcon: {
-        width: rpx(80),
-        height: rpx(80),
-        borderRadius: radius.lg,
-        justifyContent: "center",
-        alignItems: "center",
         marginBottom: spacing.sm,
     },
-    quickActionText: {
-        textAlign: "center",
+    quickGrid: {
+        flexDirection: "row",
+        paddingHorizontal: spacing.lg,
+        marginBottom: spacing.xl,
+        gap: QUICK_GRID_GAP,
+    },
+    quickActionItem: {
+        minHeight: rpx(116),
+        borderRadius: radius.xl,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    quickActionIcon: {
+        width: rpx(60),
+        height: rpx(60),
+        borderRadius: radius.pill,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: spacing.xs,
+    },
+    emptyGuide: {
+        marginHorizontal: spacing.lg,
+        marginBottom: spacing.xl,
+        padding: spacing.lg,
+        borderRadius: radius.xxl,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    emptyGuideIcon: {
+        width: rpx(64),
+        height: rpx(64),
+        borderRadius: radius.pill,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: spacing.md,
+    },
+    emptyGuideTitle: {
+        marginBottom: spacing.sm,
+    },
+    emptyGuideDesc: {
+        marginBottom: spacing.lg,
+    },
+    emptyGuideActions: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    emptyPrimaryAction: {
+        minHeight: rpx(56),
+        borderRadius: radius.pill,
+        paddingHorizontal: spacing.lg,
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 1,
+    },
+    emptySecondaryAction: {
+        minHeight: rpx(56),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: spacing.lg,
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 1,
     },
     sectionContainer: {
         marginBottom: spacing.xl,
         marginHorizontal: spacing.lg,
-        borderRadius: radius.lg,
+        borderRadius: radius.xl,
         overflow: "hidden",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: rpx(4) },
-        shadowOpacity: 0.06,
-        shadowRadius: rpx(12),
-        elevation: 2,
     },
     sectionHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
+        paddingTop: spacing.lg,
         paddingHorizontal: spacing.lg,
         marginBottom: spacing.lg,
     },
     sectionAction: {
-        opacity: 0.7,
+        paddingVertical: spacing.xs,
+        paddingLeft: spacing.md,
     },
     horizontalListContent: {
         paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.lg,
     },
     sheetCard: {
         width: SHEET_CARD_WIDTH,
@@ -618,7 +822,7 @@ const styles = StyleSheet.create({
     sheetImage: {
         width: SHEET_IMAGE_SIZE,
         height: SHEET_IMAGE_SIZE,
-        borderRadius: radius.md,
+        borderRadius: radius.xl,
         overflow: "hidden",
         marginBottom: spacing.sm,
     },
@@ -626,19 +830,28 @@ const styles = StyleSheet.create({
         lineHeight: rpx(36),
         paddingHorizontal: rpx(4),
     },
+    sheetSkeletonTitle: {
+        marginTop: spacing.sm,
+        marginLeft: rpx(4),
+    },
+    sheetSkeletonMeta: {
+        marginTop: spacing.xs,
+        marginLeft: rpx(4),
+    },
     songList: {
         paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.lg,
     },
     songRow: {
         flexDirection: "row",
         alignItems: "center",
-        paddingVertical: spacing.sm,
+        paddingVertical: spacing.md,
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
     songImage: {
         width: SONG_IMAGE_SIZE,
         height: SONG_IMAGE_SIZE,
-        borderRadius: radius.md,
+        borderRadius: radius.lg,
         overflow: "hidden",
         marginRight: spacing.md,
     },
@@ -649,11 +862,21 @@ const styles = StyleSheet.create({
     songArtist: {
         marginTop: rpx(4),
     },
+    songSourceTag: {
+        alignSelf: "flex-start",
+        maxWidth: "52%",
+        height: rpx(28),
+        marginLeft: 0,
+        marginTop: rpx(6),
+        paddingHorizontal: spacing.sm,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
     songMore: {
         padding: spacing.sm,
     },
     topListGroup: {
         paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.lg,
     },
     topListItem: {
         flexDirection: "row",
@@ -663,7 +886,7 @@ const styles = StyleSheet.create({
     topListImage: {
         width: SONG_IMAGE_SIZE,
         height: SONG_IMAGE_SIZE,
-        borderRadius: radius.md,
+        borderRadius: radius.lg,
         overflow: "hidden",
         marginRight: spacing.md,
     },
@@ -675,6 +898,6 @@ const styles = StyleSheet.create({
         marginTop: rpx(4),
     },
     bottomSpacing: {
-        height: spacing.xxxl,
+        height: HOME_BOTTOM_OVERLAY_SPACE,
     },
 });

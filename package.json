@@ -1,10 +1,10 @@
 {
   "name": "CatMusicFree",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": true,
   "license": "AGPL",
   "author": {
-    "name": "猫头猫",
+    "name": "CatMusicFree",
     "email": "lhx_xjtu@163.com"
   },
   "scripts": {

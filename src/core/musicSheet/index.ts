@@ -432,6 +432,40 @@ class MusicSheetClazz implements IInjectable {
         });
     }
 
+    async replaceMusic(
+        sheetId: string,
+        oldMusicItem: IMusic.IMusicItem,
+        newMusicItem: IMusic.IMusicItem,
+    ) {
+        const musicList = this.getSortedMusicListBySheetId(sheetId);
+        const replaced = musicList.replace(oldMusicItem, newMusicItem);
+
+        if (!replaced) {
+            return false;
+        }
+
+        const musicSheets = getDefaultStore().get(musicSheetsBaseAtom);
+        let patchData: Partial<IMusic.IMusicSheetItemBase> = {
+            worksNum: musicList.length,
+        };
+
+        if (
+            !musicSheets
+                .find(_ => _.id === sheetId)
+                ?.coverImg?.startsWith?.("file://")
+        ) {
+            patchData.coverImg = musicList.at(0)?.artwork;
+        }
+
+        await this.updateMusicSheetBase(sheetId, patchData);
+        await storage.setMusicList(sheetId, musicList.musicList);
+        ee.emit("UpdateMusicList", {
+            sheetId,
+            updateType: "length",
+        });
+        return true;
+    }
+
 
     async setSortType(sheetId: string, sortType: SortType) {
         const musicList = this.getSortedMusicListBySheetId(sheetId);

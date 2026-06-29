@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import rpx from "@/utils/rpx";
 import { StyleSheet, View } from "react-native";
 import ThemeText from "@/components/base/themeText";
 import { hideDialog } from "../useDialog";
 import Dialog from "./base";
 import Input from "@/components/base/input";
-import useColors from "@/hooks/useColors";
 import { useI18N } from "@/core/i18n";
+import { spacing } from "@/constants/spacing";
+import rpx from "@/utils/rpx";
 
 interface ISubscribeItem {
     name: string;
@@ -30,62 +30,52 @@ export default function SubscribePluginDialog(
     const [name, setName] = useState(subscribeItem?.name ?? "");
     const [url, setUrl] = useState(subscribeItem?.url ?? "");
 
-    const colors = useColors();
     const { t } = useI18N();
-
-
-    const inputStyles = {
-        backgroundColor: colors.card,
-        borderColor: colors.divider,
-        color: colors.text,
-    };
-
-    const containerStyles = {
-        backgroundColor: colors.backdrop,
-    };
 
     return (
         <Dialog onDismiss={hideDialog}>
             <Dialog.Title>{t("dialog.subscriptionPluginDialog.title")}</Dialog.Title>
-            <Dialog.Content style={[style.dialogContent, containerStyles]}>
-                <View style={style.inputSection}>
-                    <View style={style.labelContainer}>
-                        <ThemeText style={style.label}>{t("common.name")}</ThemeText>
-                    </View>
-                    <View style={[style.inputContainer, { borderColor: colors.divider, backgroundColor: colors.card }]}>
-                        <Input
-                            hasHorizontalPadding={false}
-                            style={[style.textInput, inputStyles]}
-                            value={name}
-                            onChangeText={text => {
-                                setName(text);
-                            }}
-                            placeholder={t("common.name")}
-                            placeholderTextColor={colors.textSecondary}
-                        />
-                    </View>
+            <Dialog.Content style={style.dialogContent}>
+                <View style={style.field}>
+                    <ThemeText
+                        fontSize="description"
+                        fontWeight="bold"
+                        fontColor="textSecondary"
+                        style={style.label}>
+                        {t("common.name")}
+                    </ThemeText>
+                    <Input
+                        variant="outlined"
+                        style={style.input}
+                        value={name}
+                        onChangeText={setName}
+                        placeholder={t("common.name")}
+                    />
                 </View>
-                
-                <View style={style.inputSection}>
-                    <View style={style.labelContainer}>
-                        <ThemeText style={style.label}>URL</ThemeText>
-                    </View>
-                    <View style={[style.inputContainer, { borderColor: colors.divider, backgroundColor: colors.card }]}>
-                        <Input
-                            hasHorizontalPadding={false}
-                            style={[style.textInput, inputStyles]}
-                            value={url}
-                            onChangeText={text => {
-                                setUrl(text);
-                            }}
-                        />
-                    </View>
+
+                <View style={style.field}>
+                    <ThemeText
+                        fontSize="description"
+                        fontWeight="bold"
+                        fontColor="textSecondary"
+                        style={style.label}>
+                        URL
+                    </ThemeText>
+                    <Input
+                        variant="outlined"
+                        style={style.input}
+                        value={url}
+                        onChangeText={setUrl}
+                        placeholder={t("pluginSetting.menu.installPluginDialogPlaceholder")}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
                 </View>
             </Dialog.Content>
             <Dialog.Actions
                 actions={[
                     {
-                        type: "normal",
+                        type: "danger",
                         title: t("common.delete"),
                         show: editingIndex !== undefined,
                         onPress() {
@@ -114,46 +104,17 @@ export default function SubscribePluginDialog(
 
 const style = StyleSheet.create({
     dialogContent: {
-        paddingHorizontal: rpx(24),
-        paddingVertical: rpx(16),
-        borderRadius: rpx(12),
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.sm,
     },
-    inputSection: {
-        marginBottom: rpx(24),
-    },
-    labelContainer: {
-        marginBottom: rpx(8),
+    field: {
+        marginBottom: spacing.lg,
     },
     label: {
-        fontSize: rpx(28),
-        fontWeight: "500",
-        opacity: 0.9,
+        marginBottom: spacing.xs,
     },
-    inputContainer: {
-        borderWidth: rpx(2),
-        borderRadius: rpx(8),
-        paddingHorizontal: rpx(16),
-        paddingVertical: rpx(4),
-        minHeight: rpx(72),
-        justifyContent: "center",
-        shadowOffset: {
-            width: 0,
-            height: rpx(2),
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: rpx(4),
-        elevation: 2,
-    },
-    textInput: {
-        fontSize: rpx(28),
-        includeFontPadding: false,
-        paddingVertical: rpx(12),
-        borderWidth: 0,
-        backgroundColor: "transparent",
-    },
-    headerWrapper: {
-        flexDirection: "row",
-        alignItems: "center",
-        height: rpx(92),
+    input: {
+        minHeight: rpx(76),
+        textAlignVertical: "center",
     },
 });

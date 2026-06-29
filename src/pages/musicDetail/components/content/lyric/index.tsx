@@ -4,7 +4,6 @@ import rpx from "@/utils/rpx";
 import useDelayFalsy from "@/hooks/useDelayFalsy";
 import { FlatList, Gesture, GestureDetector, TapGestureHandler } from "react-native-gesture-handler";
 import { fontSizeConst } from "@/constants/uiConst";
-import Loading from "@/components/base/loading";
 import globalStyle from "@/constants/globalStyle";
 import { showPanel } from "@/components/panels/usePanel";
 import TrackPlayer, { useCurrentMusic, useMusicState } from "@/core/trackPlayer";
@@ -19,6 +18,7 @@ import { IconButtonWithGesture } from "@/components/base/iconButton.tsx";
 import { getMediaExtraProperty } from "@/utils/mediaExtra";
 import lyricManager, { useCurrentLyricItem, useLyricState } from "@/core/lyricManager";
 import { useI18N } from "@/core/i18n";
+import { SkeletonBlock } from "@/components/base/skeleton";
 
 const ITEM_HEIGHT = rpx(92);
 
@@ -37,6 +37,27 @@ const fontSizeMap = {
     2: rpx(36),
     3: rpx(42),
 } as Record<number, number>;
+
+function LyricLoadingSkeleton() {
+    const rows = [52, 72, 44, 64, 82, 58, 70];
+
+    return (
+        <View style={styles.lyricLoading}>
+            {rows.map((width, index) => (
+                <SkeletonBlock
+                    key={index}
+                    width={`${width}%`}
+                    height={rpx(index === 3 ? 34 : 26)}
+                    radius={rpx(18)}
+                    style={[
+                        styles.lyricLoadingLine,
+                        index === 3 ? styles.lyricLoadingActiveLine : null,
+                    ]}
+                />
+            ))}
+        </View>
+    );
+}
 
 export default function Lyric(props: IProps) {
     const { onTurnPageClick } = props;
@@ -229,7 +250,7 @@ export default function Lyric(props: IProps) {
             <GestureDetector gesture={tapGesture}>
                 <View style={globalStyle.fwflex1}>
                     {loading ? (
-                        <Loading color="white" />
+                        <LyricLoadingSkeleton />
                     ) : lyrics?.length ? (
                         <FlatList
                             ref={_ => {
@@ -441,5 +462,19 @@ const styles = StyleSheet.create({
         alignSelf: "center",
         color: "#66eeff",
         textDecorationLine: "underline",
+    },
+    lyricLoading: {
+        width: "100%",
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: rpx(72),
+    },
+    lyricLoadingLine: {
+        marginVertical: rpx(16),
+        backgroundColor: "rgba(255,255,255,0.24)",
+    },
+    lyricLoadingActiveLine: {
+        backgroundColor: "rgba(255,255,255,0.42)",
     },
 });

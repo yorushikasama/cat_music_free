@@ -11,6 +11,7 @@ import { errorLog, trace } from "@/utils/log";
 import { createMediaIndexMap } from "@/utils/mediaIndexMap";
 import {
     getLocalPath,
+    getMediaUniqueKey,
     isSameMediaItem,
 } from "@/utils/mediaUtils";
 import Network from "@/utils/network";
@@ -31,6 +32,7 @@ import ReactNativeTrackPlayer, {
     useProgress,
 } from "react-native-track-player";
 import LocalMusicSheet from "../localMusicSheet";
+import MusicSheet from "../musicSheet";
 
 import { TrackPlayerEvents } from "@/core.defination/trackPlayer";
 import type { IAppConfig } from "@/types/core/config";
@@ -47,6 +49,17 @@ const currentMusicAtom = atom<IMusic.IMusicItem | null>(null);
 const repeatModeAtom = atom<MusicRepeatMode>(MusicRepeatMode.QUEUE);
 const qualityAtom = atom<IMusic.IQualityKey>("standard");
 const playListAtom = atom<IMusic.IMusicItem[]>([]);
+
+type PlayableSourceFallback = {
+    musicItem: IMusic.IMusicItem;
+    quality: IMusic.IQualityKey;
+    source: IPlugin.IMediaSourceResult;
+};
+
+type SimilarMusicCandidate<T extends ICommon.SupportMediaType> = {
+    item: ICommon.SupportMediaItemBase[T];
+    distance: number;
+};
 
 
 class TrackPlayer extends EventEmitter<{
@@ -68,6 +81,10 @@ class TrackPlayer extends EventEmitter<{
     private serviceInited = false;
     // 播放队列索引map
     private playListIndexMap = createMediaIndexMap([] as IMusic.IMusicItem[]);
+    // 当前播放会话内，换源只尝试一轮，避免失败后连续跨源循环
+    private sourceFallbackAttemptKeys = new Set<string>();
+    private sourceFallbackInFlightKeys = new Set<string>();
+    private sourceFallbackTestingKeys = new Set<string>();
 
 
     private static maxMusicQueueLength = 10000;
@@ -226,18 +243,43 @@ class TrackPlayer extends EventEmitter<{
                         return;
                     }
 
+                    const isLocalFileMissing =
+                        e.message === "android-io-file-not-found" &&
+                        currentTrack &&
+                        LocalMusicSheet.isLocalMusic(currentTrack as IMusic.IMusicItem);
+                    const isTestingFallbackSource =
+                        currentTrack &&
+                        this.sourceFallbackTestingKeys.has(
+                            getMediaUniqueKey(currentTrack as IMusic.IMusicItem),
+                        );
+
+                    if (isTestingFallbackSource) {
+                        trace("替代音源试播失败，交给试播流程处理", {
+                            message: e.message,
+                            code: e.code,
+                        });
+                        return;
+                    }
+
                     if (
                         currentTrack?.url !== TrackPlayer.fakeAudioUrl && currentTrack?.url !== TrackPlayer.proposedAudioUrl &&
                         (await ReactNativeTrackPlayer.getActiveTrackIndex()) === 0 &&
                         e.message &&
-                        e.message !== "android-io-file-not-found"
+                        !isLocalFileMissing
                     ) {
                         trace("播放出错", {
                             message: e.message,
                             code: e.code,
                         });
 
-                        this.handlePlayFail();
+                        const replacedSource =
+                            await this.tryReplaceFailedCurrentMusicSource(
+                                currentTrack as IMusic.IMusicItem,
+                            );
+
+                        if (!replacedSource) {
+                            await this.handlePlayFail();
+                        }
                     }
                 },
             );
@@ -407,6 +449,9 @@ class TrackPlayer extends EventEmitter<{
             if (!musicItem) {
                 throw new Error(PlayFailReason.PLAY_LIST_IS_EMPTY);
             }
+            if (!this.isCurrentMusic(musicItem) || forcePlay) {
+                this.resetSourceFallbackGuard();
+            }
             // 1. 移动网络禁止播放
             const localPath = getLocalPath(musicItem);
             if (
@@ -472,6 +517,7 @@ class TrackPlayer extends EventEmitter<{
 
             // 5. 获取音源
             let track: IMusic.IMusicItem;
+            let sourceMusicItem = musicItem;
 
             // 5.1 通过插件获取音源
             const plugin = this.pluginManagerService.getByName(musicItem.platform);
@@ -484,13 +530,18 @@ class TrackPlayer extends EventEmitter<{
             let source: IPlugin.IMediaSourceResult | null = null;
             for (let quality of qualityOrder) {
                 if (this.isCurrentMusic(musicItem)) {
-                    source =
-                        (await plugin?.methods?.getMediaSource(
-                            musicItem,
-                            quality,
-                        )) ?? null;
+                    try {
+                        source =
+                            (await plugin?.methods?.getMediaSource(
+                                musicItem,
+                                quality,
+                            )) ?? null;
+                    } catch (e: any) {
+                        trace("获取音源失败", e?.message ?? e);
+                        source = null;
+                    }
                     // 5.3.1 获取到真实源
-                    if (source) {
+                    if (source?.url) {
                         this.setQuality(quality);
                         break;
                     }
@@ -503,7 +554,7 @@ class TrackPlayer extends EventEmitter<{
             if (!this.isCurrentMusic(musicItem)) {
                 return;
             }
-            if (!source) {
+            if (!source?.url) {
                 // 如果有source
                 if (musicItem.source) {
                     for (let quality of qualityOrder) {
@@ -516,40 +567,22 @@ class TrackPlayer extends EventEmitter<{
                     }
                 }
                 // 5.4 没有返回源
-                if (!source && !musicItem.url) {
+                if (!source?.url && !musicItem.url) {
                     // 插件失效的情况
                     if (this.configService.getConfig("basic.tryChangeSourceWhenPlayFail")) {
-                        // 重试
-                        const similarMusic = await this.getSimilarMusic(
+                        const fallback = await this.getPlayableSourceFallback(
                             musicItem,
-                            "music",
+                            qualityOrder,
                             () => !this.isCurrentMusic(musicItem),
                         );
 
-                        if (similarMusic) {
-                            const similarMusicPlugin =
-                                this.pluginManagerService.getByMedia(similarMusic);
-
-                            for (let quality of qualityOrder) {
-                                if (this.isCurrentMusic(musicItem)) {
-                                    source =
-                                        (await similarMusicPlugin?.methods?.getMediaSource(
-                                            similarMusic,
-                                            quality,
-                                        )) ?? null;
-                                    // 5.4.1 获取到真实源
-                                    if (source) {
-                                        this.setQuality(quality);
-                                        break;
-                                    }
-                                } else {
-                                    // 5.4.2 已经切换到其他歌曲了，
-                                    return;
-                                }
-                            }
+                        if (fallback) {
+                            source = fallback.source;
+                            sourceMusicItem = fallback.musicItem;
+                            this.setQuality(fallback.quality);
                         }
 
-                        if (!source) {
+                        if (!source?.url) {
                             throw new Error(PlayFailReason.INVALID_SOURCE);
                         }
                     } else {
@@ -564,25 +597,45 @@ class TrackPlayer extends EventEmitter<{
             }
 
             // 6. 特殊类型源
-            if (getUrlExt(source.url) === ".m3u8") {
+            if (getUrlExt(source.url || "") === ".m3u8") {
                 // @ts-ignore
                 source.type = "hls";
             }
             // 7. 合并结果
-            track = this.mergeTrackSource(musicItem, source) as IMusic.IMusicItem;
-
-            // 8. 新增历史记录
-            await this.musicHistoryService.addMusic(musicItem);
+            track = this.mergeTrackSource(sourceMusicItem, source) as IMusic.IMusicItem;
+            const changedSource = !isSameMediaItem(sourceMusicItem, musicItem);
+            if (changedSource) {
+                track = this.withPlayListOrder(musicItem, track);
+            }
 
             trace("获取音源成功", track);
-            // 9. 设置音源
-            await this.setTrackSource(track as Track);
+            // 8. 设置音源
+            const canPersistChangedSource = changedSource
+                ? await this.setTrackSourceAndConfirmFallback(track)
+                : true;
+            if (!changedSource) {
+                await this.setTrackSource(track as Track);
+            }
+
+            if (changedSource && canPersistChangedSource) {
+                this.replaceMusicInPlayList(musicItem, track);
+                this.setCurrentMusic(track);
+                await this.replaceFavoriteMusic(musicItem, track);
+                this.sourceFallbackAttemptKeys.add(getMediaUniqueKey(musicItem));
+                this.sourceFallbackAttemptKeys.add(getMediaUniqueKey(track));
+            } else if (changedSource) {
+                throw new Error(PlayFailReason.INVALID_SOURCE);
+            }
+
+            // 9. 新增历史记录
+            await this.musicHistoryService.addMusic(track);
 
             // 10. 获取补充信息
             let info: Partial<IMusic.IMusicItem> | null = null;
             try {
+                const sourcePlugin = this.pluginManagerService.getByMedia(track) ?? plugin;
                 info =
-                    (await plugin?.methods?.getMusicInfo?.(musicItem)) ?? null;
+                    (await sourcePlugin?.methods?.getMusicInfo?.(track)) ?? null;
                 if (
                     (typeof info?.url === "string" && info.url.trim() === "") ||
                     (info?.url && typeof info.url !== "string")
@@ -592,7 +645,7 @@ class TrackPlayer extends EventEmitter<{
             } catch { }
 
             // 11. 设置补充信息
-            if (info && this.isCurrentMusic(musicItem)) {
+            if (info && this.isCurrentMusic(track)) {
                 const mergedTrack = this.mergeTrackSource(track, info);
                 getDefaultStore().set(currentMusicAtom, mergedTrack as IMusic.IMusicItem);
                 await ReactNativeTrackPlayer.updateMetadataForTrack(
@@ -606,6 +659,7 @@ class TrackPlayer extends EventEmitter<{
                 message ===
                 "The player is not initialized. Call setupPlayer first."
             ) {
+                this.resetSourceFallbackGuard();
                 await ReactNativeTrackPlayer.setupPlayer();
                 await this.play(musicItem, forcePlay);
             } else if (message === PlayFailReason.FORBID_CELLUAR_NETWORK_PLAY) {
@@ -839,6 +893,274 @@ class TrackPlayer extends EventEmitter<{
 
 
     /**************** 辅助函数 -- 工具方法 ****************/
+    private resetSourceFallbackGuard() {
+        this.sourceFallbackAttemptKeys.clear();
+        this.sourceFallbackInFlightKeys.clear();
+        this.sourceFallbackTestingKeys.clear();
+    }
+
+    private getPlayQualityOrder() {
+        return getQualityOrder(
+            this.configService.getConfig("basic.defaultPlayQuality") ?? "standard",
+            this.configService.getConfig("basic.playQualityOrder") ?? "asc",
+        );
+    }
+
+    private withTimeout<T>(promise: Promise<T> | undefined, timeoutMs: number) {
+        if (!promise) {
+            return Promise.resolve(null);
+        }
+        return Promise.race([
+            promise,
+            delay(timeoutMs).then(() => null),
+        ]) as Promise<T | null>;
+    }
+
+    private async confirmPlayableTrack(
+        track: IMusic.IMusicItem,
+        timeoutMs = 2500,
+    ) {
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeoutMs) {
+            try {
+                const [activeTrack, playbackState] = await Promise.all([
+                    ReactNativeTrackPlayer.getActiveTrack(),
+                    ReactNativeTrackPlayer.getPlaybackState(),
+                ]);
+                if (!isSameMediaItem(activeTrack as IMusic.IMusicItem, track)) {
+                    return false;
+                }
+                if (
+                    playbackState.state === State.Playing ||
+                    playbackState.state === State.Buffering ||
+                    playbackState.state === State.Ready
+                ) {
+                    return true;
+                }
+                if (
+                    playbackState.state === State.Error ||
+                    playbackState.state === State.Stopped ||
+                    playbackState.state === State.None
+                ) {
+                    return false;
+                }
+            } catch (e: any) {
+            trace("确认替代音源状态失败", e?.message ?? e);
+                return false;
+            }
+            await delay(200);
+        }
+        return false;
+    }
+
+    private async setTrackSourceAndConfirmFallback(track: IMusic.IMusicItem) {
+        const trackKey = getMediaUniqueKey(track);
+        this.sourceFallbackTestingKeys.add(trackKey);
+        try {
+            await this.setTrackSource(track as Track);
+            return this.confirmPlayableTrack(track);
+        } finally {
+            this.sourceFallbackTestingKeys.delete(trackKey);
+        }
+    }
+
+    private withPlayListOrder(
+        oldMusicItem: IMusic.IMusicItem,
+        newMusicItem: IMusic.IMusicItem,
+    ) {
+        const oldIndex = this.getMusicIndexInPlayList(oldMusicItem);
+        const oldPlayListItem = oldIndex === -1 ? oldMusicItem : this.playList[oldIndex];
+        const nextMusicItem = { ...newMusicItem };
+
+        if (oldPlayListItem?.[timeStampSymbol] !== undefined) {
+            nextMusicItem[timeStampSymbol] = oldPlayListItem[timeStampSymbol];
+        }
+        if (oldPlayListItem?.[sortIndexSymbol] !== undefined) {
+            nextMusicItem[sortIndexSymbol] = oldPlayListItem[sortIndexSymbol];
+        }
+
+        return nextMusicItem;
+    }
+
+    private replaceMusicInPlayList(
+        oldMusicItem: IMusic.IMusicItem,
+        newMusicItem: IMusic.IMusicItem,
+    ) {
+        const oldIndex = this.getMusicIndexInPlayList(oldMusicItem);
+        if (oldIndex === -1) {
+            return;
+        }
+
+        const orderedMusicItem = this.withPlayListOrder(oldMusicItem, newMusicItem);
+        const newPlayList = this.playList
+            .map((item, index) => (index === oldIndex ? orderedMusicItem : item))
+            .filter(
+                (item, index) =>
+                    index === oldIndex || !isSameMediaItem(item, orderedMusicItem),
+            );
+
+        this.setPlayList(newPlayList);
+    }
+
+    private async replaceFavoriteMusic(
+        oldMusicItem: IMusic.IMusicItem,
+        newMusicItem: IMusic.IMusicItem,
+    ) {
+        try {
+            await MusicSheet.replaceMusic(
+                MusicSheet.defaultSheet.id,
+                oldMusicItem,
+                newMusicItem,
+            );
+        } catch (e: any) {
+            trace("自动换源后更新我喜欢失败", e?.message ?? e);
+        }
+    }
+
+    private async getPlayableSourceFallback(
+        musicItem: IMusic.IMusicItem,
+        qualityOrder: IMusic.IQualityKey[],
+        abortFunction?: () => boolean,
+    ): Promise<PlayableSourceFallback | null> {
+        const fallbackDeadline = Date.now() + 15000;
+        const musicKey = getMediaUniqueKey(musicItem);
+        if (this.sourceFallbackAttemptKeys.has(musicKey)) {
+            return null;
+        }
+
+        this.sourceFallbackAttemptKeys.add(musicKey);
+
+        const similarMusics = await this.getSimilarMusicCandidates(
+            musicItem,
+            "music",
+            abortFunction,
+        ) as IMusic.IMusicItem[];
+
+        if (!similarMusics.length) {
+            return null;
+        }
+
+        let sourceAttemptCount = 0;
+        for (let similarMusic of similarMusics) {
+            if (abortFunction?.()) {
+                return null;
+            }
+
+            const similarMusicPlugin =
+                this.pluginManagerService.getByMedia(similarMusic);
+
+            for (let quality of qualityOrder) {
+                const remainingMs = fallbackDeadline - Date.now();
+                if (
+                    abortFunction?.() ||
+                    remainingMs <= 0 ||
+                    sourceAttemptCount >= 10
+                ) {
+                    return null;
+                }
+
+                sourceAttemptCount += 1;
+                try {
+                    const source =
+                        (await this.withTimeout<IPlugin.IMediaSourceResult | null>(
+                            similarMusicPlugin?.methods?.getMediaSource(
+                                similarMusic,
+                                quality,
+                            ),
+                            Math.min(5000, remainingMs),
+                        )) ?? null;
+
+                    if (source?.url) {
+                        return {
+                            musicItem: similarMusic,
+                            quality,
+                            source,
+                        };
+                    }
+                } catch (e: any) {
+                    trace("获取替代音源失败", e?.message ?? e);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private async applyPlayableSourceFallback(
+        oldMusicItem: IMusic.IMusicItem,
+        fallback: PlayableSourceFallback,
+    ) {
+        const source = { ...fallback.source };
+        if (getUrlExt(source.url || "") === ".m3u8") {
+            // @ts-ignore
+            source.type = "hls";
+        }
+
+        const track = this.withPlayListOrder(
+            oldMusicItem,
+            this.mergeTrackSource(fallback.musicItem, source) as IMusic.IMusicItem,
+        );
+
+        if (!(await this.setTrackSourceAndConfirmFallback(track))) {
+            return false;
+        }
+        this.replaceMusicInPlayList(oldMusicItem, track);
+        this.setQuality(fallback.quality);
+        this.setCurrentMusic(track);
+        await this.musicHistoryService.addMusic(track);
+        await this.replaceFavoriteMusic(oldMusicItem, track);
+        this.sourceFallbackAttemptKeys.add(getMediaUniqueKey(track));
+
+        trace("播放失败，已自动换源", {
+            from: getMediaUniqueKey(oldMusicItem),
+            to: getMediaUniqueKey(track),
+        });
+        return true;
+    }
+
+    private async tryReplaceFailedCurrentMusicSource(
+        failedTrack?: IMusic.IMusicItem | null,
+    ) {
+        const currentMusic = this.currentMusic;
+        if (
+            !failedTrack ||
+            !currentMusic ||
+            !this.configService.getConfig("basic.tryChangeSourceWhenPlayFail") ||
+            LocalMusicSheet.isLocalMusic(currentMusic) ||
+            !isSameMediaItem(currentMusic, failedTrack)
+        ) {
+            return false;
+        }
+
+        const musicKey = getMediaUniqueKey(currentMusic);
+        if (this.sourceFallbackInFlightKeys.has(musicKey)) {
+            return true;
+        }
+        if (this.sourceFallbackAttemptKeys.has(musicKey)) {
+            return false;
+        }
+
+        this.sourceFallbackInFlightKeys.add(musicKey);
+        try {
+            const fallback = await this.getPlayableSourceFallback(
+                currentMusic,
+                this.getPlayQualityOrder(),
+                () => !this.isCurrentMusic(currentMusic),
+            );
+
+            if (!fallback || !this.isCurrentMusic(currentMusic)) {
+                return false;
+            }
+
+            return this.applyPlayableSourceFallback(currentMusic, fallback);
+        } catch (e: any) {
+            trace("播放失败后自动换源失败", e?.message ?? e);
+            return false;
+        } finally {
+            this.sourceFallbackInFlightKeys.delete(musicKey);
+        }
+    }
+
     private shrinkPlayListToSize = (
         queue: IMusic.IMusicItem[],
         targetIndex = this.currentIndex,
@@ -929,17 +1251,52 @@ class TrackPlayer extends EventEmitter<{
  * @param abortFunction 如果函数为true，则中断
  * @returns
  */
-    private async getSimilarMusic<T extends ICommon.SupportMediaType>(
+    private getSimilarMusicDistance(
+        musicItem: IMusic.IMusicItem,
+        item: ICommon.SupportMediaItemBase["music"],
+    ) {
+        const keyword = musicItem.alias || musicItem.title;
+
+        if (item.title === keyword && item.artist === musicItem.artist) {
+            return 0;
+        }
+
+        return (
+            minDistance(item.title, keyword) +
+            minDistance(item.artist, musicItem.artist)
+        );
+    }
+
+    private isAcceptableSimilarMusic(
+        musicItem: IMusic.IMusicItem,
+        item: ICommon.SupportMediaItemBase["music"],
+    ) {
+        const keyword = musicItem.alias || musicItem.title;
+        const titleDistance = minDistance(item.title, keyword);
+        const artistDistance = minDistance(item.artist, musicItem.artist);
+        const titleThreshold = Math.max(1, Math.ceil(keyword.length * 0.35));
+        const totalThreshold = Math.max(
+            2,
+            Math.ceil((keyword.length + (musicItem.artist?.length || 0)) * 0.35),
+        );
+
+        return (
+            titleDistance <= titleThreshold &&
+            titleDistance + artistDistance <= totalThreshold
+        );
+    }
+
+    private async getSimilarMusicCandidates<T extends ICommon.SupportMediaType>(
         musicItem: IMusic.IMusicItem,
         type: T = "music" as T,
         abortFunction?: () => boolean,
-    ): Promise<ICommon.SupportMediaItemBase[T] | null> {
+        maxCandidateCount = 8,
+    ): Promise<ICommon.SupportMediaItemBase[T][]> {
         const keyword = musicItem.alias || musicItem.title;
         const plugins = this.pluginManagerService.getSearchablePlugins(type);
 
-        let distance = Infinity;
-        let minDistanceMusicItem;
-        let targetPlugin;
+        let candidates: SimilarMusicCandidate<T>[] = [];
+        const seenKeys = new Set<string>();
 
         const startTime = Date.now();
 
@@ -951,40 +1308,45 @@ class TrackPlayer extends EventEmitter<{
             if (plugin.name === musicItem.platform) {
                 continue;
             }
-            const results = await plugin.methods
-                .search(keyword, 1, type)
-                .catch(() => null);
+            const results = await this.withTimeout<IPlugin.ISearchResult<T>>(
+                plugin.methods.search(keyword, 1, type),
+                5000,
+            ).catch(() => null);
 
             // 取前两个
             const firstTwo = results?.data?.slice(0, 2) || [];
 
             for (let item of firstTwo) {
-                if (item.title === keyword && item.artist === musicItem.artist) {
-                    distance = 0;
-                    minDistanceMusicItem = item;
-                    targetPlugin = plugin;
-                    break;
-                } else {
-                    const dist =
-                        minDistance(keyword, musicItem.title) +
-                        minDistance(item.artist, musicItem.artist);
-                    if (dist < distance) {
-                        distance = dist;
-                        minDistanceMusicItem = item;
-                        targetPlugin = plugin;
-                    }
+                const candidateKey = getMediaUniqueKey(item as ICommon.IMediaBase);
+                if (seenKeys.has(candidateKey)) {
+                    continue;
                 }
-            }
+                seenKeys.add(candidateKey);
 
-            if (distance === 0) {
-                break;
+                if (
+                    type === "music" &&
+                    !this.isAcceptableSimilarMusic(
+                        musicItem,
+                        item as ICommon.SupportMediaItemBase["music"],
+                    )
+                ) {
+                    continue;
+                }
+
+                candidates.push({
+                    item,
+                    distance: this.getSimilarMusicDistance(
+                        musicItem,
+                        item as ICommon.SupportMediaItemBase["music"],
+                    ),
+                });
             }
         }
-        if (minDistanceMusicItem && targetPlugin) {
-            return minDistanceMusicItem as ICommon.SupportMediaItemBase[T];
-        }
 
-        return null;
+        return candidates
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, maxCandidateCount)
+            .map(candidate => candidate.item);
     }
 
 

@@ -427,6 +427,18 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
         }
         return false;
     }
+
+    getTaskStatus(musicItem: IMusic.IMusicItem) {
+        return downloadTasks.get(getMediaUniqueKey(musicItem))?.status;
+    }
+
+    onTaskUpdate(callback: () => void) {
+        const handler = () => callback();
+        this.on(DownloaderEvent.DownloadTaskUpdate, handler);
+        return () => {
+            this.off(DownloaderEvent.DownloadTaskUpdate, handler);
+        };
+    }
 }
 
 

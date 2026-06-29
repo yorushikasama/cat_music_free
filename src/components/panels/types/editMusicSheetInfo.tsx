@@ -1,25 +1,26 @@
-import AppBar from "@/components/base/appBar.tsx";
 import Image from "@/components/base/image.tsx";
 import Input from "@/components/base/input.tsx";
 import ThemeText from "@/components/base/themeText.tsx";
-import VerticalSafeAreaView from "@/components/base/verticalSafeAreaView.tsx";
-import PanelFullscreen from "@/components/panels/base/panelFullscreen.tsx";
+import PanelBase from "@/components/panels/base/panelBase.tsx";
+import PanelHeader from "@/components/panels/base/panelHeader.tsx";
 import { hidePanel } from "@/components/panels/usePanel.ts";
 import { ImgAsset } from "@/constants/assetsConst.ts";
-import globalStyle from "@/constants/globalStyle.ts";
 import pathConst from "@/constants/pathConst.ts";
 import { fontSizeConst } from "@/constants/uiConst.ts";
 import { useI18N } from "@/core/i18n";
 import MusicSheet from "@/core/musicSheet";
 import useColors from "@/hooks/useColors.ts";
 import { addFileScheme, addRandomHash } from "@/utils/fileUtils.ts";
-import rpx from "@/utils/rpx";
+import rpx, { vmax } from "@/utils/rpx";
 import Toast from "@/utils/toast.ts";
 import { readAsStringAsync } from "expo-file-system";
 import React, { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { exists, unlink, writeFile } from "react-native-fs";
 import { launchImageLibrary } from "react-native-image-picker";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
+import Color from "color";
 
 interface IEditSheetDetailProps {
   musicSheet: IMusic.IMusicSheetItem;
@@ -99,79 +100,173 @@ export default function EditMusicSheetInfo(props: IEditSheetDetailProps) {
     }
 
     return (
-        <PanelFullscreen>
-            <VerticalSafeAreaView style={globalStyle.fwflex1}>
-                <AppBar onBackPress={hidePanel} withStatusBar>
-                    {t("panel.editMusicSheetInfo.title")}
-                </AppBar>
-                <View style={style.row}>
-                    <ThemeText>{t("common.cover")}</ThemeText>
-                    <TouchableOpacity
-                        onPress={onChangeCoverPress}
-                        onLongPress={() => {
-                            setCoverImg(undefined);
-                        }}>
-                        <Image
-                            style={style.coverImg}
-                            uri={coverImg}
-                            emptySrc={ImgAsset.albumDefault}
-                        />
-                    </TouchableOpacity>
-                </View>
-                <View style={style.row}>
-                    <ThemeText>{t("panel.editMusicSheetInfo.sheetName")}</ThemeText>
-                    <Input
-                        numberOfLines={1}
-                        textAlign="right"
-                        value={title}
-                        hasHorizontalPadding={false}
-                        onChangeText={onTitleChange}
-                        style={{
-                            height: fontSizeConst.content * 2.5,
-                            width: "50%",
-                            borderBottomWidth: 1,
-                            includeFontPadding: false,
-                            borderBottomColor: colors.text,
-                        }}
+        <PanelBase
+            keyboardAvoidBehavior="height"
+            height={vmax(58)}
+            renderBody={() => (
+                <>
+                    <PanelHeader
+                        title={t("panel.editMusicSheetInfo.title")}
+                        onCancel={hidePanel}
+                        onOk={onConfirm}
                     />
-                </View>
-                <TouchableOpacity
-                    activeOpacity={0.6}
-                    onPress={onConfirm}
-                    style={[
-                        {
-                            backgroundColor: colors.primary,
-                        },
-                        style.button,
-                    ]}>
-                    <ThemeText color={"white"}>{t("common.confirm")}</ThemeText>
-                </TouchableOpacity>
-            </VerticalSafeAreaView>
-        </PanelFullscreen>
+                    <ScrollView
+                        style={style.body}
+                        contentContainerStyle={style.bodyContent}
+                        keyboardShouldPersistTaps="handled">
+                        <View
+                            style={[
+                                style.coverSection,
+                                {
+                                    backgroundColor: colors.surfaceSecondary,
+                                    borderColor: colors.divider,
+                                },
+                            ]}>
+                            <TouchableOpacity
+                                activeOpacity={0.82}
+                                onPress={onChangeCoverPress}
+                                onLongPress={() => {
+                                    setCoverImg(undefined);
+                                }}
+                                style={[
+                                    style.coverButton,
+                                    { shadowColor: colors.shadow },
+                                ]}>
+                                <Image
+                                    style={style.coverImg}
+                                    uri={coverImg}
+                                    emptySrc={ImgAsset.albumDefault}
+                                />
+                            </TouchableOpacity>
+                            <View style={style.coverCopy}>
+                                <ThemeText
+                                    fontSize="title"
+                                    fontWeight="semibold">
+                                    {t("common.cover")}
+                                </ThemeText>
+                                <ThemeText
+                                    fontSize="description"
+                                    fontColor="textSecondary"
+                                    lineHeight
+                                    style={style.coverHint}>
+                                    {t("panel.editMusicSheetInfo.title")}
+                                </ThemeText>
+                            </View>
+                        </View>
+
+                        <View
+                            style={[
+                                style.fieldCard,
+                                {
+                                    backgroundColor: colors.surfaceSecondary,
+                                    borderColor: colors.divider,
+                                },
+                            ]}>
+                            <ThemeText
+                                fontSize="description"
+                                fontColor="textSecondary"
+                                style={style.fieldLabel}>
+                                {t("panel.editMusicSheetInfo.sheetName")}
+                            </ThemeText>
+                            <Input
+                                numberOfLines={1}
+                                value={title}
+                                hasHorizontalPadding={false}
+                                onChangeText={onTitleChange}
+                                style={[
+                                    style.input,
+                                    {
+                                        color: colors.text,
+                                        borderBottomColor: Color(colors.text)
+                                            .alpha(0.18)
+                                            .rgb()
+                                            .string(),
+                                    },
+                                ]}
+                            />
+                        </View>
+
+                        <Pressable
+                            accessibilityRole="button"
+                            onPress={onConfirm}
+                            style={({ pressed }) => [
+                                style.primaryButton,
+                                {
+                                    backgroundColor: colors.primary,
+                                    opacity: pressed ? 0.82 : 1,
+                                },
+                            ]}>
+                            <ThemeText
+                                fontSize="subTitle"
+                                fontWeight="semibold"
+                                color="#ffffff">
+                                {t("common.confirm")}
+                            </ThemeText>
+                        </Pressable>
+                    </ScrollView>
+                </>
+            )}
+        />
     );
 }
 
 const style = StyleSheet.create({
-    row: {
-        marginTop: rpx(28),
-        height: rpx(120),
+    body: {
+        flex: 1,
+    },
+    bodyContent: {
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.md,
+        paddingBottom: spacing.xl,
+    },
+    coverSection: {
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "center",
-        paddingBottom: rpx(12),
-        paddingHorizontal: rpx(24),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.xl,
+        padding: spacing.md,
+    },
+    coverButton: {
+        width: rpx(148),
+        height: rpx(148),
+        borderRadius: radius.xl,
+        shadowOffset: { width: 0, height: rpx(6) },
+        shadowOpacity: 0.16,
+        shadowRadius: rpx(10),
+        elevation: 5,
     },
     coverImg: {
-        width: rpx(100),
-        height: rpx(100),
-        borderRadius: rpx(28),
+        width: "100%",
+        height: "100%",
+        borderRadius: radius.xl,
         overflow: "hidden",
     },
-    button: {
-        marginHorizontal: rpx(24),
-        borderRadius: rpx(8),
-        height: rpx(72),
-        marginTop: rpx(24),
+    coverCopy: {
+        flex: 1,
+        marginLeft: spacing.lg,
+    },
+    coverHint: {
+        marginTop: spacing.xs,
+    },
+    fieldCard: {
+        marginTop: spacing.md,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.xl,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+    },
+    fieldLabel: {
+        marginBottom: spacing.sm,
+    },
+    input: {
+        height: fontSizeConst.content * 2.5,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        includeFontPadding: false,
+    },
+    primaryButton: {
+        marginTop: spacing.lg,
+        minHeight: rpx(72),
+        borderRadius: radius.pill,
         justifyContent: "center",
         alignItems: "center",
     },

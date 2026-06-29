@@ -3,23 +3,13 @@ import React from "react";
 import { iconSizeConst } from "@/constants/uiConst";
 import Icon from "@/components/base/icon.tsx";
 import MusicSheet, { useFavorite } from "@/core/musicSheet";
-import Theme from "@/core/theme";
 import { useCurrentMusic } from "@/core/trackPlayer";
 import useColors from "@/hooks/useColors";
 
 export default function HeartIconButton() {
     const musicItem = useCurrentMusic();
-    const theme = Theme.useTheme();
     const colors = useColors();
-    const isRetro = theme.id === "p-retro";
-    const isAcg = theme.id.startsWith("p-acg");
-    const isSpotify = theme.id === "p-spotify";
-
-    const iconColor = isSpotify
-        ? "#b3b3b3"
-        : (isAcg
-            ? colors.text
-            : (isRetro ? colors.text : "white"));
+    const iconColor = colors.text;
 
     const isFavorite = useFavorite(musicItem);
 
@@ -27,7 +17,7 @@ export default function HeartIconButton() {
         <Icon
             name="heart"
             size={iconSizeConst.normal}
-            color={isSpotify ? colors.primary : (isAcg ? colors.primary : "red")}
+            color={colors.danger ?? colors.primary}
             onPress={() => {
                 if (!musicItem) {
                     return;

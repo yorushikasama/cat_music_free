@@ -1,4 +1,5 @@
 import { musicHistorySheetId } from "@/constants/commonConst";
+import { internalSerializeKey } from "@/constants/commonConst";
 import { isSameMediaItem } from "@/utils/mediaUtils";
 import { getStorage } from "@/utils/storage";
 import { atom, getDefaultStore, useAtomValue } from "jotai";
@@ -36,7 +37,13 @@ class MusicHistory implements IMusicHistory, IInjectable {
 
     async addMusic(musicItem: IMusic.IMusicItem) {
         if (!musicItem) return;
-        const itemCopy = { ...musicItem };
+        const itemCopy = {
+            ...musicItem,
+            [internalSerializeKey]: {
+                ...(musicItem as any)[internalSerializeKey],
+                playedAt: Date.now(),
+            },
+        };
         const newMusicHistory = [
             itemCopy,
             ...this.history

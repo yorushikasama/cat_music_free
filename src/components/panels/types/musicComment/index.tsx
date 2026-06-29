@@ -1,11 +1,7 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import rpx from "@/utils/rpx";
-import PanelFullscreen from "@/components/panels/base/panelFullscreen.tsx";
-import AppBar from "@/components/base/appBar.tsx";
+import rpx, { vmax } from "@/utils/rpx";
 import { hidePanel } from "@/components/panels/usePanel.ts";
-import globalStyle from "@/constants/globalStyle.ts";
-import VerticalSafeAreaView from "@/components/base/verticalSafeAreaView.tsx";
 import { FlashList } from "@shopify/flash-list";
 import FastImage from "@/components/base/fastImage";
 import { ImgAsset } from "@/constants/assetsConst.ts";
@@ -16,6 +12,11 @@ import { RequestStateCode } from "@/constants/commonConst.ts";
 import { useI18N } from "@/core/i18n";
 import ListEmpty from "@/components/base/listEmpty";
 import ListFooter from "@/components/base/listFooter";
+import PanelBase from "@/components/panels/base/panelBase";
+import PanelHeader from "@/components/panels/base/panelHeader";
+import { spacing } from "@/constants/spacing";
+import { radius } from "@/constants/borderRadius";
+import useColors from "@/hooks/useColors";
 
 interface IMusicCommentProps {
     musicItem: IMusic.IMusicItem;
@@ -27,9 +28,11 @@ export default function MusicComment(props: IMusicCommentProps) {
 
     const [reqState, comments, getMusicComments] = useComments(musicItem);
     const { t } = useI18N();
+    const colors = useColors();
 
 
     const listBody = <FlashList
+        contentContainerStyle={styles.listContent}
         ListFooterComponent={comments?.length ? <ListFooter state={reqState} onRetry={getMusicComments} /> : null}
         ListEmptyComponent={<ListEmpty state={reqState} onRetry={getMusicComments} />}
         estimatedItemSize={100}
@@ -46,49 +49,83 @@ export default function MusicComment(props: IMusicCommentProps) {
     />;
 
     return (
-        <PanelFullscreen>
-            <VerticalSafeAreaView style={globalStyle.fwflex1}>
-                <AppBar withStatusBar children={t("common.comment")} onBackPress={hidePanel} />
-                <View style={styles.musicItemContainer}>
-                    <FastImage
-                        style={styles.musicItemArtwork}
-                        source={musicItem?.artwork}
-                        placeholderSource={ImgAsset.albumDefault}
+        <PanelBase
+            height={vmax(78)}
+            renderBody={() => (
+                <>
+                    <PanelHeader
+                        title={t("common.comment")}
+                        hideButtons
+                        onCancel={hidePanel}
                     />
-                    <View style={styles.musicItemContent}>
-                        <ThemeText fontSize="subTitle" numberOfLines={1}>
-                            {musicItem.title}
-                        </ThemeText>
-                        <ThemeText
-                            fontSize="description"
-                            numberOfLines={1}
-                            fontColor="textSecondary">
-                            {musicItem.artist}
-                        </ThemeText>
+                    <View style={styles.body}>
+                        <View
+                            style={[
+                                styles.musicItemContainer,
+                                {
+                                    backgroundColor: colors.surfaceSecondary,
+                                    borderColor: colors.divider,
+                                },
+                            ]}>
+                            <FastImage
+                                style={styles.musicItemArtwork}
+                                source={musicItem?.artwork}
+                                placeholderSource={ImgAsset.albumDefault}
+                            />
+                            <View style={styles.musicItemContent}>
+                                <ThemeText
+                                    fontSize="subTitle"
+                                    fontWeight="semibold"
+                                    numberOfLines={1}>
+                                    {musicItem.title}
+                                </ThemeText>
+                                <ThemeText
+                                    fontSize="description"
+                                    numberOfLines={1}
+                                    fontColor="textSecondary"
+                                    style={styles.musicArtist}>
+                                    {musicItem.artist}
+                                </ThemeText>
+                            </View>
+                        </View>
+                        {listBody}
                     </View>
-                </View>
-                {listBody}
-            </VerticalSafeAreaView>
-        </PanelFullscreen>
+                </>
+            )}
+        />
     );
 }
 
 const styles = StyleSheet.create({
+    body: {
+        flex: 1,
+    },
     musicItemContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: rpx(16),
-        paddingHorizontal: rpx(24),
-        height: rpx(120),
+        marginHorizontal: spacing.md,
+        marginTop: spacing.md,
+        marginBottom: spacing.sm,
+        padding: spacing.md,
+        borderRadius: radius.xl,
+        borderWidth: StyleSheet.hairlineWidth,
     },
     musicItemArtwork: {
         width: rpx(88),
         height: rpx(88),
-        borderRadius: rpx(12),
+        borderRadius: radius.lg,
         overflow: "hidden",
+        marginRight: spacing.md,
     },
     musicItemContent: {
         flex: 1,
-        gap: rpx(16),
+        justifyContent: "center",
+    },
+    musicArtist: {
+        marginTop: spacing.xs,
+    },
+    listContent: {
+        paddingHorizontal: spacing.md,
+        paddingBottom: spacing.xl,
     },
 });

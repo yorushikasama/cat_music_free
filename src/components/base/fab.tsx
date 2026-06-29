@@ -19,17 +19,18 @@ export default function Fab(props: IFabProps) {
     return (
         <Pressable
             onPress={onPress}
-            style={[
+            style={({ pressed }) => [
                 styles.container,
                 {
-                    backgroundColor: colors.backdrop,
+                    backgroundColor: colors.primary,
                     shadowColor: colors.shadow,
+                    opacity: pressed ? 0.84 : 1,
                 },
             ]}>
             {icon ? (
                 <Icon
                     name={icon}
-                    color={colors.text}
+                    color="#ffffff"
                     size={iconSizeConst.normal}
                 />
             ) : null}

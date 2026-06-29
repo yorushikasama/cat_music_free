@@ -1,14 +1,15 @@
-import React, { memo } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, { memo, useMemo } from "react";
+import { StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import ThemeText from "@/components/base/themeText";
-import useTextColor from "@/hooks/useTextColor";
 import Checkbox from "@/components/base/checkbox";
 import { TouchableOpacity } from "react-native-gesture-handler";
-import Icon from "@/components/base/icon.tsx";
 import { iconSizeConst } from "@/constants/uiConst.ts";
-
-const ITEM_HEIGHT = rpx(96);
+import ListItem from "@/components/base/listItem";
+import useColors from "@/hooks/useColors";
+import { spacing } from "@/constants/spacing";
+import { radius } from "@/constants/borderRadius";
+import Color from "color";
 
 interface IProps {
     type: "folder" | "file";
@@ -18,6 +19,7 @@ interface IProps {
     onItemPress: (currentChecked?: boolean) => void;
     onCheckedChange: (checked: boolean) => void;
 }
+
 function FileItem(props: IProps) {
     const {
         type,
@@ -28,36 +30,72 @@ function FileItem(props: IProps) {
         onCheckedChange: onCheckChange,
     } = props;
 
-    const textColor = useTextColor();
-
-    // 返回逻辑
+    const colors = useColors();
+    const title = useMemo(
+        () =>
+            path.substring(parentPath === "/" ? 1 : parentPath.length + 1) ||
+            path,
+        [parentPath, path],
+    );
+    const description =
+        type === "folder"
+            ? path
+            : path.substring(0, Math.max(path.lastIndexOf("/"), 0)) || path;
+    const iconColor = checked ? colors.primary : colors.textSecondary;
 
     return (
-        <View style={styles.container}>
-            <Pressable
-                onPress={() => {
-                    onItemPress(checked);
-                }}
-                style={styles.pathWrapper}>
-                <Icon
-                    name={
-                        type === "folder"
-                            ? "folder-outline"
-                            : "document-outline"
-                    }
-                    color={textColor}
-                    style={styles.folderIcon}
-                    size={iconSizeConst.light}
-                />
+        <ListItem
+            heightType="small"
+            withHorizontalPadding
+            style={[
+                styles.container,
+                checked
+                    ? {
+                          backgroundColor: Color(colors.primary)
+                              .alpha(0.08)
+                              .rgb()
+                              .string(),
+                      }
+                    : null,
+            ]}
+            onPress={() => {
+                onItemPress(checked);
+            }}>
+            <ListItem.ListItemIcon
+                icon={type === "folder" ? "folder-outline" : "musical-note"}
+                iconSize={iconSizeConst.light}
+                color={iconColor}
+                containerStyle={[
+                    styles.fileIcon,
+                    {
+                        backgroundColor: Color(iconColor)
+                            .alpha(0.1)
+                            .rgb()
+                            .string(),
+                        borderColor: Color(iconColor)
+                            .alpha(0.16)
+                            .rgb()
+                            .string(),
+                    },
+                ]}
+            />
+            <View style={styles.pathWrapper}>
                 <ThemeText
-                    style={styles.path}
+                    fontWeight={checked ? "semibold" : "regular"}
+                    color={checked ? colors.primary : colors.text}
                     numberOfLines={1}
                     ellipsizeMode="tail">
-                    {path.substring(
-                        parentPath === "/" ? 1 : parentPath.length + 1,
-                    )}
+                    {title}
                 </ThemeText>
-            </Pressable>
+                <ThemeText
+                    fontSize="description"
+                    fontColor="textSecondary"
+                    numberOfLines={1}
+                    ellipsizeMode="head"
+                    style={styles.pathDescription}>
+                    {description}
+                </ThemeText>
+            </View>
             <TouchableOpacity
                 onPress={() => {
                     onCheckChange(!checked);
@@ -65,7 +103,7 @@ function FileItem(props: IProps) {
                 style={styles.checkIcon}>
                 <Checkbox checked={checked} />
             </TouchableOpacity>
-        </View>
+        </ListItem>
     );
 }
 
@@ -80,28 +118,25 @@ export default memo(
 const styles = StyleSheet.create({
     container: {
         width: "100%",
-        height: ITEM_HEIGHT,
-        paddingHorizontal: rpx(24),
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
+        borderRadius: radius.lg,
     },
-    folderIcon: {
-        fontSize: rpx(32),
-        marginRight: rpx(14),
+    fileIcon: {
+        width: rpx(64),
+        height: rpx(64),
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        marginRight: spacing.md,
     },
     pathWrapper: {
-        flexDirection: "row",
         flex: 1,
-        alignItems: "center",
-        height: "100%",
-        marginRight: rpx(60),
+        justifyContent: "center",
+        minWidth: 0,
     },
-    path: {
-        height: "100%",
-        textAlignVertical: "center",
+    pathDescription: {
+        marginTop: spacing.xs,
     },
     checkIcon: {
         padding: rpx(14),
+        marginLeft: spacing.sm,
     },
 });

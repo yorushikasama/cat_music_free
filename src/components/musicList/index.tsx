@@ -3,7 +3,7 @@ import TrackPlayer from "@/core/trackPlayer";
 import rpx from "@/utils/rpx";
 import { FlashList } from "@shopify/flash-list";
 import React, { useRef, useCallback, useState, useEffect, useMemo } from "react";
-import { FlatListProps, Pressable, StyleSheet, View } from "react-native";
+import { FlatListProps, NativeSyntheticEvent, NativeScrollEvent, Pressable, StyleSheet, View } from "react-native";
 import ListEmpty from "../base/listEmpty";
 import ListFooter from "../base/listFooter";
 import MusicItem from "../mediaItem/musicItem";
@@ -32,6 +32,7 @@ interface IMusicListProps {
     highlightMusicItem?: IMusic.IMusicItem | null;
     onRetry?: () => void;
     onLoadMore?: () => void;
+    onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 const ITEM_HEIGHT = rpx(120);
 
@@ -47,6 +48,7 @@ export default function MusicList(props: IMusicListProps) {
         onRetry,
         onLoadMore,
         highlightMusicItem,
+        onScroll,
     } = props;    
     const colors = useColors();
     const flashListRef = useRef<FlashList<IMusic.IMusicItem>>(null);
@@ -120,6 +122,8 @@ export default function MusicList(props: IMusicListProps) {
                 onScrollBeginDrag={handleScrollBegin}
                 onScrollEndDrag={handleScrollEnd}
                 onMomentumScrollEnd={handleScrollEnd}
+                onScroll={onScroll}
+                scrollEventThrottle={16}
                 renderItem={({ index, item: musicItem }) => {
                     return (
                         <MusicItem

@@ -9,6 +9,7 @@ import {
     NativeEventSubscription,
     Pressable,
     StyleSheet,
+    View,
 } from "react-native";
 import Animated, {
     Easing,
@@ -26,6 +27,10 @@ import { radius } from "@/constants/borderRadius";
 
 const ANIMATION_EASING: EasingFunction = Easing.out(Easing.exp);
 const ANIMATION_DURATION = 250;
+const Z_INDEX = {
+    backdrop: 15000,
+    panel: 15010,
+};
 
 const timingConfig = {
     duration: ANIMATION_DURATION,
@@ -170,10 +175,21 @@ export default function (props: IPanelBaseProps) {
                     height: height,
                 },
                 {
-                    backgroundColor: colors.backdrop,
+                    backgroundColor: colors.surfacePrimary ?? colors.backdrop,
+                    borderColor: colors.divider,
+                    shadowColor: colors.shadow,
                 },
                 panelAnimated,
             ]}>
+            <View
+                pointerEvents="none"
+                style={[
+                    style.handle,
+                    {
+                        backgroundColor: colors.divider,
+                    },
+                ]}
+            />
             {renderBody(loading)}
         </Animated.View>
     );
@@ -211,7 +227,7 @@ const style = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 15000,
+        zIndex: Z_INDEX.backdrop,
     },
     mask: {
         backgroundColor: "#000",
@@ -223,9 +239,27 @@ const style = StyleSheet.create({
         right: 0,
         borderTopLeftRadius: radius.xxxl,
         borderTopRightRadius: radius.xxxl,
-        zIndex: 15010,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        zIndex: Z_INDEX.panel,
+        shadowOffset: {
+            width: 0,
+            height: -4,
+        },
+        shadowOpacity: 0.18,
+        shadowRadius: 8,
+        elevation: 8,
+        overflow: "hidden",
     },
     kbContainer: {
-        zIndex: 15010,
+        zIndex: Z_INDEX.panel,
+    },
+    handle: {
+        position: "absolute",
+        top: rpx(14),
+        alignSelf: "center",
+        width: rpx(72),
+        height: rpx(8),
+        borderRadius: radius.pill,
+        zIndex: 1,
     },
 });

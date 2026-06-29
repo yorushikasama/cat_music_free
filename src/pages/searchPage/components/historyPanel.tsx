@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
-import Loading from "@/components/base/loading";
+import { SkeletonBlock } from "@/components/base/skeleton";
 import Chip from "@/components/base/chip";
 import useSearch from "../hooks/useSearch";
 import {
@@ -22,6 +22,10 @@ import ThemeText from "@/components/base/themeText";
 import Button from "@/components/base/textButton.tsx";
 import Empty from "@/components/base/empty";
 import { useI18N } from "@/core/i18n";
+import useColors from "@/hooks/useColors";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
+import Color from "color";
 
 export default function () {
     const [history, setHistory] = useState<string[] | null>(null);
@@ -31,6 +35,9 @@ export default function () {
     const setPageStatus = useSetAtom(pageStatusAtom);
     const setSearchResultsState = useSetAtom(searchResultsAtom);
     const { t } = useI18N();
+    const colors = useColors();
+    const chipBackground = Color(colors.primary).alpha(0.1).rgb().string();
+    const chipBorder = Color(colors.primary).alpha(0.16).rgb().string();
 
     useEffect(() => {
         getHistory().then(setHistory);
@@ -39,7 +46,20 @@ export default function () {
     return (
         <View style={style.wrapper}>
             {history === null ? (
-                <Loading />
+                <View style={style.loadingContent}>
+                    <SkeletonBlock width="38%" height={rpx(34)} />
+                    <View style={style.loadingChips}>
+                        {Array.from({ length: 10 }).map((_, index) => (
+                            <SkeletonBlock
+                                key={index}
+                                width={index % 3 === 0 ? rpx(164) : rpx(116)}
+                                height={rpx(56)}
+                                radius={radius.pill}
+                                style={style.loadingChip}
+                            />
+                        ))}
+                    </View>
+                </View>
             ) : (
                 <>
                     <View style={style.header}>
@@ -47,6 +67,13 @@ export default function () {
                             {t("searchPage.history")}
                         </ThemeText>
                         <Button
+                            style={[
+                                style.clearButton,
+                                {
+                                    backgroundColor: colors.surfaceSecondary,
+                                    borderColor: colors.divider,
+                                },
+                            ]}
                             fontColor="textSecondary"
                             onPress={async () => {
                                 await removeAllHistory();
@@ -62,7 +89,13 @@ export default function () {
                             history.map(_ => (
                                 <Chip
                                     key={`search-history-${_}`}
-                                    containerStyle={style.chip}
+                                    containerStyle={[
+                                        style.chip,
+                                        {
+                                            backgroundColor: chipBackground,
+                                            borderColor: chipBorder,
+                                        },
+                                    ]}
                                     onClose={async () => {
                                         await removeHistory(_);
                                         getHistory().then(setHistory);
@@ -80,7 +113,12 @@ export default function () {
                                 </Chip>
                             ))
                         ) : (
-                            <Empty />
+                            <Empty
+                                icon="clock-outline"
+                                title={t("searchPage.history")}
+                                description={t("common.emptyListDescription")}
+                                minHeight={rpx(420)}
+                            />
                         )}
                     </ScrollView>
                 </>
@@ -94,15 +132,22 @@ const style = StyleSheet.create({
         width: "100%",
         maxWidth: "100%",
         flexDirection: "column",
-        padding: rpx(24),
+        paddingHorizontal: spacing.md,
         flex: 1,
     },
     header: {
         width: "100%",
         flexDirection: "row",
-        paddingVertical: rpx(28),
+        paddingVertical: spacing.lg,
         justifyContent: "space-between",
         alignItems: "center",
+    },
+    clearButton: {
+        height: rpx(52),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: spacing.md,
+        justifyContent: "center",
     },
     historyContent: {
         width: "100%",
@@ -111,10 +156,24 @@ const style = StyleSheet.create({
     historyContentConainer: {
         flexDirection: "row",
         flexWrap: "wrap",
+        paddingBottom: rpx(160),
     },
     chip: {
         flexGrow: 0,
-        marginRight: rpx(24),
-        marginBottom: rpx(24),
+        marginRight: spacing.sm,
+        marginBottom: spacing.sm,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    loadingContent: {
+        paddingTop: spacing.lg,
+    },
+    loadingChips: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        marginTop: spacing.lg,
+    },
+    loadingChip: {
+        marginRight: spacing.sm,
+        marginBottom: spacing.sm,
     },
 });

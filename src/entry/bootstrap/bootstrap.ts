@@ -216,7 +216,7 @@ async function extraMakeup() {
                     plugins
                         .filter(plugin => plugin.instance.srcUrl)
                         .map(plugin =>
-                            PluginManager.installPluginFromUrl(plugin.instance.srcUrl),
+                            PluginManager.installPluginFromUrl(plugin.instance.srcUrl!),
                         ),
                 );
             }

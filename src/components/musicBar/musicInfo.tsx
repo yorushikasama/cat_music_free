@@ -25,9 +25,10 @@ interface IBarMusicItemProps {
     musicItem: IMusic.IMusicItem | null;
     activeIndex: number;
     transformSharedValue: SharedValue<number>;
+    paddingLeft?: number;
 }
 function _BarMusicItem(props: IBarMusicItemProps) {
-    const { musicItem, activeIndex, transformSharedValue } = props;
+    const { musicItem, activeIndex, transformSharedValue, paddingLeft } = props;
     const colors = useColors();
     const safeAreaInsets = useSafeAreaInsets();
 
@@ -46,7 +47,7 @@ function _BarMusicItem(props: IBarMusicItemProps) {
             style={[
                 styles.container,
                 {
-                    paddingLeft: rpx(24) + safeAreaInsets.left,
+                    paddingLeft: paddingLeft ?? rpx(24) + safeAreaInsets.left,
                 },
                 animatedStyles,
             ]}>
@@ -81,7 +82,8 @@ const BarMusicItem = memo(
     _BarMusicItem,
     (prev, curr) =>
         prev.musicItem === curr.musicItem &&
-        prev.activeIndex === curr.activeIndex,
+        prev.activeIndex === curr.activeIndex &&
+        prev.paddingLeft === curr.paddingLeft,
 );
 
 const styles = StyleSheet.create({
@@ -117,7 +119,7 @@ function skipMusicItem(direction: number) {
 }
 
 export default function MusicInfo(props: IMusicInfoProps) {
-    const { musicItem } = props;
+    const { musicItem, paddingLeft } = props;
     const navigate = useNavigate();
     const playLists = usePlayList();
     const siblingMusicItems = useMemo(() => {
@@ -131,6 +133,7 @@ export default function MusicInfo(props: IMusicInfoProps) {
             prev: TrackPlayer.previousMusic,
             next: TrackPlayer.nextMusic,
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- playLists 变化时需要重新读取 TrackPlayer 的上一首/下一首缓存
     }, [musicItem, playLists]);
 
     const transformSharedValue = useSharedValue(0);
@@ -145,7 +148,7 @@ export default function MusicInfo(props: IMusicInfoProps) {
 
     useLayoutEffect(() => {
         transformSharedValue.value = 0;
-    }, [musicItem]);
+    }, [musicItem, transformSharedValue]);
 
     const panGesture = Gesture.Pan()
         .minPointers(1)
@@ -208,16 +211,19 @@ export default function MusicInfo(props: IMusicInfoProps) {
                     transformSharedValue={transformSharedValue}
                     musicItem={siblingMusicItems.prev}
                     activeIndex={-1}
+                    paddingLeft={paddingLeft}
                 />
                 <BarMusicItem
                     transformSharedValue={transformSharedValue}
                     musicItem={musicItem}
                     activeIndex={0}
+                    paddingLeft={paddingLeft}
                 />
                 <BarMusicItem
                     transformSharedValue={transformSharedValue}
                     musicItem={siblingMusicItems.next}
                     activeIndex={1}
+                    paddingLeft={paddingLeft}
                 />
             </View>
         </GestureDetector>

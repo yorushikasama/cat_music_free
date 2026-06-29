@@ -1,15 +1,10 @@
 import AppBar from "@/components/base/appBar";
-import Icon from "@/components/base/icon.tsx";
-import IconButton from "@/components/base/iconButton";
-import Input from "@/components/base/input";
+import SearchInput from "@/components/base/searchInput";
 import Button from "@/components/base/textButton.tsx";
-import { iconSizeConst } from "@/constants/uiConst";
 import { useI18N } from "@/core/i18n";
 import useColors from "@/hooks/useColors";
 import rpx from "@/utils/rpx";
 import { spacing } from "@/constants/spacing";
-import { radius } from "@/constants/borderRadius";
-import Color from "color";
 import { useAtom, useSetAtom } from "jotai";
 import React from "react";
 import { StyleSheet, View } from "react-native";
@@ -27,9 +22,9 @@ export default function NavBar() {
     const search = useSearch();
     const [query, setQuery] = useAtom(queryAtom);
     const setPageStatus = useSetAtom(pageStatusAtom);
-    const colors = useColors();
     const setSearchResultsState = useSetAtom(searchResultsAtom);
     const { t } = useI18N();
+    const colors = useColors();
 
     const onSearchSubmit = async () => {
         if (query === "") {
@@ -43,33 +38,26 @@ export default function NavBar() {
         await addHistory(query);
     };
 
-    const hintTextColor = Color(colors.text).alpha(0.6).toString();
-
     return (
-        <AppBar containerStyle={style.appbar} contentStyle={style.appbar}>
+        <AppBar
+            color={colors.text}
+            containerStyle={[
+                style.appbar,
+                {
+                    backgroundColor: colors.pageBackground,
+                },
+            ]}
+            contentStyle={style.appbarContent}>
             <View style={style.searchBarContainer}>
-                <Icon
-                    name="magnifying-glass"
-                    color={hintTextColor}
-                    size={iconSizeConst.small}
-                    style={style.magnify}
-                />
-                <Input
+                <SearchInput
                     autoFocus
-                    variant="outlined"
-                    style={[
-                        style.searchBar,
-                        {
-                            color: colors.text,
-                        },
-                    ]}
+                    containerStyle={style.searchBar}
                     accessible
                     accessibilityLabel={t("searchPage.searchLabel.a11y")}
                     accessibilityHint={t("searchPage.searchPlaceHolder")}
                     onFocus={() => {
                         setPageStatus(PageStatus.EDITING);
                     }}
-                    placeholderTextColor={hintTextColor}
                     placeholder={t("searchPage.searchPlaceHolder")}
                     onSubmitEditing={onSearchSubmit}
                     onChangeText={_ => {
@@ -79,24 +67,16 @@ export default function NavBar() {
                         setQuery(_);
                     }}
                     value={query}
+                    onClear={() => {
+                        setQuery("");
+                        setPageStatus(PageStatus.EDITING);
+                    }}
                 />
-                {query.length ? (
-                    <IconButton
-                        style={style.close}
-                        sizeType="light"
-                        onPress={() => {
-                            setQuery("");
-                            setPageStatus(PageStatus.EDITING);
-                        }}
-                        color={hintTextColor}
-                        name="x-mark"
-                    />
-                ) : null}
             </View>
             <Button
                 style={[style.button]}
                 hitSlop={0}
-                fontColor={"appBarText"}
+                fontColor={"primary"}
                 onPress={onSearchSubmit}>
                 {t("common.search")}
             </Button>
@@ -106,11 +86,19 @@ export default function NavBar() {
 
 const style = StyleSheet.create({
     appbar: {
-        paddingRight: 0,
+        paddingRight: spacing.md,
+        paddingLeft: spacing.sm,
+        paddingTop: spacing.xs,
+        paddingBottom: spacing.xs,
+        height: rpx(96),
+    },
+    appbarContent: {
+        paddingHorizontal: spacing.sm,
     },
     button: {
-        paddingHorizontal: spacing.md,
-        height: "100%",
+        minWidth: rpx(88),
+        paddingHorizontal: spacing.sm,
+        height: rpx(64),
         justifyContent: "center",
         flexDirection: "row",
         alignItems: "center",
@@ -123,19 +111,6 @@ const style = StyleSheet.create({
     searchBar: {
         minWidth: rpx(375),
         flex: 1,
-        paddingHorizontal: spacing.xxxl,
-        borderRadius: radius.pill,
-        height: spacing.xxxl,
-        maxHeight: spacing.xxxl,
-        alignItems: "center",
-    },
-    magnify: {
-        position: "absolute",
-        left: spacing.sm,
-        zIndex: 100,
-    },
-    close: {
-        position: "absolute",
-        right: spacing.sm,
+        minHeight: rpx(64),
     },
 });

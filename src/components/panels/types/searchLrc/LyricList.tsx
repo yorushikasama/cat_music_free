@@ -1,4 +1,4 @@
-import Loading from "@/components/base/loading";
+import SkeletonList from "@/components/base/skeleton";
 import LyricItem from "@/components/mediaItem/LyricItem";
 import { RequestStateCode } from "@/constants/commonConst";
 import lyricManager from "@/core/lyricManager";
@@ -37,7 +37,7 @@ function LyricListImpl(props: ILyricListProps) {
     const { t } = useI18N();
 
     return searchState === RequestStateCode.PENDING_FIRST_PAGE ? (
-        <Loading />
+        <SkeletonList count={6} withArtwork={false} />
     ) : (
         <FlashList
             estimatedItemSize={ITEM_HEIGHT}

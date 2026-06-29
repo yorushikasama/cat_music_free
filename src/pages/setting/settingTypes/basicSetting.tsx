@@ -23,6 +23,7 @@ import rpx from "@/utils/rpx";
 import Toast from "@/utils/toast";
 import Clipboard from "@react-native-clipboard/clipboard";
 import Slider from "@react-native-community/slider";
+import Color from "color";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { SectionList, StyleSheet, TouchableOpacity, View } from "react-native";
 import { readdir } from "react-native-fs";
@@ -144,6 +145,7 @@ export default function BasicSetting() {
     const navigate = useNavigate();
 
     const [cacheSize, refreshCacheSize] = useCacheSize();
+    const [activeSection, setActiveSection] = useState(0);
 
     const sectionListRef = useRef<SectionList | null>(null);
 
@@ -425,8 +427,8 @@ export default function BasicSetting() {
         },
         {
             title: t("basicSettings.lyric"),
-            data: [],
-            footer: <LyricSetting />,
+            data: [{ key: "lyricSetting" }],
+            footer: null,
         },
         {
             title: t("basicSettings.cache"),
@@ -589,24 +591,52 @@ export default function BasicSetting() {
                 renderItem={({ item, index }) => (
                     <TouchableOpacity
                         onPress={() => {
-                            sectionListRef.current?.scrollToLocation({
-                                sectionIndex: index,
-                                itemIndex: 0,
-                            });
+                            setActiveSection(index);
+                            try {
+                                sectionListRef.current?.scrollToLocation({
+                                    sectionIndex: index,
+                                    itemIndex: 0,
+                                    viewPosition: 0,
+                                });
+                            } catch { }
                         }}
                         activeOpacity={0.7}
-                        style={styles.headerItemStyle}>
-                        <ThemeText fontWeight="bold">{item}</ThemeText>
+                        style={[
+                            styles.headerItemStyle,
+                            {
+                                backgroundColor: activeSection === index
+                                    ? Color(colors.primary).alpha(0.14).rgb().string()
+                                    : colors.surfaceSecondary,
+                                borderColor: activeSection === index
+                                    ? Color(colors.primary).alpha(0.36).rgb().string()
+                                    : colors.divider,
+                            },
+                        ]}>
+                        <ThemeText
+                            fontWeight={activeSection === index ? "bold" : "medium"}
+                            fontColor={activeSection === index ? "primary" : "text"}>
+                            {item}
+                        </ThemeText>
                     </TouchableOpacity>
                 )}
             />
             <SectionList
                 sections={basicOptions}
+                stickySectionHeadersEnabled={false}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.listContentContainer}
                 renderSectionHeader={({ section }) => (
                     <View style={styles.sectionHeader}>
+                        <View
+                            style={[
+                                styles.sectionDot,
+                                {
+                                    backgroundColor: Color(colors.primary).alpha(0.72).rgb().string(),
+                                },
+                            ]}
+                        />
                         <ThemeText
                             fontSize="subTitle"
-                            fontColor="textSecondary"
                             fontWeight="bold">
                             {section.title}
                         </ThemeText>
@@ -620,6 +650,9 @@ export default function BasicSetting() {
                     if (item.key === "particleEffect") {
                         return <ParticleEffectSelector />;
                     }
+                    if (item.key === "lyricSetting") {
+                        return <LyricSetting />;
+                    }
                     const Right = item.right;
                     const isFirst = index === 0;
                     const isLast = index === section.data.length - 1 && !section.footer;
@@ -627,9 +660,13 @@ export default function BasicSetting() {
                     return (
                         <View style={[
                             styles.cardItemWrapper,
-                            { backgroundColor: colors.surfacePrimary },
+                            {
+                                backgroundColor: colors.surfacePrimary,
+                                borderColor: colors.divider,
+                            },
                             isFirst && styles.cardItemFirst,
                             isLast && styles.cardItemLast,
+                            !isLast && styles.cardItemDivider,
                         ]}>
                             <ListItem
                                 withHorizontalPadding
@@ -661,34 +698,53 @@ const styles = StyleSheet.create({
         height: spacing.xxxl,
         flexDirection: "row",
         alignItems: "center",
-        marginTop: spacing.lg,
+        marginTop: spacing.xl,
     },
     headerContainer: {
-        height: spacing.xxxl,
+        height: rpx(88),
     },
     headerContentContainer: {
-        height: spacing.xxxl,
+        height: rpx(88),
         alignItems: "center",
         paddingHorizontal: spacing.md,
     },
     headerItemStyle: {
         paddingHorizontal: spacing.lg,
-        height: spacing.xxxl,
+        height: rpx(56),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        marginRight: spacing.sm,
         justifyContent: "center",
         alignItems: "center",
     },
+    listContentContainer: {
+        paddingBottom: spacing.xxxl,
+    },
     cardItemWrapper: {
         marginHorizontal: spacing.md,
+        borderLeftWidth: StyleSheet.hairlineWidth,
+        borderRightWidth: StyleSheet.hairlineWidth,
     },
     cardItemFirst: {
-        borderTopLeftRadius: radius.md,
-        borderTopRightRadius: radius.md,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopLeftRadius: radius.xl,
+        borderTopRightRadius: radius.xl,
         overflow: "hidden",
     },
     cardItemLast: {
-        borderBottomLeftRadius: radius.md,
-        borderBottomRightRadius: radius.md,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomLeftRadius: radius.xl,
+        borderBottomRightRadius: radius.xl,
         overflow: "hidden",
+    },
+    cardItemDivider: {
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    sectionDot: {
+        width: rpx(12),
+        height: rpx(12),
+        borderRadius: radius.pill,
+        marginRight: spacing.sm,
     },
 });
 
@@ -773,7 +829,13 @@ function LyricSetting() {
     );
 
     return (
-        <View style={{ backgroundColor: colors.surfacePrimary, marginHorizontal: spacing.md, borderBottomLeftRadius: radius.md, borderBottomRightRadius: radius.md, overflow: "hidden" }}>
+        <View style={[
+            lyricStyles.wrapper,
+            {
+                backgroundColor: colors.surfacePrimary,
+                borderColor: colors.divider,
+            },
+        ]}>
             <ListItem
                 withHorizontalPadding
                 heightType="small"
@@ -928,6 +990,18 @@ function LyricSetting() {
 }
 
 const lyricStyles = StyleSheet.create({
+    wrapper: {
+        marginHorizontal: spacing.md,
+        borderTopLeftRadius: radius.xl,
+        borderTopRightRadius: radius.xl,
+        borderBottomLeftRadius: radius.xl,
+        borderBottomRightRadius: radius.xl,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderLeftWidth: StyleSheet.hairlineWidth,
+        borderRightWidth: StyleSheet.hairlineWidth,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        overflow: "hidden",
+    },
     slider: {
         flex: 1,
         marginLeft: spacing.md,

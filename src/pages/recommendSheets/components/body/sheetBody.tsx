@@ -9,6 +9,7 @@ import useRecommendList from "../../hooks/useRecommendListTags";
 import SheetList from "./sheetList";
 import { hidePanel, showPanel } from "@/components/panels/usePanel";
 import { useI18N } from "@/core/i18n";
+import { spacing } from "@/constants/spacing";
 
 interface IProps {
     hash: string;
@@ -82,5 +83,6 @@ const style = StyleSheet.create({
     header: {
         height: rpx(100),
         alignItems: "center",
+        paddingHorizontal: spacing.sm,
     },
 });

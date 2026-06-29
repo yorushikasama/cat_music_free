@@ -1,9 +1,7 @@
 import React from "react";
 import { StyleSheet } from "react-native";
-import rpx from "@/utils/rpx";
 import AppBar from "@/components/base/appBar";
-import VerticalSafeAreaView from "@/components/base/verticalSafeAreaView";
-import globalStyle from "@/constants/globalStyle";
+import PageShell from "@/components/base/pageShell";
 import Button from "@/components/base/textButton.tsx";
 import Body from "./body";
 import { useNavigation } from "@react-navigation/native";
@@ -14,10 +12,10 @@ export default function SetCustomTheme() {
     const { t } = useI18N();
 
     return (
-        <VerticalSafeAreaView style={globalStyle.fwflex1}>
-            <AppBar
-                withStatusBar
-                actionComponent={
+        <PageShell
+            appBar={(
+                <AppBar
+                    actionComponent={(
                     <Button
                         style={styles.submit}
                         onPress={() => {
@@ -26,18 +24,16 @@ export default function SetCustomTheme() {
                         fontColor="appBarText">
                         {t("common.done")}
                     </Button>
-                }>
-                {t("setCustomTheme.customizeBackground")}
-            </AppBar>
+                    )}>
+                    {t("setCustomTheme.customizeBackground")}
+                </AppBar>
+            )}>
             <Body />
-        </VerticalSafeAreaView>
+        </PageShell>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        width: rpx(750),
-    },
     submit: {
         justifyContent: "center",
     },

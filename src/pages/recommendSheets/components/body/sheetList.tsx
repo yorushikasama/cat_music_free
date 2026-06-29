@@ -1,4 +1,5 @@
 import React, { memo, useCallback } from "react";
+import { StyleSheet } from "react-native";
 import rpx from "@/utils/rpx";
 import { FlashList } from "@shopify/flash-list";
 import useRecommendSheets from "../../hooks/useRecommendSheets";
@@ -6,6 +7,9 @@ import SheetItem from "@/components/mediaItem/sheetItem";
 import useOrientation from "@/hooks/useOrientation";
 import ListEmpty from "@/components/base/listEmpty";
 import ListFooter from "@/components/base/listFooter";
+import { RequestStateCode } from "@/constants/commonConst";
+import { SkeletonGrid } from "@/components/base/skeleton";
+import { spacing } from "@/constants/spacing";
 
 interface ISheetListProps {
     tag: ICommon.IUnique;
@@ -27,6 +31,15 @@ function SheetList(props: ISheetListProps) {
         [],
     );
 
+    if (!sheets.length && status === RequestStateCode.PENDING_FIRST_PAGE) {
+        return (
+            <SkeletonGrid
+                count={orientation === "vertical" ? 9 : 8}
+                columns={orientation === "vertical" ? 3 : 4}
+            />
+        );
+    }
+
     return (
         <FlashList
             ListEmptyComponent={<ListEmpty state={status} onRetry={query} />}
@@ -45,6 +58,7 @@ function SheetList(props: ISheetListProps) {
             renderItem={renderItem}
             data={sheets}
             keyExtractor={keyExtractor}
+            contentContainerStyle={styles.listContent}
         />
     );
 }
@@ -54,3 +68,11 @@ export default memo(
     (prev, curr) =>
         prev.tag.id === curr.tag.id && prev.pluginHash === curr.pluginHash,
 );
+
+const styles = StyleSheet.create({
+    listContent: {
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.md,
+        paddingBottom: spacing.xl,
+    },
+});

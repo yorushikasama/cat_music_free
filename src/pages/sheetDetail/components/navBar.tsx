@@ -7,9 +7,14 @@ import MusicSheet, { useSheetItem } from "@/core/musicSheet";
 import { ROUTE_PATH, useParams } from "@/core/router";
 import { default as Toast, default as toast } from "@/utils/toast";
 import { useNavigation } from "@react-navigation/native";
-import React from "react";
+import React, { ReactNode } from "react";
 
-export default function () {
+interface INavBarProps {
+    titleComponent?: ReactNode;
+}
+
+export default function NavBar(props: INavBarProps) {
+    const { titleComponent } = props;
     const navigation = useNavigation<any>();
     const { id = "favorite" } = useParams<"local-sheet-detail">();
     const musicSheet = useSheetItem(id);
@@ -109,7 +114,7 @@ export default function () {
                         },
                     },
                 ]}>
-                {t("common.sheet")}
+                {titleComponent ?? t("common.sheet")}
             </AppBar>
         </>
     );

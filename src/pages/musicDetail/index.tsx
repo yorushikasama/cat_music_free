@@ -1,9 +1,8 @@
-import StatusBar from "@/components/base/statusBar";
 import globalStyle from "@/constants/globalStyle";
 import useOrientation from "@/hooks/useOrientation";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import PageShell from "@/components/base/pageShell";
 import Background from "./components/background";
 import Bottom from "./components/bottom";
 import Content from "./components/content";
@@ -28,28 +27,32 @@ export default function MusicDetail() {
     }, []);
 
     return (
-        <>
-            <Background />
-            <SafeAreaView style={globalStyle.fwflex1}>
-                <StatusBar backgroundColor={"transparent"} />
-                <View style={style.bodyWrapper}>
-                    <View style={globalStyle.flex1}>
-                        <NavBar />
-                        <Content />
-                        <Bottom />
-                    </View>
-                    {orientation === "horizontal" ? (
-                        <View style={globalStyle.flex1}>
-                            <Lyric />
-                        </View>
-                    ) : null}
+        <PageShell
+            background={<Background />}
+            withBackground={false}
+            statusBarBackgroundColor="transparent"
+            horizontalEdges={[]}
+            contentStyle={style.content}>
+            <View style={style.bodyWrapper}>
+                <View style={globalStyle.flex1}>
+                    <NavBar />
+                    <Content />
+                    <Bottom />
                 </View>
-            </SafeAreaView>
-        </>
+                {orientation === "horizontal" ? (
+                    <View style={globalStyle.flex1}>
+                        <Lyric />
+                    </View>
+                ) : null}
+            </View>
+        </PageShell>
     );
 }
 
 const style = StyleSheet.create({
+    content: {
+        backgroundColor: "transparent",
+    },
     bodyWrapper: {
         width: "100%",
         flex: 1,

@@ -65,8 +65,11 @@ export function Button(props: IButtonProps) {
     };
 
     const border = borderMap[type];
+    const fontColorValue = fontColor
+        ? colors[fontColor as keyof CustomizedColors]
+        : undefined;
     const resolvedFontColor = fontColor
-        ? (colors[fontColor as keyof CustomizedColors] ?? fontColor)
+        ? (typeof fontColorValue === "string" ? fontColorValue : fontColor)
         : textColorMap[type];
 
     return (

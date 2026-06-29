@@ -7,8 +7,14 @@ import globalStyle from "@/constants/globalStyle";
 import { useSheetItem } from "@/core/musicSheet";
 import { RequestStateCode } from "@/constants/commonConst";
 import { useCurrentMusic } from "@/core/trackPlayer";
+import { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
 
-export default function SheetMusicList() {
+interface ISheetMusicListProps {
+    onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+}
+
+export default function SheetMusicList(props: ISheetMusicListProps) {
+    const { onScroll } = props;
     const { id = "favorite" } = useParams<"local-sheet-detail">();
     const musicSheet = useSheetItem(id);
     const currentMusic = useCurrentMusic();
@@ -22,6 +28,7 @@ export default function SheetMusicList() {
                 showIndex
                 state={RequestStateCode.IDLE}
                 highlightMusicItem={currentMusic}
+                onScroll={onScroll}
 
             />
         </HorizontalSafeAreaView>

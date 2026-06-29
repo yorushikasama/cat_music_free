@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 
 import { ROUTE_PATH, useNavigate } from "@/core/router";
 import AppBar from "@/components/base/appBar";
@@ -6,11 +6,12 @@ import AppBar from "@/components/base/appBar";
 interface INavBarProps {
     navTitle: string;
     musicList: IMusic.IMusicItem[] | null;
+    titleComponent?: ReactNode;
 }
 
 export default function (props: INavBarProps) {
     const navigate = useNavigate();
-    const { navTitle, musicList = [] } = props;
+    const { navTitle, musicList = [], titleComponent } = props;
 
     return (
         <AppBar
@@ -38,7 +39,7 @@ export default function (props: INavBarProps) {
                     },
                 },
             ]}>
-            {navTitle}
+            {titleComponent ?? navTitle}
         </AppBar>
     );
 }

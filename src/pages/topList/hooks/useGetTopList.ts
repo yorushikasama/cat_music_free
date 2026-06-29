@@ -1,21 +1,25 @@
 import { RequestStateCode } from "@/constants/commonConst";
 import PluginManager from "@/core/pluginManager";
 import { produce } from "immer";
-import { useAtom } from "jotai";
+import { getDefaultStore, useSetAtom } from "jotai";
 import { useCallback } from "react";
 import { pluginsTopListAtom } from "../store/atoms";
 
 export default function useGetTopList() {
-    const [pluginsTopList, setPluginsTopList] = useAtom(pluginsTopListAtom);
+    const setPluginsTopList = useSetAtom(pluginsTopListAtom);
 
     const getTopList = useCallback(
         async (pluginHash: string) => {
             try {
+                const pluginsTopList =
+                    getDefaultStore().get(pluginsTopListAtom);
+                const currentTopList = pluginsTopList[pluginHash];
                 // 有数据/加载中直接返回
                 if (
-                    pluginsTopList[pluginHash]?.data?.length ||
-                    pluginsTopList[pluginHash]?.state ===
-                        RequestStateCode.PENDING_REST_PAGE
+                    currentTopList?.data?.length ||
+                    currentTopList?.state ===
+                        RequestStateCode.PENDING_FIRST_PAGE ||
+                    currentTopList?.state === RequestStateCode.PENDING_REST_PAGE
                 ) {
                     return;
                 }
@@ -28,8 +32,8 @@ export default function useGetTopList() {
                 setPluginsTopList(
                     produce(draft => {
                         draft[pluginHash] = {
-                            state: RequestStateCode.PENDING_REST_PAGE,
-                            data: [],
+                            state: RequestStateCode.PENDING_FIRST_PAGE,
+                            data: currentTopList?.data ?? [],
                         };
                     }),
                 );
@@ -45,12 +49,15 @@ export default function useGetTopList() {
             } catch {
                 setPluginsTopList(
                     produce(draft => {
-                        draft[pluginHash].state = RequestStateCode.ERROR;
+                        draft[pluginHash] = {
+                            state: RequestStateCode.ERROR,
+                            data: draft[pluginHash]?.data ?? [],
+                        };
                     }),
                 );
             }
         },
-        [pluginsTopList],
+        [setPluginsTopList],
     );
 
     return getTopList;

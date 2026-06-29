@@ -1,0 +1,155 @@
+<svg width="430" height="932" viewBox="0 0 430 932" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="24" y1="20" x2="420" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFF"/>
+      <stop offset="0.48" stop-color="#F5F7FB"/>
+      <stop offset="1" stop-color="#EEF4F7"/>
+    </linearGradient>
+    <linearGradient id="coverA" x1="52" y1="152" x2="104" y2="204" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#78C6FF"/>
+      <stop offset="1" stop-color="#6B7CFF"/>
+    </linearGradient>
+    <linearGradient id="coverB" x1="294" y1="296" x2="370" y2="372" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB86B"/>
+      <stop offset="1" stop-color="#FF6F91"/>
+    </linearGradient>
+    <linearGradient id="coverC" x1="52" y1="522" x2="128" y2="598" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#95E0C8"/>
+      <stop offset="1" stop-color="#3C8DFF"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="13" flood-color="#1B2430" flood-opacity="0.12"/>
+    </filter>
+    <filter id="pillShadow" x="-20%" y="-50%" width="140%" height="220%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#1B2430" flood-opacity="0.16"/>
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#FFFFFF" flood-opacity="0.9"/>
+    </filter>
+    <style>
+      .title { font: 700 29px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #111827; }
+      .h2 { font: 700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #111827; }
+      .body { font: 500 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #6B7280; }
+      .caption { font: 500 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #8A93A3; }
+      .nav { font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #7A8494; }
+      .navActive { font: 700 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #111827; }
+      .stroke { stroke: #1F2937; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+      .mutedStroke { stroke: #7A8494; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="430" height="932" rx="0" fill="url(#bg)"/>
+
+  <!-- status bar -->
+  <text x="32" y="42" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="17" font-weight="700" fill="#111827">16:52</text>
+  <g transform="translate(322 27)" stroke="#111827" stroke-width="2" stroke-linecap="round">
+    <path d="M0 12h3M7 8v4M14 4v8M21 1v11"/>
+    <rect x="36" y="1" width="28" height="14" rx="4" fill="none"/>
+    <rect x="39" y="4" width="15" height="8" rx="2" fill="#20C76A" stroke="none"/>
+    <path d="M67 5l6-5-3 9h6l-8 8 3-9h-4z" fill="#111827" stroke="none"/>
+  </g>
+
+  <!-- header -->
+  <g transform="translate(28 76)">
+    <rect x="0" y="0" width="62" height="62" rx="20" fill="#E8F2FF"/>
+    <path d="M23 33c6-10 12-17 23-22-2 9-6 19-14 30 7-2 13-2 19-1-8 8-19 12-34 12 5-6 7-12 6-19z" fill="#32A6FF"/>
+    <text x="78" y="27" class="title">CatMusicFree</text>
+    <text x="78" y="51" class="body">发现新歌、管理歌单、继续播放</text>
+    <rect x="270" y="8" width="86" height="42" rx="21" fill="#EEF1F5"/>
+    <path d="M294 20a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm6 14l7 7" class="mutedStroke"/>
+    <text x="312" y="35" class="body">搜索</text>
+  </g>
+
+  <!-- quick actions -->
+  <g transform="translate(28 164)">
+    <g transform="translate(0 0)">
+      <path d="M9 8h34v36H9zM17 3v10M35 3v10M9 18h34" class="stroke"/>
+      <text x="54" y="32" class="body" fill="#111827">推荐</text>
+    </g>
+    <g transform="translate(114 0)">
+      <path d="M12 13h28v28H12zM18 27l7 7 18-21" class="stroke"/>
+      <text x="54" y="32" class="body" fill="#111827">榜单</text>
+    </g>
+    <g transform="translate(224 0)">
+      <path d="M22 44c13 0 23-10 23-23S35-2 22-2-1 8-1 21s10 23 23 23zM22 8v15l10 6" class="stroke"/>
+      <text x="54" y="32" class="body" fill="#111827">历史</text>
+    </g>
+  </g>
+
+  <!-- segmented control -->
+  <g transform="translate(28 235)">
+    <rect x="0" y="0" width="374" height="52" rx="26" fill="#ECEFF4"/>
+    <rect x="128" y="4" width="118" height="44" rx="22" fill="#FFFFFF" filter="url(#softShadow)"/>
+    <text x="45" y="33" class="body">推荐</text>
+    <text x="153" y="33" class="h2" font-size="18">最近播放</text>
+    <text x="282" y="33" class="body">歌单</text>
+  </g>
+
+  <!-- content: rows not heavy cards -->
+  <g transform="translate(28 323)">
+    <rect x="0" y="0" width="374" height="84" rx="24" fill="#FFFFFF" filter="url(#softShadow)"/>
+    <rect x="18" y="16" width="52" height="52" rx="16" fill="url(#coverA)"/>
+    <circle cx="43" cy="42" r="15" fill="#FFFFFF" opacity="0.35"/>
+    <path d="M38 32v22l17-11z" fill="#FFFFFF"/>
+    <text x="86" y="32" class="h2">すずめ feat. 十明</text>
+    <text x="86" y="56" class="body">RADWIMPS · 继续播放</text>
+    <path d="M342 28v26M330 41h26" class="mutedStroke"/>
+  </g>
+
+  <g transform="translate(28 435)">
+    <text x="0" y="0" class="h2">为你推荐</text>
+    <text x="318" y="0" class="caption">查看全部</text>
+    <rect x="0" y="24" width="110" height="150" rx="18" fill="#FFFFFF"/>
+    <rect x="132" y="24" width="110" height="150" rx="18" fill="#FFFFFF"/>
+    <rect x="264" y="24" width="110" height="150" rx="18" fill="#FFFFFF"/>
+    <rect x="14" y="38" width="82" height="82" rx="16" fill="url(#coverC)"/>
+    <rect x="146" y="38" width="82" height="82" rx="16" fill="url(#coverB)"/>
+    <rect x="278" y="38" width="82" height="82" rx="16" fill="#DCE8FF"/>
+    <path d="M310 67v28l22-14z" fill="#4F7CFF"/>
+    <text x="14" y="143" class="caption" fill="#111827">今日私人推荐</text>
+    <text x="146" y="143" class="caption" fill="#111827">华语热歌</text>
+    <text x="278" y="143" class="caption" fill="#111827">轻音乐放松</text>
+  </g>
+
+  <g transform="translate(28 648)">
+    <text x="0" y="0" class="h2">榜单速览</text>
+    <rect x="0" y="24" width="374" height="78" rx="22" fill="#FFFFFF"/>
+    <rect x="18" y="39" width="48" height="48" rx="14" fill="#F1F4F8"/>
+    <path d="M31 70l12-24 12 24M36 61h14" class="mutedStroke"/>
+    <text x="84" y="55" class="h2" font-size="18">本周新歌榜</text>
+    <text x="84" y="78" class="body">更新 42 首歌曲</text>
+    <path d="M340 49l12 12-12 12" class="mutedStroke"/>
+  </g>
+
+  <!-- bottom overlay: no parent band -->
+  <g transform="translate(20 752)">
+    <rect x="0" y="0" width="390" height="74" rx="30" fill="#FFFFFF" filter="url(#pillShadow)"/>
+    <rect x="14" y="12" width="54" height="50" rx="17" fill="#F3F5F8"/>
+    <rect x="78" y="12" width="198" height="50" rx="18" fill="#FFFFFF"/>
+    <rect x="78" y="12" width="46" height="46" rx="14" fill="url(#coverA)"/>
+    <text x="136" y="34" class="body" fill="#111827">すずめ feat. 十明</text>
+    <text x="136" y="53" class="caption">RADWIMPS</text>
+    <circle cx="317" cy="37" r="22" fill="#1BA7C6" opacity="0.12"/>
+    <path d="M310 27v20l16-10z" fill="#1BA7C6"/>
+    <path d="M356 27h20M356 37h20M356 47h13" class="stroke"/>
+  </g>
+
+  <g transform="translate(20 842)">
+    <rect x="0" y="0" width="390" height="66" rx="33" fill="#FFFFFF" filter="url(#pillShadow)"/>
+    <rect x="144" y="5" width="74" height="56" rx="28" fill="#EEF1F5"/>
+    <g transform="translate(49 14)">
+      <path d="M18 4a14 14 0 1 0 0 28 14 14 0 0 0 0-28zM18 11v14l10-7z" class="mutedStroke"/>
+      <text x="-1" y="47" class="nav">发现</text>
+    </g>
+    <g transform="translate(164 13)">
+      <path d="M12 7c-7 0-11 7-8 14 3 8 14 14 14 14s11-6 14-14c3-7-1-14-8-14-4 0-6 2-6 2s-2-2-6-2z" fill="#111827"/>
+      <circle cx="34" cy="3" r="13" fill="#FF5A1F"/>
+      <text x="27" y="8" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13" font-weight="800" fill="white">6</text>
+      <text x="-2" y="48" class="navActive">歌单</text>
+    </g>
+    <g transform="translate(285 14)">
+      <path d="M18 17a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM4 34c2-9 9-14 14-14s12 5 14 14" class="mutedStroke"/>
+      <text x="0" y="47" class="nav">我的</text>
+    </g>
+  </g>
+
+  <rect x="144" y="918" width="142" height="5" rx="2.5" fill="#111827" opacity="0.22"/>
+</svg>

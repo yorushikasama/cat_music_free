@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import rpx, { vmax } from "@/utils/rpx";
 import { fontSizeConst } from "@/constants/uiConst";
@@ -16,7 +16,10 @@ import Config from "@/core/appConfig";
 import { IInstallPluginResult } from "@/types/core/pluginManager";
 import Toast from "@/utils/toast";
 import { showDialog } from "@/components/dialogs/useDialog";
-import Loading from "@/components/base/loading";
+import Icon from "@/components/base/icon";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
+import Color from "color";
 
 type InputMode = "urls" | "file";
 
@@ -33,6 +36,12 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
     const [urlText, setUrlText] = useState("");
     const [installing, setInstalling] = useState(false);
     const [progress, setProgress] = useState({ current: 0, total: 0 });
+    const progressRatio = useMemo(() => {
+        if (!progress.total) {
+            return 0;
+        }
+        return Math.min(1, Math.max(0, progress.current / progress.total));
+    }, [progress.current, progress.total]);
 
     const parseUrls = useCallback((text: string): string[] => {
         return text
@@ -249,8 +258,45 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
                 height={vmax(30)}
                 renderBody={() => (
                     <View style={styles.loadingContainer}>
-                        <Loading />
-                        <ThemeText fontSize="content" fontColor="textSecondary" style={styles.progressText}>
+                        <View
+                            style={[
+                                styles.installIcon,
+                                {
+                                    backgroundColor: Color(colors.primary).alpha(0.12).rgb().string(),
+                                    borderColor: Color(colors.primary).alpha(0.22).rgb().string(),
+                                },
+                            ]}>
+                            <Icon
+                                name="inbox-arrow-down"
+                                size={rpx(44)}
+                                color={colors.primary}
+                            />
+                        </View>
+                        <ThemeText
+                            fontSize="title"
+                            fontWeight="semibold"
+                            style={styles.installTitle}>
+                            {t("pluginSetting.batchInstall.title")}
+                        </ThemeText>
+                        <View
+                            style={[
+                                styles.progressTrack,
+                                { backgroundColor: colors.surfaceSecondary ?? colors.placeholder },
+                            ]}>
+                            <View
+                                style={[
+                                    styles.progressFill,
+                                    {
+                                        width: `${progressRatio * 100}%`,
+                                        backgroundColor: colors.primary,
+                                    },
+                                ]}
+                            />
+                        </View>
+                        <ThemeText
+                            fontSize="content"
+                            fontColor="textSecondary"
+                            style={styles.progressText}>
                             {t("pluginSetting.batchInstall.installing", {
                                 current: progress.current,
                                 total: progress.total,
@@ -380,9 +426,34 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        paddingHorizontal: spacing.xxl,
+    },
+    installIcon: {
+        width: rpx(104),
+        height: rpx(104),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: spacing.md,
+    },
+    installTitle: {
+        textAlign: "center",
+        marginBottom: spacing.lg,
+    },
+    progressTrack: {
+        width: "100%",
+        height: rpx(10),
+        borderRadius: radius.pill,
+        overflow: "hidden",
+    },
+    progressFill: {
+        height: "100%",
+        borderRadius: radius.pill,
     },
     progressText: {
-        marginTop: rpx(24),
+        marginTop: spacing.md,
+        textAlign: "center",
     },
     tabBar: {
         flexDirection: "row",

@@ -5,6 +5,9 @@ import useColors from "@/hooks/useColors";
 import ThemeText from "@/components/base/themeText";
 import Image from "@/components/base/image";
 import { ImgAsset } from "@/constants/assetsConst";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
+import Color from "color";
 
 interface IThemeCardProps {
     selected?: boolean;
@@ -20,18 +23,21 @@ export default function ThemeCard(props: IThemeCardProps) {
     const colors = useColors();
 
     return (
-        <View>
+        <View style={styles.root}>
             <Pressable
                 onPress={onPress}
+                android_ripple={{
+                    color: Color(colors.primary).alpha(0.08).rgb().string(),
+                    borderless: false,
+                }}
                 style={[
                     styles.borderContainer,
-                    selected
-                        ? {
-                            borderWidth: 2,
-                            borderStyle: "solid",
-                            borderColor: colors.primary,
-                        }
-                        : null,
+                    {
+                        backgroundColor: colors.surfaceSecondary,
+                        borderColor: selected
+                            ? colors.primary
+                            : colors.divider,
+                    },
                 ]}>
                 <View
                     style={[
@@ -63,27 +69,33 @@ export default function ThemeCard(props: IThemeCardProps) {
 }
 
 const styles = StyleSheet.create({
+    root: {
+        marginRight: spacing.md,
+        marginBottom: spacing.lg,
+    },
     borderContainer: {
-        width: rpx(160),
-        height: rpx(160),
-        borderRadius: rpx(22),
-        marginRight: rpx(24),
+        width: rpx(156),
+        height: rpx(156),
+        borderRadius: radius.xl,
+        borderWidth: StyleSheet.hairlineWidth,
         justifyContent: "center",
         alignItems: "center",
+        overflow: "hidden",
     },
     container: {
-        width: rpx(136),
-        height: rpx(136),
-        borderRadius: rpx(12),
+        width: rpx(128),
+        height: rpx(128),
+        borderRadius: radius.md,
+        overflow: "hidden",
     },
     title: {
         textAlign: "center",
-        marginTop: rpx(12),
-        width: rpx(160),
+        marginTop: spacing.sm,
+        width: rpx(156),
     },
     image: {
         width: "100%",
         height: "100%",
-        borderRadius: rpx(12),
+        borderRadius: radius.md,
     },
 });

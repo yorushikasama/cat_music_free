@@ -283,6 +283,9 @@ interface IBackgroundInfo {
     opacity?: number;
 }
 
+const DEFAULT_BACKGROUND_BLUR = 20;
+const DEFAULT_BACKGROUND_OPACITY = 0.6;
+
 const themeStore = new GlobalState(darkTheme);
 const backgroundStore = new GlobalState<IBackgroundInfo | null>(null);
 
@@ -322,8 +325,8 @@ function setup() {
 
     backgroundStore.setValue({
         url: bgUrl,
-        blur: bgBlur ?? 20,
-        opacity: bgOpacity ?? 0.6,
+        blur: bgBlur ?? DEFAULT_BACKGROUND_BLUR,
+        opacity: bgOpacity ?? DEFAULT_BACKGROUND_OPACITY,
     });
 }
 
@@ -361,8 +364,8 @@ function setTheme(
     if (extra?.background) {
         const currentBg = backgroundStore.getValue();
         let newBg: IBackgroundInfo = {
-            blur: 20,
-            opacity: 0.6,
+            blur: DEFAULT_BACKGROUND_BLUR,
+            opacity: DEFAULT_BACKGROUND_OPACITY,
             ...(currentBg ?? {}),
             url: undefined,
         };
@@ -404,8 +407,8 @@ function setBackground(backgroundInfo: Partial<IBackgroundInfo>) {
     const currentBackgroundInfo = backgroundStore.getValue();
     let newBgInfo = {
         ...(currentBackgroundInfo ?? {
-            opacity: 0.6,
-            blur: 20,
+            opacity: DEFAULT_BACKGROUND_OPACITY,
+            blur: DEFAULT_BACKGROUND_BLUR,
         }),
     };
     if (typeof backgroundInfo.blur === "number") {
@@ -420,6 +423,18 @@ function setBackground(backgroundInfo: Partial<IBackgroundInfo>) {
         Config.setConfig("theme.background", backgroundInfo.url);
         newBgInfo.url = backgroundInfo.url;
     }
+    backgroundStore.setValue(newBgInfo);
+}
+
+function clearBackground() {
+    const newBgInfo: IBackgroundInfo = {
+        blur: DEFAULT_BACKGROUND_BLUR,
+        opacity: DEFAULT_BACKGROUND_OPACITY,
+    };
+
+    Config.setConfig("theme.background", undefined);
+    Config.setConfig("theme.backgroundBlur", DEFAULT_BACKGROUND_BLUR);
+    Config.setConfig("theme.backgroundOpacity", DEFAULT_BACKGROUND_OPACITY);
     backgroundStore.setValue(newBgInfo);
 }
 
@@ -443,6 +458,7 @@ const Theme = {
     setup,
     setTheme,
     setBackground,
+    clearBackground,
     setColors,
     useTheme: themeStore.useValue,
     getTheme: themeStore.getValue,

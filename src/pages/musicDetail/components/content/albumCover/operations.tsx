@@ -11,7 +11,6 @@ import downloader from "@/core/downloader";
 import i18n from "@/core/i18n";
 import { ROUTE_PATH } from "@/core/router";
 import PluginManager from "@/core/pluginManager";
-import Theme from "@/core/theme";
 import TrackPlayer, { useCurrentMusic, useMusicQuality } from "@/core/trackPlayer";
 import useColors from "@/hooks/useColors";
 import useOrientation from "@/hooks/useOrientation";
@@ -19,6 +18,8 @@ import Toast from "@/utils/toast";
 import toast from "@/utils/toast";
 import PersistStatus from "@/utils/persistStatus";
 import HeartIcon from "../heartIcon";
+import { spacing } from "@/constants/spacing";
+import { radius } from "@/constants/borderRadius";
 
 export default function Operations() {
     const musicItem = useCurrentMusic();
@@ -27,17 +28,13 @@ export default function Operations() {
 
     const rate = PersistStatus.useValue("music.rate", 100);
     const orientation = useOrientation();
-    const theme = Theme.useTheme();
     const colors = useColors();
-    const isRetro = theme.id === "p-retro";
-    const isAcg = theme.id.startsWith("p-acg");
-    const isSpotify = theme.id === "p-spotify";
 
-    const iconColor = isSpotify
-        ? "#b3b3b3"
-        : (isAcg
-            ? colors.text
-            : (isRetro ? colors.text : "white"));
+    const iconColor = colors.text;
+    const actionBgColor = colors.hasCustomBackground
+        ? colors.surfacePrimary
+        : "rgba(255,255,255,0.10)";
+    const actionBorderColor = colors.divider ?? "rgba(255,255,255,0.16)";
 
     const supportComment = useMemo(() => {
         return !musicItem
@@ -45,18 +42,23 @@ export default function Operations() {
             : !!PluginManager.getByMedia(musicItem)?.supportedMethods.has("getMusicComments");
     }, [musicItem]);
 
-    const qualityImgStyle = isAcg
-        ? [styles.quality, styles.acgQualityImg]
-        : styles.quality;
+    const qualityImgStyle = styles.quality;
 
     return (
         <View
             style={[
                 styles.wrapper,
                 orientation === "horizontal" ? styles.horizontalWrapper : null,
+                {
+                    backgroundColor: actionBgColor,
+                    borderColor: actionBorderColor,
+                },
             ]}>
-            <HeartIcon />
+            <View style={styles.actionButton}>
+                <HeartIcon />
+            </View>
             <Pressable
+                style={styles.actionButton}
                 onPress={() => {
                     if (!musicItem) {
                         return;
@@ -78,6 +80,7 @@ export default function Operations() {
                 />
             </Pressable>
             <Icon
+                style={styles.actionIcon}
                 name={isDownloaded ? "check-circle-outline" : "arrow-down-tray"}
                 size={iconSizeConst.normal}
                 color={iconColor}
@@ -94,6 +97,7 @@ export default function Operations() {
                 }}
             />
             <Pressable
+                style={styles.actionButton}
                 onPress={() => {
                     if (!musicItem) {
                         return;
@@ -112,6 +116,7 @@ export default function Operations() {
                 <Image source={ImgAsset.rate[rate!]} style={qualityImgStyle} />
             </Pressable>
             <Icon
+                style={styles.actionIcon}
                 name="chat-bubble-oval-left-ellipsis"
                 size={iconSizeConst.normal}
                 color={iconColor}
@@ -129,6 +134,7 @@ export default function Operations() {
                 }}
             />
             <Icon
+                style={styles.actionIcon}
                 name="ellipsis-vertical"
                 size={iconSizeConst.normal}
                 color={iconColor}
@@ -147,23 +153,35 @@ export default function Operations() {
 
 const styles = StyleSheet.create({
     wrapper: {
-        width: "100%",
+        alignSelf: "center",
+        minWidth: rpx(620),
         height: rpx(88),
         marginBottom: rpx(16),
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-evenly",
-        paddingHorizontal: rpx(24),
+        justifyContent: "space-between",
+        paddingHorizontal: spacing.sm,
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
     },
     horizontalWrapper: {
         marginBottom: 0,
+        minWidth: rpx(520),
+    },
+    actionButton: {
+        width: rpx(72),
+        height: rpx(72),
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    actionIcon: {
+        width: rpx(72),
+        height: rpx(72),
+        textAlign: "center",
+        textAlignVertical: "center",
     },
     quality: {
         width: rpx(52),
         height: rpx(52),
-    },
-    acgQualityImg: {
-        borderRadius: rpx(8),
-        backgroundColor: "rgba(157,121,232,0.1)",
     },
 });

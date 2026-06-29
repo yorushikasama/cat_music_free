@@ -1,13 +1,8 @@
 import AppBar from "@/components/base/appBar";
-import Input from "@/components/base/input";
-import StatusBar from "@/components/base/statusBar";
-import VerticalSafeAreaView from "@/components/base/verticalSafeAreaView";
-import MusicBar from "@/components/musicBar";
-import globalStyle from "@/constants/globalStyle";
-import { fontSizeConst } from "@/constants/uiConst";
+import PageShell from "@/components/base/pageShell";
+import SearchInput from "@/components/base/searchInput";
 import { useI18N } from "@/core/i18n";
 import { useParams } from "@/core/router";
-import useColors from "@/hooks/useColors";
 import rpx from "@/utils/rpx";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
@@ -31,7 +26,6 @@ export default function SearchMusicList() {
     const [debouncedQuery, setDebouncedQuery] = useState("");
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const colors = useColors();
     const { t } = useI18N();
 
     const result = useMemo(
@@ -50,24 +44,32 @@ export default function SearchMusicList() {
     }, []);
 
     return (
-        <VerticalSafeAreaView style={globalStyle.fwflex1}>
-            <StatusBar />
-            <AppBar>
-                <Input
-                    style={style.searchBar}
-                    fontColor={colors.appBarText}
-                    placeholder={t("searchMusicList.searchPlaceHolder")}
-                    accessible
-                    autoFocus
-                    accessibilityLabel="搜索框"
-                    accessibilityHint={t("searchMusicList.searchLabel.a11y")}
-                    value={query}
-                    onChangeText={onChangeSearch}
-                />
-            </AppBar>
-            <SearchResult result={result} musicSheet={musicSheet} />
-            <MusicBar />
-        </VerticalSafeAreaView>
+        <PageShell
+            appBar={(
+                <AppBar>
+                    <SearchInput
+                        containerStyle={style.searchBar}
+                        placeholder={t("searchMusicList.searchPlaceHolder")}
+                        accessible
+                        autoFocus
+                        accessibilityLabel={t("searchMusicList.searchLabel.a11y")}
+                        accessibilityHint={t("searchMusicList.searchLabel.a11y")}
+                        value={query}
+                        onChangeText={onChangeSearch}
+                        onClear={() => {
+                            onChangeSearch("");
+                        }}
+                    />
+                </AppBar>
+            )}
+            musicBar>
+            <SearchResult
+                result={result}
+                total={musicList?.length ?? 0}
+                query={debouncedQuery.trim()}
+                musicSheet={musicSheet}
+            />
+        </PageShell>
     );
 }
 
@@ -79,16 +81,6 @@ const style = StyleSheet.create({
     searchBar: {
         minWidth: rpx(375),
         flex: 1,
-        borderRadius: rpx(64),
         height: rpx(64),
-        fontSize: rpx(32),
-    },
-    input: {
-        padding: 0,
-        color: "#666666",
-        height: rpx(64),
-        fontSize: fontSizeConst.subTitle,
-        textAlignVertical: "center",
-        includeFontPadding: false,
     },
 });

@@ -13,6 +13,9 @@ import { showDialog } from "@/components/dialogs/useDialog";
 import AppBar from "@/components/base/appBar";
 import Fab from "@/components/base/fab";
 import { useI18N } from "@/core/i18n";
+import useColors from "@/hooks/useColors";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
 
 interface ISubscribeItem {
     name: string;
@@ -26,6 +29,7 @@ export default function PluginSubscribe() {
     const [subscribes, setSubscribes] = useState<Array<ISubscribeItem>>([]);
 
     const { t } = useI18N();
+    const colors = useColors();
 
     useEffect(() => {
         try {
@@ -85,12 +89,28 @@ export default function PluginSubscribe() {
             <HorizontalSafeAreaView style={globalStyle.flex1}>
                 <FlatList
                     style={style.listWrapper}
-                    ListEmptyComponent={Empty}
+                    contentContainerStyle={style.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                        <Empty
+                            icon="bookmark-square"
+                            title={t("common.emptyList")}
+                            description={t("common.emptyListDescription")}
+                            minHeight={rpx(520)}
+                        />
+                    }
                     data={subscribes}
                     renderItem={({ item, index }) => {
                         return (
                             <ListItem
                                 withHorizontalPadding
+                                style={[
+                                    style.subscribeItem,
+                                    {
+                                        backgroundColor: colors.surfacePrimary,
+                                        borderColor: colors.divider,
+                                    },
+                                ]}
                                 onPress={() => {
                                     showDialog("SubscribePluginDialog", {
                                         subscribeItem: item,
@@ -154,7 +174,18 @@ const style = StyleSheet.create({
         flex: 1,
     },
     listWrapper: {
-        marginTop: rpx(24),
+        flex: 1,
+    },
+    listContent: {
+        paddingTop: spacing.md,
+        paddingBottom: rpx(180),
+    },
+    subscribeItem: {
+        marginHorizontal: spacing.md,
+        marginBottom: spacing.md,
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        overflow: "hidden",
     },
     fab: {
         position: "absolute",

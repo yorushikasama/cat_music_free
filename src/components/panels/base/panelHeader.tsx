@@ -5,6 +5,8 @@ import { TouchableOpacity } from "react-native-gesture-handler";
 import ThemeText from "@/components/base/themeText";
 import Divider from "@/components/base/divider";
 import i18n from "@/core/i18n";
+import { spacing } from "@/constants/spacing";
+import { radius } from "@/constants/borderRadius";
 
 interface IPanelHeaderProps {
     title: string;
@@ -65,13 +67,15 @@ const styles = StyleSheet.create({
         width: "100%",
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: rpx(24),
-        height: rpx(100),
+        paddingHorizontal: spacing.md,
+        paddingTop: rpx(16),
+        height: rpx(112),
     },
     button: {
-        width: rpx(120),
-        height: "100%",
+        minWidth: rpx(112),
+        height: rpx(56),
         justifyContent: "center",
+        borderRadius: radius.pill,
     },
     rightButton: {
         alignItems: "flex-end",

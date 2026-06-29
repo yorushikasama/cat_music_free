@@ -39,6 +39,7 @@ export const StorageKeys = {
     PluginMetaKey: "plugin-meta",
     MediaCache: "media-cache",
     LocalMusicSheet: "local-music-sheet",
+    LocalMusicMeta: "local-music-meta",
 };
 
 export const CacheControl = {

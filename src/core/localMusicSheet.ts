@@ -18,8 +18,15 @@ import { ReadDirItem, exists, readDir, unlink } from "react-native-fs";
 
 let localSheet: IMusic.IMusicItem[] = [];
 const localSheetStateMapper = new StateMapper(() => localSheet);
+interface ILocalMusicMeta {
+    lastScanAt?: number;
+}
+let localMeta: ILocalMusicMeta = {};
+const localMetaStateMapper = new StateMapper(() => localMeta);
 
 export async function setup() {
+    const meta = await getStorage(StorageKeys.LocalMusicMeta);
+    localMeta = meta && typeof meta === "object" ? meta : {};
     const sheet = await getStorage(StorageKeys.LocalMusicSheet);
     if (sheet) {
         let validSheet: IMusic.IMusicItem[] = [];
@@ -37,6 +44,7 @@ export async function setup() {
         await setStorage(StorageKeys.LocalMusicSheet, []);
     }
     localSheetStateMapper.notify();
+    localMetaStateMapper.notify();
 }
 
 export async function addMusic(
@@ -72,6 +80,11 @@ function addMusicDraft(musicItem: IMusic.IMusicItem | IMusic.IMusicItem[]) {
 
 async function saveLocalSheet() {
     await setStorage(StorageKeys.LocalMusicSheet, localSheet);
+}
+
+async function saveLocalMeta() {
+    await setStorage(StorageKeys.LocalMusicMeta, localMeta);
+    localMetaStateMapper.notify();
 }
 
 export async function removeMusic(
@@ -201,7 +214,12 @@ async function importLocal(_folderPaths: string[]) {
     if (token !== importToken) {
         throw new Error("Import Broken");
     }
-    addMusic(musicItems);
+    await addMusic(musicItems);
+    localMeta = {
+        ...localMeta,
+        lastScanAt: Date.now(),
+    };
+    await saveLocalMeta();
 }
 
 /** 是否为本地音乐 */
@@ -231,6 +249,10 @@ function getMusicList() {
     return localSheet;
 }
 
+function getMeta() {
+    return localMeta;
+}
+
 async function updateMusicList(newSheet: IMusic.IMusicItem[]) {
     const _localSheet = [...newSheet];
     try {
@@ -251,7 +273,9 @@ const LocalMusicSheet = {
     isLocalMusic,
     useIsLocal,
     getMusicList,
+    getMeta,
     useMusicList: localSheetStateMapper.useMappedState,
+    useMeta: localMetaStateMapper.useMappedState,
     updateMusicList,
 };
 

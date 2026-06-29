@@ -2,7 +2,7 @@ import React from "react";
 import { ColorKey, colorMap, iconSizeConst } from "@/constants/uiConst";
 import { TapGestureHandler } from "react-native-gesture-handler";
 import { StyleSheet, View } from "react-native";
-import useColors from "@/hooks/useColors";
+import useColors, { CustomizedColors } from "@/hooks/useColors";
 import { SvgProps } from "react-native-svg";
 import Icon, { IIconName } from "@/components/base/icon.tsx";
 
@@ -15,6 +15,12 @@ interface IIconButtonProps extends SvgProps {
     onPress?: () => void;
     accessibilityLabel?: string;
 }
+
+function getIconColor(colors: CustomizedColors, fontColor: ColorKey) {
+    const value = colors[colorMap[fontColor]];
+    return typeof value === "string" ? value : undefined;
+}
+
 export function IconButtonWithGesture(props: IIconButtonProps) {
     const {
         name,
@@ -26,16 +32,16 @@ export function IconButtonWithGesture(props: IIconButtonProps) {
     } = props;
     const colors = useColors();
     const textSize = iconSizeConst[size];
-    const color = colors[colorMap[fontColor]];
+    const color = getIconColor(colors, fontColor);
     return (
         <TapGestureHandler onActivated={onPress}>
-            <View>
+            <View style={styles.wrapper}>
                 <Icon
                     accessible
                     accessibilityLabel={accessibilityLabel}
                     name={name}
                     color={color}
-                    style={[{ minWidth: textSize }, styles.textCenter, style]}
+                    style={[styles.icon, style]}
                     size={textSize}
                 />
             </View>
@@ -47,17 +53,18 @@ export default function IconButton(props: IIconButtonProps) {
     const { sizeType = "normal", fontColor = "normal", style, color, onPress, accessibilityLabel } = props;
     const colors = useColors();
     const size = iconSizeConst[sizeType];
+    const iconColor = color ?? getIconColor(colors, fontColor);
 
     if (onPress) {
         return (
             <TapGestureHandler onActivated={onPress}>
-                <View style={[{ minWidth: size }, style]}>
+                <View style={[styles.wrapper, { minWidth: size }, style]}>
                     <Icon
                         accessible
                         accessibilityLabel={accessibilityLabel}
                         name={props.name}
-                        color={color ?? colors[colorMap[fontColor]]}
-                        style={[styles.textCenter]}
+                        color={iconColor}
+                        style={styles.icon}
                         size={size}
                     />
                 </View>
@@ -68,16 +75,19 @@ export default function IconButton(props: IIconButtonProps) {
     return (
         <Icon
             {...props}
-            color={color ?? colors[colorMap[fontColor]]}
-            style={[{ minWidth: size }, styles.textCenter, style]}
+            color={iconColor}
+            style={[styles.icon, { minWidth: size }, style]}
             size={size}
         />
     );
 }
 
 const styles = StyleSheet.create({
-    textCenter: {
-        height: "100%",
-        textAlignVertical: "center",
+    wrapper: {
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    icon: {
+        alignSelf: "center",
     },
 });

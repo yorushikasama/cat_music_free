@@ -25,6 +25,11 @@ import useOrientation from "@/hooks/useOrientation.ts";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 
+const Z_INDEX = {
+    backdrop: 16300,
+    dialog: 16310,
+};
+
 interface IDialogProps {
     onDismiss?: () => void;
     children?: ReactNode;
@@ -107,8 +112,9 @@ function Dialog(props: IDialogProps) {
                     containerStyle,
                     scaleAnimationStyle,
                     {
-                        backgroundColor: colors.backdrop,
+                        backgroundColor: colors.surfacePrimary ?? colors.backdrop,
                         shadowColor: colors.shadow,
+                        borderColor: colors.divider,
                     },
                 ]}>
                 {children}
@@ -182,7 +188,7 @@ interface IDialogActionsProps {
     children?: ReactNode;
     actions?: Array<{
         title: string;
-        type?: "normal" | "primary";
+        type?: "normal" | "primary" | "danger";
         show?: boolean;
         onPress?: () => void;
     }>;
@@ -229,7 +235,7 @@ function Actions(props: IDialogActionsProps) {
 }
 
 function BottomButton(props: {
-    type?: "normal" | "primary";
+    type?: "normal" | "primary" | "danger";
     text: string;
     style?: StyleProp<ViewStyle>;
     onPress?: () => void;
@@ -244,12 +250,18 @@ function BottomButton(props: {
             style={[
                 styles.bottomBtn,
                 {
-                    backgroundColor:
-                        type === "normal" ? colors.placeholder : colors.primary,
+                    backgroundColor: type === "primary"
+                        ? colors.primary
+                        : type === "danger"
+                            ? colors.danger ?? "#FC5F5F"
+                            : colors.surfaceSecondary,
                 },
                 style,
             ]}>
-            <ThemeText color={type === "normal" ? undefined : "white"}>
+            <ThemeText
+                fontWeight="medium"
+                numberOfLines={1}
+                color={type === "normal" ? undefined : "white"}>
                 {text}
             </ThemeText>
         </TouchableOpacity>
@@ -258,16 +270,17 @@ function BottomButton(props: {
 
 const styles = StyleSheet.create({
     bottomBtn: {
-        borderRadius: radius.sm,
+        borderRadius: radius.pill,
         flex: 1,
         flexShrink: 0,
+        minWidth: rpx(120),
         justifyContent: "center",
         alignItems: "center",
-        height: rpx(72),
+        height: rpx(64),
     },
     backContainer: {
         position: "absolute",
-        zIndex: 16299,
+        zIndex: Z_INDEX.backdrop - 1,
         width: "100%",
         height: "100%",
         left: 0,
@@ -276,7 +289,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     container: {
-        zIndex: 16300,
+        zIndex: Z_INDEX.backdrop,
         position: "absolute",
         width: "100%",
         height: "100%",
@@ -287,16 +300,18 @@ const styles = StyleSheet.create({
     dialogContainer: {
         position: "absolute",
         width: "80%",
-        zIndex: 16310,
+        zIndex: Z_INDEX.dialog,
         borderRadius: radius.xl,
+        borderWidth: StyleSheet.hairlineWidth,
         shadowOffset: {
             width: 0,
-            height: 2,
+            height: 4,
         },
-        shadowOpacity: 0.5,
-        shadowRadius: 4,
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
 
         elevation: 5,
+        overflow: "hidden",
     },
 
     defaultFontStyle: {
@@ -304,26 +319,26 @@ const styles = StyleSheet.create({
     },
 
     titleContainer: {
-        height: rpx(88),
+        minHeight: rpx(96),
         width: "100%",
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.lg,
     },
     contentContainer: {
         width: "100%",
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xxxl,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.lg,
     },
     actionsContainer: {
         width: "100%",
-        height: rpx(88),
+        minHeight: rpx(92),
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "flex-end",
-        paddingHorizontal: spacing.md,
-        marginBottom: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.md,
         flexWrap: "nowrap",
     },
     actionButton: {

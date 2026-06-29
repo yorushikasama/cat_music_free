@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import * as DocumentPicker from "expo-document-picker";
-import Loading from "@/components/base/loading";
+import SkeletonList from "@/components/base/skeleton";
 
 import PluginManager, { useSortedPlugins } from "@/core/pluginManager";
 import { trace } from "@/utils/log";
@@ -21,6 +21,7 @@ import PluginItem from "../components/pluginItem";
 import { IIconName } from "@/components/base/icon.tsx";
 import { IInstallPluginResult } from "@/types/core/pluginManager";
 import { useI18N } from "@/core/i18n";
+import { spacing } from "@/constants/spacing";
 
 interface IOption {
     icon: IIconName;
@@ -37,6 +38,13 @@ export default function PluginList() {
     const navigator = useNavigation<any>();
 
     const menuOptions: IOption[] = [
+        {
+            icon: "circle-stack",
+            title: t("pluginSetting.fabOptions.pluginMarket"),
+            async onPress() {
+                navigator.navigate("/pluginsetting/market");
+            },
+        },
         {
             icon: "bookmark-square",
             title: t("pluginSetting.menu.subscriptionSetting"),
@@ -274,10 +282,23 @@ export default function PluginList() {
             <HorizontalSafeAreaView style={style.wrapper}>
                 <>
                     {loading ? (
-                        <Loading />
+                        <SkeletonList
+                            count={6}
+                            withArtwork
+                            style={style.loadingList}
+                        />
                     ) : (
                         <FlatList
-                            ListEmptyComponent={Empty}
+                            contentContainerStyle={style.listContent}
+                            showsVerticalScrollIndicator={false}
+                            ListEmptyComponent={
+                                <Empty
+                                    icon="code-bracket-square"
+                                    title={t("noPlugin.title")}
+                                    description={t("noPlugin.description")}
+                                    minHeight={rpx(520)}
+                                />
+                            }
                             ListFooterComponent={<View style={style.blank} />}
                             data={plugins ?? []}
                             keyExtractor={_ => _.hash}
@@ -294,38 +315,41 @@ export default function PluginList() {
                                 header: t("pluginSetting.menu.installPlugin"),
                                 candidates: [
                                     {
-                                        value: "从本地安装插件",
+                                        value: "local",
                                         title: t("pluginSetting.fabOptions.installFromLocal"),
+                                        icon: "folder-plus",
                                     },
                                     {
-                                        value: "从网络安装插件",
+                                        value: "network",
                                         title: t("pluginSetting.fabOptions.installFromNetwork"),
+                                        icon: "link",
                                     },
                                     {
-                                        value: "批量安装插件",
+                                        value: "batch",
                                         title: t("pluginSetting.fabOptions.batchInstall"),
+                                        icon: "inbox-arrow-down",
                                     },
                                     {
-                                        value: "更新全部插件",
+                                        value: "updateAll",
                                         title: t("pluginSetting.fabOptions.updateAllPlugins"),
+                                        icon: "arrow-path",
                                     },
                                     {
-                                        value: "更新订阅",
+                                        value: "subscription",
                                         title: t("pluginSetting.fabOptions.updateSubscription"),
+                                        icon: "bookmark-square",
                                     },
                                 ],
                                 onPress(item) {
-                                    if (item.value === "从本地安装插件") {
+                                    if (item.value === "local") {
                                         onInstallFromLocalClick();
-                                    } else if (
-                                        item.value === "从网络安装插件"
-                                    ) {
+                                    } else if (item.value === "network") {
                                         onInstallFromNetworkClick();
-                                    } else if (item.value === "批量安装插件") {
+                                    } else if (item.value === "batch") {
                                         showPanel("BatchInstall");
-                                    } else if (item.value === "更新订阅") {
+                                    } else if (item.value === "subscription") {
                                         onSubscribeClick();
-                                    } else if (item.value === "更新全部插件") {
+                                    } else if (item.value === "updateAll") {
                                         onUpdateAllClick();
                                     }
                                 },
@@ -345,6 +369,12 @@ const style = StyleSheet.create({
     },
     blank: {
         height: rpx(200),
+    },
+    listContent: {
+        paddingTop: spacing.sm,
+    },
+    loadingList: {
+        paddingTop: spacing.sm,
     },
 });
 

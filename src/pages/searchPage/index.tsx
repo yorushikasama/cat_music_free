@@ -11,12 +11,10 @@ import {
 } from "./store/atoms";
 import HistoryPanel from "./components/historyPanel";
 import ResultPanel from "./components/resultPanel";
-import MusicBar from "@/components/musicBar";
-import Loading from "@/components/base/loading";
-import { SafeAreaView } from "react-native-safe-area-context";
-import StatusBar from "@/components/base/statusBar";
 import NoPlugin from "../../components/base/noPlugin";
 import { useI18N } from "@/core/i18n";
+import PageShell from "@/components/base/pageShell";
+import SkeletonList from "@/components/base/skeleton";
 
 export default function () {
     const [pageStatus, setPageStatus] = useAtom(pageStatusAtom);
@@ -33,29 +31,22 @@ export default function () {
     }, []);
 
     return (
-        <SafeAreaView edges={["bottom", "top"]} style={style.wrapper}>
-            <StatusBar />
-            <NavBar />
-            <SafeAreaView edges={["left", "right"]} style={style.wrapper}>
-                <View style={style.flex1}>
-                    {pageStatus === PageStatus.EDITING && <HistoryPanel />}
-                    {pageStatus === PageStatus.SEARCHING && <Loading />}
-                    {pageStatus === PageStatus.RESULT && <ResultPanel />}
-                    {pageStatus === PageStatus.NO_PLUGIN && (
-                        <NoPlugin notSupportType={t("common.search")} />
-                    )}
-                </View>
-            </SafeAreaView>
-            <MusicBar />
-        </SafeAreaView>
+        <PageShell appBar={<NavBar />} musicBar>
+            <View style={style.flex1}>
+                {pageStatus === PageStatus.EDITING && <HistoryPanel />}
+                {pageStatus === PageStatus.SEARCHING && (
+                    <SkeletonList count={7} />
+                )}
+                {pageStatus === PageStatus.RESULT && <ResultPanel />}
+                {pageStatus === PageStatus.NO_PLUGIN && (
+                    <NoPlugin notSupportType={t("common.search")} />
+                )}
+            </View>
+        </PageShell>
     );
 }
 
 const style = StyleSheet.create({
-    wrapper: {
-        width: "100%",
-        flex: 1,
-    },
     flex1: {
         flex: 1,
     },

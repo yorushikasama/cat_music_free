@@ -1,4 +1,4 @@
-import ListItem, { ListItemHeader } from "@/components/base/listItem";
+import ListItem from "@/components/base/listItem";
 import Backup from "@/core/backup";
 import { ROUTE_PATH, useNavigate } from "@/core/router";
 import Toast from "@/utils/toast";
@@ -18,6 +18,8 @@ import { errorLog } from "@/utils/log.ts";
 import { getDocumentAsync } from "expo-document-picker";
 import { readAsStringAsync } from "expo-file-system";
 import { AuthType, createClient } from "webdav";
+import SettingSection, { SettingDivider } from "../components/settingSection";
+import { spacing } from "@/constants/spacing";
 
 export default function BackupSetting() {
     const { t } = useI18N();
@@ -202,98 +204,107 @@ export default function BackupSetting() {
     }
 
     return (
-        <ScrollView style={style.wrapper}>
-            <ListItemHeader>{t("sidebar.backupAndResume")}</ListItemHeader>
+        <ScrollView
+            style={style.wrapper}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={style.contentContainer}>
+            <SettingSection title={t("sidebar.backupAndResume")}>
+                <ListItem
+                    withHorizontalPadding
+                    onPress={() => {
+                        showDialog("RadioDialog", {
+                            title: t("backupAndResume.setResumeMode"),
+                            content: [
+                                {
+                                    label: t(("backupAndResume.resumeMode." + ResumeMode.Append) as any),
+                                    value: ResumeMode.Append,
+                                },
+                                {
+                                    label: t(("backupAndResume.resumeMode." + ResumeMode.OverwriteDefault) as any),
+                                    value: ResumeMode.OverwriteDefault,
+                                },
+                                {
+                                    label: t(("backupAndResume.resumeMode." + ResumeMode.Overwrite) as any),
+                                    value: ResumeMode.Overwrite,
+                                },
+                            ],
+                            onOk(value) {
+                                Config.setConfig(
+                                    "backup.resumeMode",
+                                    value as any,
+                                );
+                            },
+                        });
+                    }}>
+                    <ListItem.Content title={t("backupAndResume.resumeMode")} />
+                    <ListItem.ListItemText>
+                        {
+                            t(("backupAndResume.resumeMode." + ((resumeMode as ResumeMode) ||
+                                ResumeMode.Append)) as any)
+                        }
+                    </ListItem.ListItemText>
+                </ListItem>
+            </SettingSection>
+            <SettingSection title={t("backupAndResume.localBackup")}>
+                <ListItem withHorizontalPadding onPress={onBackupToLocal}>
+                    <ListItem.Content title={t("backupAndResume.backupToLocal")} />
+                </ListItem>
+                <SettingDivider />
+                <ListItem withHorizontalPadding onPress={onResumeFromLocal}>
+                    <ListItem.Content title={t("backupAndResume.resumeFromLocalFile")} />
+                </ListItem>
+                <SettingDivider />
+                <ListItem withHorizontalPadding onPress={onResumeFromUrl}>
+                    <ListItem.Content title={t("backupAndResume.resumeFromUrlDialogTitle")} />
+                </ListItem>
+            </SettingSection>
+            <SettingSection title="Webdav">
+                <ListItem
+                    withHorizontalPadding
+                    onPress={() => {
+                        showPanel("SetUserVariables", {
+                            title: t("backupAndResume.webdavSettings"),
+                            initValues: {
+                                url: webdavUrl ?? "",
+                                username: webdavUsername ?? "",
+                                password: webdavPassword ?? "",
+                            },
+                            variables: [
+                                {
+                                    key: "url",
+                                    name: "URL",
+                                    hint: t("backupAndResume.webdavUrl"),
+                                },
+                                {
+                                    key: "username",
+                                    name: t("common.username"),
+                                },
+                                {
+                                    key: "password",
+                                    name: t("common.password"),
+                                },
+                            ],
+                            onOk(values, closePanel) {
+                                Config.setConfig("webdav.url", values?.url);
+                                Config.setConfig("webdav.username", values?.username);
+                                Config.setConfig("webdav.password", values?.password);
 
-            <ListItem
-                withHorizontalPadding
-                onPress={() => {
-                    showDialog("RadioDialog", {
-                        title: t("backupAndResume.setResumeMode"),
-                        content: [
-                            {
-                                label: t(("backupAndResume.resumeMode." + ResumeMode.Append) as any),
-                                value: ResumeMode.Append,
+                                Toast.success(t("toast.saveSuccess"));
+                                closePanel();
                             },
-                            {
-                                label: t(("backupAndResume.resumeMode." + ResumeMode.OverwriteDefault) as any),
-                                value: ResumeMode.OverwriteDefault,
-                            },
-                            {
-                                label: t(("backupAndResume.resumeMode." + ResumeMode.Overwrite) as any),
-                                value: ResumeMode.Overwrite,
-                            },
-                        ],
-                        onOk(value) {
-                            Config.setConfig(
-                                "backup.resumeMode",
-                                value as any,
-                            );
-                        },
-                    });
-                }}>
-                <ListItem.Content title={t("backupAndResume.resumeMode")} />
-                <ListItem.ListItemText>
-                    {
-                        t(("backupAndResume.resumeMode." + ((resumeMode as ResumeMode) ||
-                            ResumeMode.Append)) as any)
-                    }
-                </ListItem.ListItemText>
-            </ListItem>
-            <ListItemHeader>{t("backupAndResume.localBackup")}</ListItemHeader>
-            <ListItem withHorizontalPadding onPress={onBackupToLocal}>
-                <ListItem.Content title={t("backupAndResume.backupToLocal")} />
-            </ListItem>
-            <ListItem withHorizontalPadding onPress={onResumeFromLocal}>
-                <ListItem.Content title={t("backupAndResume.resumeFromLocalFile")} />
-            </ListItem>
-            <ListItem withHorizontalPadding onPress={onResumeFromUrl}>
-                <ListItem.Content title={t("backupAndResume.resumeFromUrlDialogTitle")} />
-            </ListItem>
-            <ListItemHeader>Webdav</ListItemHeader>
-            <ListItem
-                withHorizontalPadding
-                onPress={() => {
-                    showPanel("SetUserVariables", {
-                        title: t("backupAndResume.webdavSettings"),
-                        initValues: {
-                            url: webdavUrl ?? "",
-                            username: webdavUsername ?? "",
-                            password: webdavPassword ?? "",
-                        },
-                        variables: [
-                            {
-                                key: "url",
-                                name: "URL",
-                                hint: t("backupAndResume.webdavUrl"),
-                            },
-                            {
-                                key: "username",
-                                name: t("common.username"),
-                            },
-                            {
-                                key: "password",
-                                name: t("common.password"),
-                            },
-                        ],
-                        onOk(values, closePanel) {
-                            Config.setConfig("webdav.url", values?.url);
-                            Config.setConfig("webdav.username", values?.username);
-                            Config.setConfig("webdav.password", values?.password);
-
-                            Toast.success(t("toast.saveSuccess"));
-                            closePanel();
-                        },
-                    });
-                }}>
-                <ListItem.Content title={t("backupAndResume.webdavSettings")} />
-            </ListItem>
-            <ListItem withHorizontalPadding onPress={onBackupToWebdav}>
-                <ListItem.Content title={t("backupAndResume.backupToWebdav")} />
-            </ListItem>
-            <ListItem withHorizontalPadding onPress={onResumeFromWebdav}>
-                <ListItem.Content title={t("backupAndResume.resumeFromWebdav")} />
-            </ListItem>
+                        });
+                    }}>
+                    <ListItem.Content title={t("backupAndResume.webdavSettings")} />
+                </ListItem>
+                <SettingDivider />
+                <ListItem withHorizontalPadding onPress={onBackupToWebdav}>
+                    <ListItem.Content title={t("backupAndResume.backupToWebdav")} />
+                </ListItem>
+                <SettingDivider />
+                <ListItem withHorizontalPadding onPress={onResumeFromWebdav}>
+                    <ListItem.Content title={t("backupAndResume.resumeFromWebdav")} />
+                </ListItem>
+            </SettingSection>
         </ScrollView>
     );
 }
@@ -302,5 +313,8 @@ const style = StyleSheet.create({
     wrapper: {
         width: "100%",
         flex: 1,
+    },
+    contentContainer: {
+        paddingBottom: spacing.xxxl,
     },
 });

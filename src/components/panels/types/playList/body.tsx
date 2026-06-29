@@ -6,7 +6,7 @@ import ThemeText from "@/components/base/themeText";
 import { fontSizeConst } from "@/constants/uiConst";
 import { isSameMediaItem } from "@/utils/mediaUtils";
 import IconButton from "@/components/base/iconButton";
-import Loading from "@/components/base/loading";
+import SkeletonList from "@/components/base/skeleton";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useColors from "@/hooks/useColors";
 import TrackPlayer, { useCurrentMusic, usePlayList } from "@/core/trackPlayer";
@@ -109,7 +109,7 @@ export default function Body(props: IBodyProps) {
     };
 
     return loading ? (
-        <Loading />
+        <SkeletonList count={7} withArtwork={false} />
     ) : (
         <View
             style={[

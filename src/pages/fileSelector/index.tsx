@@ -1,10 +1,7 @@
 import Empty from "@/components/base/empty";
 import IconButton from "@/components/base/iconButton";
-import Loading from "@/components/base/loading";
-import StatusBar from "@/components/base/statusBar";
 import Button from "@/components/base/textButton.tsx";
 import ThemeText from "@/components/base/themeText";
-import VerticalSafeAreaView from "@/components/base/verticalSafeAreaView";
 import globalStyle from "@/constants/globalStyle";
 import i18n from "@/core/i18n";
 import { useParams } from "@/core/router";
@@ -22,6 +19,11 @@ import {
 } from "react-native-fs";
 import { FlatList } from "react-native-gesture-handler";
 import FileItem from "./fileItem";
+import PageShell from "@/components/base/pageShell";
+import SkeletonList from "@/components/base/skeleton";
+import { spacing } from "@/constants/spacing";
+import { radius } from "@/constants/borderRadius";
+import Color from "color";
 
 interface IPathItem {
     path: string;
@@ -59,6 +61,11 @@ export default function FileSelector() {
     const navigation = useNavigation();
     const colors = useColors();
     const [loading, setLoading] = useState(false);
+    const canGoParent = currentPath.parent !== null;
+    const currentLocation =
+        currentPath.path === "/"
+            ? i18n.t("fileSelector.storageRoots")
+            : currentPath.path;
 
     useEffect(() => {
         (async () => {
@@ -206,53 +213,199 @@ export default function FileSelector() {
     }, [filesData, checkedPaths]);
 
     const renderHeader = () => {
-        return multi ? (
-            <View style={style.selectAll}>
-                <Button
-                    onPress={() => {
-                        if (currentPageAllChecked) {
-                            selectPath(filesData, false);
-                        } else {
-                            selectPath(filesData, true);
-                        }
-                    }}>
-                    {currentPageAllChecked ? "全不选" : "全选"}
-                </Button>
+        return (
+            <View style={style.listHeader}>
+                <View
+                    style={[
+                        style.locationCard,
+                        {
+                            backgroundColor: colors.surfacePrimary,
+                            borderColor: colors.divider,
+                        },
+                    ]}>
+                    <View
+                        style={[
+                            style.locationIcon,
+                            {
+                                backgroundColor: Color(colors.primary)
+                                    .alpha(0.1)
+                                    .rgb()
+                                    .string(),
+                            },
+                        ]}>
+                        <IconButton
+                            sizeType="small"
+                            name="folder-outline"
+                            color={colors.primary}
+                        />
+                    </View>
+                    <View style={style.locationText}>
+                        <ThemeText
+                            fontSize="description"
+                            fontColor="textSecondary">
+                            {i18n.t("fileSelector.currentLocation")}
+                        </ThemeText>
+                        <ThemeText
+                            numberOfLines={1}
+                            ellipsizeMode="head"
+                            style={style.locationPath}>
+                            {currentLocation}
+                        </ThemeText>
+                    </View>
+                    {canGoParent ? (
+                        <Button
+                            onPress={() => {
+                                if (currentPath.parent) {
+                                    setCurrentPath(currentPath.parent);
+                                }
+                            }}>
+                            {i18n.t("fileSelector.parentFolder")}
+                        </Button>
+                    ) : null}
+                </View>
+                {multi ? (
+                    <View style={style.selectAll}>
+                        <Button
+                            onPress={() => {
+                                if (currentPageAllChecked) {
+                                    selectPath(filesData, false);
+                                } else {
+                                    selectPath(filesData, true);
+                                }
+                            }}>
+                            {currentPageAllChecked
+                                ? i18n.t("common.unselectAll")
+                                : i18n.t("common.selectAll")}
+                        </Button>
+                        {checkedItems.length ? (
+                            <ThemeText
+                                fontSize="description"
+                                fontColor="textSecondary">
+                                {i18n.t("fileSelector.selectedCount", {
+                                    count: checkedItems.length,
+                                })}
+                            </ThemeText>
+                        ) : null}
+                    </View>
+                ) : null}
             </View>
-        ) : null;
+        );
     };
 
-    return (
-        <VerticalSafeAreaView style={globalStyle.fwflex1}>
-            <StatusBar />
-            <View style={[style.header, { backgroundColor: colors.appBar }]}>
-                <IconButton
-                    sizeType="small"
-                    name="arrow-long-left"
-                    color={colors.appBarText}
-                    onPress={() => {
-                        // 返回上一级
-                        if (currentPath.parent !== null) {
-                            setCurrentPath(currentPath.parent);
-                        }
-                    }}
-                />
+    const renderEmpty = () => {
+        return (
+            <Empty
+                icon="folder-outline"
+                title={i18n.t("fileSelector.emptyTitle")}
+                description={i18n.t("fileSelector.emptyDescription")}
+                actionText={
+                    canGoParent ? i18n.t("fileSelector.parentFolder") : undefined
+                }
+                onAction={
+                    canGoParent && currentPath.parent
+                        ? () => {
+                              if (currentPath.parent) {
+                                  setCurrentPath(currentPath.parent);
+                              }
+                          }
+                        : undefined
+                }
+            />
+        );
+    };
+
+    const appBar = (
+        <View
+            style={[
+                style.header,
+                {
+                    backgroundColor: colors.appBar,
+                    borderBottomColor: colors.divider,
+                },
+            ]}>
+            <IconButton
+                sizeType="small"
+                name="arrow-long-left"
+                color={colors.appBarText}
+                onPress={() => {
+                    if (currentPath.parent !== null) {
+                        setCurrentPath(currentPath.parent);
+                    } else {
+                        navigation.goBack();
+                    }
+                }}
+            />
+            <View style={style.headerTextWrapper}>
                 <ThemeText
-                    numberOfLines={2}
+                    numberOfLines={1}
                     ellipsizeMode="head"
-                    fontColor={"appBarText"}
+                    fontColor="appBarText"
                     style={style.headerPath}>
                     {currentPath.path}
                 </ThemeText>
             </View>
+        </View>
+    );
+
+    const bottom = (
+        <Pressable
+            disabled={!checkedItems.length}
+            onPress={async () => {
+                if (checkedItems.length) {
+                    const shouldBack = await onAction?.(checkedItems);
+                    if (shouldBack) {
+                        navigation.goBack();
+                    }
+                }
+            }}
+            style={({ pressed }) => [
+                style.actionBar,
+                {
+                    backgroundColor: colors.surfacePrimary,
+                    borderTopColor: colors.divider,
+                    opacity: pressed && checkedItems.length ? 0.84 : 1,
+                },
+            ]}>
+            <View
+                style={[
+                    style.actionButton,
+                    {
+                        backgroundColor: checkedItems.length
+                            ? colors.primary
+                            : colors.surfaceSecondary,
+                    },
+                ]}>
+                <ThemeText
+                    fontWeight="medium"
+                    color={checkedItems.length ? "#fff" : colors.textSecondary}>
+                    {multi && checkedItems?.length > 0
+                        ? `${actionText} (${i18n.t(
+                              "fileSelector.selectedCount",
+                              {
+                                  count: checkedItems.length,
+                              },
+                          )})`
+                        : actionText}
+                </ThemeText>
+            </View>
+        </Pressable>
+    );
+
+    return (
+        <PageShell appBar={appBar} bottom={bottom} horizontalEdges={[]}>
             {loading ? (
-                <Loading />
+                <SkeletonList count={8} withArtwork={false} />
             ) : (
                 <>
                     <FlatList
                         ListHeaderComponent={renderHeader}
-                        ListEmptyComponent={Empty}
+                        ListEmptyComponent={renderEmpty}
                         style={globalStyle.fwflex1}
+                        contentContainerStyle={
+                            filesData.length
+                                ? style.listContent
+                                : [style.listContent, style.emptyContent]
+                        }
                         data={filesData}
                         getItemLayout={(_, index) => ({
                             length: ITEM_HEIGHT,
@@ -263,58 +416,83 @@ export default function FileSelector() {
                     />
                 </>
             )}
-            <Pressable
-                onPress={async () => {
-                    if (checkedItems.length) {
-                        const shouldBack = await onAction?.(checkedItems);
-                        if (shouldBack) {
-                            navigation.goBack();
-                        }
-                    }
-                }}>
-                <View
-                    style={[
-                        style.scanBtn,
-                        {
-                            backgroundColor: colors.appBar,
-                        },
-                    ]}>
-                    <ThemeText
-                        fontColor={"appBarText"}
-                        opacity={checkedItems.length > 0 ? undefined : 0.6}>
-                        {actionText}
-                        {multi && checkedItems?.length > 0
-                            ? ` (选中${checkedItems.length})`
-                            : ""}
-                    </ThemeText>
-                </View>
-            </Pressable>
-        </VerticalSafeAreaView>
+        </PageShell>
     );
 }
 
 const style = StyleSheet.create({
     header: {
-        height: rpx(88),
+        minHeight: rpx(104),
         flexDirection: "row",
         alignItems: "center",
         width: "100%",
-        paddingHorizontal: rpx(24),
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    headerTextWrapper: {
+        flex: 1,
+        marginLeft: spacing.md,
     },
     headerPath: {
-        marginLeft: rpx(28),
-    },
-    scanBtn: {
-        width: "100%",
-        height: rpx(120),
-        alignItems: "center",
-        justifyContent: "center",
+        marginTop: rpx(2),
     },
     selectAll: {
         width: "100%",
-        height: ITEM_HEIGHT,
-        paddingHorizontal: rpx(24),
+        minHeight: rpx(72),
+        paddingHorizontal: spacing.md,
         flexDirection: "row",
         alignItems: "center",
+        justifyContent: "space-between",
+    },
+    listHeader: {
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.md,
+        paddingBottom: spacing.sm,
+    },
+    locationCard: {
+        minHeight: rpx(104),
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    locationIcon: {
+        width: rpx(64),
+        height: rpx(64),
+        borderRadius: radius.lg,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: spacing.md,
+    },
+    locationText: {
+        flex: 1,
+        minWidth: 0,
+        marginRight: spacing.sm,
+    },
+    locationPath: {
+        marginTop: spacing.xs,
+    },
+    listContent: {
+        paddingBottom: spacing.md,
+    },
+    emptyContent: {
+        flexGrow: 1,
+    },
+    actionBar: {
+        width: "100%",
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.lg,
+        borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    actionButton: {
+        width: "100%",
+        minHeight: rpx(84),
+        borderRadius: radius.lg,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });
