@@ -3,18 +3,17 @@ import PersistStatus from "@/utils/persistStatus";
 import checkUpdate from "@/utils/checkUpdate";
 import Toast from "@/utils/toast";
 import { compare } from "compare-versions";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import i18n from "@/core/i18n";
 
 export const checkUpdateAndShowResult = (
     showToast = false,
     checkSkip = false,
 ) => {
-    checkUpdate().then(updateInfo => {
+    return checkUpdate().then(updateInfo => {
         if (updateInfo?.needUpdate) {
             const { data } = updateInfo;
             const skipVersion = PersistStatus.get("app.skipVersion");
-            console.log(skipVersion, data);
             if (
                 checkSkip &&
                 skipVersion &&
@@ -35,6 +34,45 @@ export const checkUpdateAndShowResult = (
         }
     });
 };
+
+export function useUpdateAvailable(respectSkip = true) {
+    const [checking, setChecking] = useState(false);
+    const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+    const skipVersion = PersistStatus.useValue("app.skipVersion");
+
+    const refresh = useCallback(async () => {
+        setChecking(true);
+        try {
+            const updateInfo = await checkUpdate();
+            setUpdateVersion(
+                updateInfo?.needUpdate ? updateInfo.data.version : null,
+            );
+        } finally {
+            setChecking(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        refresh();
+    }, [refresh]);
+
+    const hasUpdate = useMemo(() => {
+        if (!updateVersion) {
+            return false;
+        }
+        if (!respectSkip || !skipVersion) {
+            return true;
+        }
+        return compare(skipVersion, updateVersion, "<");
+    }, [respectSkip, skipVersion, updateVersion]);
+
+    return {
+        checking,
+        hasUpdate,
+        refresh,
+        updateVersion,
+    };
+}
 
 export default function (callOnMount = true) {
     useEffect(() => {

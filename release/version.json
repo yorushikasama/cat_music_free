@@ -1,13 +1,14 @@
 {
-  "version": "0.6.4",
+  "version": "0.6.5",
   "changeLog": [
     "统一页面容器、顶部栏、列表项、弹层和加载状态的视觉语言",
     "新增插件广场入口，优化插件安装和批量安装体验",
     "优化首页、搜索、设置、榜单、推荐歌单、播放详情和内容管理页面质感",
-    "播放失败时支持有限自动换源，并在成功播放后更新当前播放源"
+    "播放失败时支持有限自动换源，并在成功播放后更新当前播放源",
+    "我的页面会静默检查应用更新，有新版本时在检查更新入口显示红点"
   ],
   "download": [
-    "https://raw.githubusercontent.com/yorushikasama/cat_music_free/main/release/v0.6.4/app-universal-release.apk",
-    "https://raw.githubusercontent.com/yorushikasama/cat_music_free/main/release/v0.6.4/app-universal-release.apk"
+    "https://raw.githubusercontent.com/yorushikasama/cat_music_free/main/release/v0.6.5/app-universal-release.apk",
+    "https://raw.githubusercontent.com/yorushikasama/cat_music_free/main/release/v0.6.5/app-universal-release.apk"
   ]
 }

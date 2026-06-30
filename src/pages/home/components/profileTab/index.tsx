@@ -14,7 +14,10 @@ import { showDialog } from "@/components/dialogs/useDialog";
 import { showPanel } from "@/components/panels/usePanel";
 import Icon from "@/components/base/icon.tsx";
 import { TouchableOpacity } from "react-native-gesture-handler";
-import { checkUpdateAndShowResult } from "@/hooks/useCheckUpdate.ts";
+import {
+    checkUpdateAndShowResult,
+    useUpdateAvailable,
+} from "@/hooks/useCheckUpdate.ts";
 import deviceInfoModule from "react-native-device-info";
 import { useScheduleCloseCountDown } from "@/utils/scheduleClose";
 import timeformat from "@/utils/timeformat";
@@ -24,6 +27,7 @@ interface IProfileItem {
     title: string;
     onPress?: () => void;
     rightText?: string;
+    showDot?: boolean;
 }
 
 export default function ProfileTab() {
@@ -31,6 +35,7 @@ export default function ProfileTab() {
     const { t, getSupportedLanguages, getLanguage, setLanguage } = useI18N();
     const navigate = useNavigate();
     const countDown = useScheduleCloseCountDown();
+    const updateStatus = useUpdateAvailable();
 
     function navigateToSetting(settingType: string) {
         navigate(ROUTE_PATH.SETTING, {
@@ -98,8 +103,12 @@ export default function ProfileTab() {
         {
             icon: "arrow-path",
             title: t("sidebar.checkUpdate"),
-            onPress: () => checkUpdateAndShowResult(true),
+            onPress: async () => {
+                await checkUpdateAndShowResult(true);
+                updateStatus.refresh();
+            },
             rightText: `${t("sidebar.currentVersion")}${deviceInfoModule.getVersion()}`,
+            showDot: updateStatus.hasUpdate,
         },
         {
             icon: "information-circle",
@@ -138,6 +147,17 @@ export default function ProfileTab() {
                                 size={rpx(32)}
                                 color={colors.primary}
                             />
+                            {item.showDot ? (
+                                <View
+                                    style={[
+                                        styles.updateDot,
+                                        {
+                                            backgroundColor: colors.danger ?? "#ff4d4f",
+                                            borderColor: colors.surfacePrimary,
+                                        },
+                                    ]}
+                                />
+                            ) : null}
                         </View>
                         <ThemeText
                             fontSize="content"
@@ -258,6 +278,16 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         marginRight: spacing.md,
+        position: "relative",
+    },
+    updateDot: {
+        position: "absolute",
+        top: rpx(8),
+        right: rpx(8),
+        width: rpx(14),
+        height: rpx(14),
+        borderRadius: radius.pill,
+        borderWidth: rpx(3),
     },
     itemTitle: {
         flex: 1,

@@ -8,13 +8,15 @@ const updateList = [
     "https://cdn.jsdelivr.net/gh/yorushikasama/cat_music_free@main/release/version.json",
 ];
 
-interface IUpdateInfo {
+export interface IUpdateData {
+    version: string;
+    changeLog: string[];
+    download: string[];
+}
+
+export interface IUpdateInfo {
     needUpdate: boolean;
-    data: {
-        version: string;
-        changeLog: string[];
-        download: string[];
-    };
+    data: IUpdateData;
 }
 
 export default async function checkUpdate(): Promise<IUpdateInfo | undefined> {

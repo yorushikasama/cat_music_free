@@ -3,12 +3,13 @@ import {
     Image,
     ScrollView,
     StyleSheet,
-    TouchableOpacity,
     View,
 } from "react-native";
 import deviceInfoModule from "react-native-device-info";
 import Color from "color";
 
+import { Button } from "@/components/base/button";
+import Icon from "@/components/base/icon";
 import LinkText from "@/components/base/linkText";
 import ThemeText from "@/components/base/themeText";
 import { ImgAsset } from "@/constants/assetsConst";
@@ -84,6 +85,37 @@ function InfoRow(props: IInfoRowProps) {
     );
 }
 
+function BrandMark() {
+    const colors = useColors();
+    const primaryTint = Color(colors.primary).alpha(0.12).rgb().string();
+    const primarySoft = Color(colors.primary).alpha(0.18).rgb().string();
+
+    return (
+        <View
+            style={[
+                style.brandMark,
+                {
+                    backgroundColor: primaryTint,
+                    borderColor: primarySoft,
+                },
+            ]}>
+            <Icon
+                name="musical-note"
+                size={rpx(34)}
+                color={colors.primary}
+                style={style.brandIcon}
+            />
+            <ThemeText
+                fontSize="title"
+                fontWeight="bold"
+                color={colors.primary}
+                style={style.brandLetters}>
+                CM
+            </ThemeText>
+        </View>
+    );
+}
+
 export default function AboutSetting() {
     const checkAndShowResult = useCheckUpdate(false);
     const orientation = useOrientation();
@@ -108,25 +140,7 @@ export default function AboutSetting() {
                     },
                     orientation === "horizontal" ? style.horizontalHero : null,
                 ]}>
-                <TouchableOpacity
-                    activeOpacity={0.78}
-                    onPress={() => {
-                        checkAndShowResult(true);
-                    }}>
-                    <View
-                        style={[
-                            style.logoFrame,
-                            {
-                                backgroundColor: primaryTint,
-                            },
-                        ]}>
-                        <Image
-                            source={ImgAsset.logo}
-                            style={style.logo}
-                            resizeMode="contain"
-                        />
-                    </View>
-                </TouchableOpacity>
+                <BrandMark />
                 <ThemeText
                     fontSize="title"
                     fontWeight="bold"
@@ -136,6 +150,13 @@ export default function AboutSetting() {
                 </ThemeText>
                 <ThemeText fontSize="subTitle" fontColor="textSecondary">
                     当前版本 {version} · Build {buildNumber}
+                </ThemeText>
+                <ThemeText
+                    fontSize="description"
+                    fontColor="textSecondary"
+                    lineHeight
+                    style={style.heroDescription}>
+                    一个插件化的 Android 音乐播放器，专注搜索、播放、歌单、本地音乐和歌词体验。
                 </ThemeText>
                 <View style={style.badgeRow}>
                     <View
@@ -167,30 +188,31 @@ export default function AboutSetting() {
                         </ThemeText>
                     </View>
                 </View>
-                <ThemeText
-                    fontSize="description"
-                    fontColor="textSecondary"
-                    lineHeight
-                    style={style.heroHint}>
-                    点击图标可手动检查更新
-                </ThemeText>
+                <Button
+                    type="outline"
+                    size="small"
+                    text="检查更新"
+                    style={style.updateButton}
+                    onPress={() => {
+                        checkAndShowResult(true);
+                    }}
+                />
             </View>
 
             <ScrollView
                 style={style.scrollView}
                 contentContainerStyle={style.scrollViewContainer}
                 showsVerticalScrollIndicator={false}>
-                <Section title="当前版本">
+                <Section title="版本亮点">
                     <Paragraph>
-                        这是 CatMusicFree 的当前维护分支，基于原开源项目继续开发，主要面向 Android
-                        端的日常听歌、搜索、歌单、本地音乐、下载、歌词和插件管理场景。
+                        CatMusicFree 面向 Android 端的日常听歌场景，覆盖搜索、播放、歌单、本地音乐、下载、歌词和插件管理。
                     </Paragraph>
                     <Paragraph>
-                        当前版本重点完成了页面容器、顶部栏、搜索框、设置页、榜单、推荐歌单、播放详情、插件广场和弹层系统的统一，并加入播放失败后的有限自动换源逻辑。
+                        当前版本优化了页面层级、顶部栏、搜索框、设置页、榜单、推荐歌单、播放详情、插件广场和弹层样式；当收藏歌曲来源失效时，也会尝试在可用范围内自动切换播放源。
                     </Paragraph>
                 </Section>
 
-                <Section title="本版本仓库">
+                <Section title="项目仓库">
                     <InfoRow label="GitHub">
                         <LinkText linkTo={CURRENT_GITHUB}>
                             yorushikasama/cat_music_free
@@ -202,12 +224,11 @@ export default function AboutSetting() {
                         </LinkText>
                     </InfoRow>
                     <Paragraph>
-                        应用内检查更新会优先读取 Gitee，并保留 GitHub Raw 与 jsDelivr
-                        作为备用更新源。
+                        应用内检查更新会按内置线路获取版本信息，并提供可用的安装包下载地址。
                     </Paragraph>
                 </Section>
 
-                <Section title="原作者与上游项目">
+                <Section title="开源与致谢">
                     <View style={style.authorBlock}>
                         <Image
                             source={ImgAsset.author}
@@ -225,7 +246,7 @@ export default function AboutSetting() {
                                 fontColor="textSecondary"
                                 lineHeight
                                 style={style.authorDescription}>
-                                本版本是在原项目基础上的二次开发与界面改造，请在二次分发或修改版本中保留原作者和上游项目出处。
+                                感谢原作者和上游项目提供的开源基础。本应用延续其插件化音乐播放器思路，并在此基础上持续优化 Android 使用体验。
                             </ThemeText>
                         </View>
                     </View>
@@ -251,19 +272,16 @@ export default function AboutSetting() {
 
                 <Section title="开源协议">
                     <Paragraph>
-                        本项目遵循 AGPL-3.0 协议。你可以学习、修改和分发代码，但二次分发版本也需要保持开源，并清楚标注修改内容、当前分支来源和原项目来源。
-                    </Paragraph>
-                    <Paragraph>
-                        本版本不代表原作者官方发布版本；如果你需要确认上游项目动态，请以前面的原作者仓库为准。
+                        本项目遵循 AGPL-3.0 协议。你可以学习、修改和分发代码；再次分发时，请继续遵守开源协议，并保留原作者、上游项目和当前项目的来源信息。
                     </Paragraph>
                 </Section>
 
                 <Section title="插件与内容说明">
                     <Paragraph>
-                        应用本身不内置音乐资源，搜索、播放、下载等能力主要依赖用户自行安装的插件。请只安装可信来源的插件，并合理合法使用。
+                        应用本身不内置音乐资源，搜索、播放、下载等能力来自用户安装的插件。建议只安装可信来源的插件，并在合理合法的范围内使用。
                     </Paragraph>
                     <Paragraph>
-                        第三方插件及其产生的数据与应用本体相互独立，由插件来源和使用者自行判断风险。
+                        插件广场和手动安装入口用于提升安装效率；第三方插件的内容、可用性和数据由对应来源提供。
                     </Paragraph>
                 </Section>
             </ScrollView>
@@ -293,20 +311,32 @@ const style = StyleSheet.create({
         marginBottom: spacing.lg,
         justifyContent: "center",
     },
-    logoFrame: {
+    brandMark: {
         width: rpx(132),
         height: rpx(132),
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
         alignItems: "center",
         justifyContent: "center",
+        overflow: "hidden",
     },
-    logo: {
-        width: rpx(92),
-        height: rpx(92),
+    brandIcon: {
+        position: "absolute",
+        right: rpx(18),
+        top: rpx(18),
+        opacity: 0.36,
+    },
+    brandLetters: {
+        letterSpacing: 0,
+        lineHeight: rpx(50),
     },
     appName: {
         marginTop: spacing.md,
         marginBottom: spacing.xs,
+        textAlign: "center",
+    },
+    heroDescription: {
+        marginTop: spacing.sm,
         textAlign: "center",
     },
     badgeRow: {
@@ -324,9 +354,8 @@ const style = StyleSheet.create({
         marginHorizontal: spacing.xs / 2,
         marginBottom: spacing.xs,
     },
-    heroHint: {
-        marginTop: spacing.xs,
-        textAlign: "center",
+    updateButton: {
+        marginTop: spacing.sm,
     },
     scrollView: {
         flex: 1,
