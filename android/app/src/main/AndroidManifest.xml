@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
       android:name=".MainApplication"
@@ -23,6 +24,13 @@
       android:usesCleartextTraffic="true"
       android:extractNativeLibs="true"
     >
+      <receiver
+        android:name=".utils.ApkDownloadReceiver"
+        android:exported="false">
+        <intent-filter>
+          <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+        </intent-filter>
+      </receiver>
       <activity
         android:name=".MainActivity"
         android:theme="@style/Theme.App.SplashScreen"

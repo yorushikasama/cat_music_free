@@ -122,7 +122,6 @@ export default function AboutSetting() {
     const colors = useColors();
     const appName = deviceInfoModule.getApplicationName();
     const version = deviceInfoModule.getVersion();
-    const buildNumber = deviceInfoModule.getBuildNumber();
     const primaryTint = Color(colors.primary).alpha(0.12).rgb().string();
 
     return (
@@ -149,7 +148,7 @@ export default function AboutSetting() {
                     {appName}
                 </ThemeText>
                 <ThemeText fontSize="subTitle" fontColor="textSecondary">
-                    当前版本 {version} · Build {buildNumber}
+                    当前版本 {version}
                 </ThemeText>
                 <ThemeText
                     fontSize="description"

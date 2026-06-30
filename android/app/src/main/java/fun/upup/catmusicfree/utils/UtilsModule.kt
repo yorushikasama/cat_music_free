@@ -1,5 +1,6 @@
 package `fun`.upup.catmusicfree.utils; // replace your-apps-package-name with your app’s package name
 import android.Manifest
+import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -56,6 +57,40 @@ class UtilsModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
             }
         }
         reactContext.currentActivity?.startActivity(intent)
+    }
+
+    @ReactMethod
+    fun downloadAndInstallApk(url: String, title: String?, promise: Promise) {
+        try {
+            if (url.isBlank()) {
+                promise.reject("EMPTY_URL", "下载地址为空")
+                return
+            }
+
+            val downloadManager = reactContext.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+            if (downloadManager == null) {
+                promise.reject("DOWNLOAD_MANAGER_UNAVAILABLE", "系统下载服务不可用")
+                return
+            }
+
+            val fileName = "catmusicfree-update-${System.currentTimeMillis()}.apk"
+            val request = DownloadManager.Request(Uri.parse(url)).apply {
+                setTitle(title ?: "CatMusicFree 更新包")
+                setDescription("下载完成后将打开系统安装器")
+                setMimeType(APK_MIME_TYPE)
+                setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
+                setAllowedOverMetered(true)
+                setAllowedOverRoaming(true)
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalFilesDir(reactContext, Environment.DIRECTORY_DOWNLOADS, fileName)
+            }
+
+            val downloadId = downloadManager.enqueue(request)
+            ApkDownloadReceiver.saveDownloadId(reactContext, downloadId)
+            promise.resolve(downloadId.toDouble())
+        } catch (e: Exception) {
+            promise.reject("START_DOWNLOAD_FAILED", e.message ?: "无法启动后台下载", e)
+        }
     }
 
     @ReactMethod(isBlockingSynchronousMethod = true)
@@ -122,5 +157,9 @@ class UtilsModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
                 putDouble("height", usableHeightDp.toDouble())
             }
         }
+    }
+
+    companion object {
+        const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     }
 }

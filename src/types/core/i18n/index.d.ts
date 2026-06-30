@@ -496,6 +496,9 @@ export interface ILanguageData {
     // 对话框相关 - 下载
     "dialog.downloadDialog.title": string; // 发现新版本
     "dialog.downloadDialog.skipThisVersion": string; // 跳过此版本
+    "dialog.downloadDialog.backgroundDownload": string; // 后台下载
+    "dialog.downloadDialog.backgroundDownloadStarted": string; // 已在后台开始下载
+    "dialog.downloadDialog.backgroundDownloadFailed": string; // 无法启动后台下载
     "dialog.downloadDialog.downloadUsingBrowser": string; // 从浏览器下载
     "dialog.downloadDialog.backupUrl": string; // 备用链接
     "dialog.editSheetDetail.sheetName": string; // 歌单名

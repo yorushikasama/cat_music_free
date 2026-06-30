@@ -11,6 +11,8 @@ import Button from "@/components/base/textButton.tsx";
 import Dialog from "./base";
 import PersistStatus from "@/utils/persistStatus";
 import { useI18N } from "@/core/i18n";
+import NativeUtils from "@/native/utils";
+import Toast from "@/utils/toast";
 
 interface IDownloadDialogProps {
     version: string;
@@ -23,6 +25,23 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
     const [skipState, setSkipState] = useState(false);
 
     const { t } = useI18N();
+
+    async function startBackgroundDownload(url: string) {
+        try {
+            PersistStatus.set("app.skipVersion", undefined);
+            await NativeUtils.downloadAndInstallApk(
+                url,
+                `CatMusicFree ${version}`,
+            );
+            hideDialog();
+            Toast.success(t("dialog.downloadDialog.backgroundDownloadStarted"));
+        } catch (e: any) {
+            Toast.warn(
+                e?.message ??
+                    t("dialog.downloadDialog.backgroundDownloadFailed"),
+            );
+        }
+    }
 
     return (
         <Dialog
@@ -68,11 +87,9 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                     <Button
                         style={style.button}
                         onPress={async () => {
-                            PersistStatus.set("app.skipVersion", undefined);
-                            openUrl(fromUrl);
-                            Clipboard.setString(fromUrl);
+                            await startBackgroundDownload(fromUrl);
                         }}>
-                        {t("dialog.downloadDialog.downloadUsingBrowser")}
+                        {t("dialog.downloadDialog.backgroundDownload")}
                     </Button>
                     {backUrl && (
                         <Button
