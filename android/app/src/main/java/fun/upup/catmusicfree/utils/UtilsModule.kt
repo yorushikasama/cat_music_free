@@ -78,7 +78,6 @@ class UtilsModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
                 setTitle(title ?: "CatMusicFree 更新包")
                 setDescription("下载完成后将打开系统安装器")
                 setMimeType(APK_MIME_TYPE)
-                setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
                 setAllowedOverMetered(true)
                 setAllowedOverRoaming(true)
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)

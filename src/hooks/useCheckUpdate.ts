@@ -11,7 +11,7 @@ export const checkUpdateAndShowResult = (
     checkSkip = false,
 ) => {
     return checkUpdate().then(updateInfo => {
-        if (updateInfo?.needUpdate) {
+        if (updateInfo.needUpdate && updateInfo.data) {
             const { data } = updateInfo;
             const skipVersion = PersistStatus.get("app.skipVersion");
             if (
@@ -32,6 +32,10 @@ export const checkUpdateAndShowResult = (
                 Toast.success(i18n.t("checkUpdate.error.latestVersion"));
             }
         }
+    }).catch(e => {
+        if (showToast) {
+            Toast.warn(e?.message ?? "检查更新失败，请稍后再试");
+        }
     });
 };
 
@@ -45,8 +49,12 @@ export function useUpdateAvailable(respectSkip = true) {
         try {
             const updateInfo = await checkUpdate();
             setUpdateVersion(
-                updateInfo?.needUpdate ? updateInfo.data.version : null,
+                updateInfo.needUpdate && updateInfo.data
+                    ? updateInfo.data.version
+                    : null,
             );
+        } catch {
+            setUpdateVersion(null);
         } finally {
             setChecking(false);
         }

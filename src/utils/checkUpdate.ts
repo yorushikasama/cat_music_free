@@ -16,20 +16,47 @@ export interface IUpdateData {
 
 export interface IUpdateInfo {
     needUpdate: boolean;
-    data: IUpdateData;
+    data?: IUpdateData;
 }
 
-export default async function checkUpdate(): Promise<IUpdateInfo | undefined> {
+export default async function checkUpdate(): Promise<IUpdateInfo> {
     const currentVersion = DeviceInfo.getVersion();
-    for (let i = 0; i < updateList.length; ++i) {
-        try {
-            const rawInfo = (await axios.get(updateList[i])).data;
-            if (compare(rawInfo.version, currentVersion, ">")) {
-                return {
-                    needUpdate: true,
-                    data: rawInfo,
-                };
-            }
-        } catch {}
+
+    const results = await Promise.allSettled(
+        updateList.map(url =>
+            axios.get<IUpdateData>(url, {
+                timeout: 8000,
+                headers: {
+                    "Cache-Control": "no-cache",
+                    Pragma: "no-cache",
+                },
+            }),
+        ),
+    );
+
+    let hasValidSource = false;
+    for (const result of results) {
+        if (result.status !== "fulfilled") {
+            continue;
+        }
+        const rawInfo = result.value.data;
+        if (!rawInfo?.version) {
+            continue;
+        }
+        hasValidSource = true;
+        if (compare(rawInfo.version, currentVersion, ">")) {
+            return {
+                needUpdate: true,
+                data: rawInfo,
+            };
+        }
     }
+
+    if (hasValidSource) {
+        return {
+            needUpdate: false,
+        };
+    }
+
+    throw new Error("检查更新失败，请稍后再试");
 }
