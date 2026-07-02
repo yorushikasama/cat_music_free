@@ -1,8 +1,16 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     StyleSheet,
     View,
     ScrollView,
+    RefreshControl,
     TouchableOpacity,
     useWindowDimensions,
 } from "react-native";
@@ -49,6 +57,8 @@ const SONG_IMAGE_SIZE = rpx(112);
 const RECENT_PLAY_COUNT = 6;
 const QUICK_GRID_GAP = spacing.md;
 const HOME_BOTTOM_OVERLAY_SPACE = rpx(286);
+const HOME_RECOMMEND_PAGE_WINDOW = 5;
+const HOME_RECOMMEND_PAGE_SIZE = 10;
 
 function alpha(color: string, value: number) {
     try {
@@ -67,6 +77,22 @@ function readableOn(color: string) {
     } catch {
         return "#ffffff";
     }
+}
+
+function shuffleArray<T>(items: T[]) {
+    return [...items].sort(() => Math.random() - 0.5);
+}
+
+function uniqueSheets(items: IMusic.IMusicSheetItemBase[]) {
+    const seen = new Set<string>();
+    return items.filter(item => {
+        const key = `${item.platform ?? ""}@${item.id}`;
+        if (seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
 }
 
 // ==================== 类型 ====================
@@ -130,6 +156,7 @@ function SheetCard(props: ISheetCardProps) {
     const { sheet, pluginHash } = props;
     const navigate = useNavigate();
     const colors = useColors();
+    const targetPluginHash = PluginManager.getByMedia(sheet)?.hash ?? pluginHash;
 
     return (
         <TouchableOpacity
@@ -137,7 +164,7 @@ function SheetCard(props: ISheetCardProps) {
             style={styles.sheetCard}
             onPress={() => {
                 navigate(ROUTE_PATH.PLUGIN_SHEET_DETAIL, {
-                    pluginHash,
+                    pluginHash: targetPluginHash,
                     sheetInfo: sheet,
                 });
             }}>
@@ -412,15 +439,19 @@ export default function Discover() {
     const navigation = useNavigation<any>();
     const { width } = useWindowDimensions();
 
-    usePlugins();
+    const plugins = usePlugins();
 
     // 获取支持推荐歌单的插件
-    const recommendPlugins = PluginManager.getSortedPluginsWithAbility(
-        "getRecommendSheetsByTag",
+    const recommendPlugins = useMemo(
+        () => PluginManager.getSortedPluginsWithAbility("getRecommendSheetsByTag"),
+        [plugins],
     );
 
     // 获取支持榜单的插件
-    const topListPlugins = PluginManager.getSortedPluginsWithAbility("getTopLists");
+    const topListPlugins = useMemo(
+        () => PluginManager.getSortedPluginsWithAbility("getTopLists"),
+        [plugins],
+    );
 
     // 推荐歌单数据
     const [recommendSheets, setRecommendSheets] = useState<
@@ -429,32 +460,10 @@ export default function Discover() {
     const [recommendState, setRecommendState] = useState(
         RequestStateCode.IDLE,
     );
+    const [refreshing, setRefreshing] = useState(false);
+    const recommendSheetsCountRef = useRef(0);
 
     const firstRecommendPlugin = recommendPlugins[0];
-
-    const fetchRecommendSheets = useCallback(async () => {
-        if (!firstRecommendPlugin) return;
-        setRecommendState(RequestStateCode.PENDING_FIRST_PAGE);
-        try {
-            const result =
-                await firstRecommendPlugin.methods?.getRecommendSheetsByTag?.(
-                    { title: t("common.default"), id: "" },
-                    1,
-                );
-            if (result?.data) {
-                setRecommendSheets(result.data.slice(0, 10));
-                setRecommendState(RequestStateCode.FINISHED);
-            } else {
-                setRecommendState(RequestStateCode.ERROR);
-            }
-        } catch {
-            setRecommendState(RequestStateCode.ERROR);
-        }
-    }, [firstRecommendPlugin, t]);
-
-    useEffect(() => {
-        fetchRecommendSheets();
-    }, [fetchRecommendSheets]);
 
     // 榜单数据
     const topLists = useAtomValue(pluginsTopListAtom);
@@ -464,6 +473,79 @@ export default function Discover() {
     const firstTopListData = firstTopListPlugin
         ? topLists[firstTopListPlugin.hash]
         : null;
+
+    const fetchRecommendSheets = useCallback(async (refresh = false) => {
+        if (!recommendPlugins.length) return;
+        if (!refresh) {
+            setRecommendState(RequestStateCode.PENDING_FIRST_PAGE);
+        }
+        try {
+            const plugins = shuffleArray(recommendPlugins).slice(0, 2);
+            const pageSeed = refresh
+                ? Math.floor(Math.random() * HOME_RECOMMEND_PAGE_WINDOW) + 1
+                : 1;
+            const results = await Promise.allSettled(
+                plugins.map(plugin =>
+                    Promise.resolve(
+                        plugin.methods?.getRecommendSheetsByTag?.(
+                            { title: t("common.default"), id: "" },
+                            pageSeed,
+                        ),
+                    ).then(result => ({
+                        plugin,
+                        data: result?.data ?? [],
+                    })),
+                ),
+            );
+
+            const nextSheets = uniqueSheets(
+                results.flatMap(result => {
+                    if (result.status !== "fulfilled" || !result.value) {
+                        return [];
+                    }
+                    return result.value.data.map(item => ({
+                        ...item,
+                        platform: item.platform ?? result.value.plugin.instance.platform,
+                    }));
+                }),
+            );
+
+            if (nextSheets.length) {
+                setRecommendSheets(
+                    shuffleArray(nextSheets).slice(0, HOME_RECOMMEND_PAGE_SIZE),
+                );
+                setRecommendState(RequestStateCode.FINISHED);
+            } else if (!refresh || !recommendSheetsCountRef.current) {
+                setRecommendState(RequestStateCode.ERROR);
+            }
+        } catch {
+            if (!refresh || !recommendSheetsCountRef.current) {
+                setRecommendState(RequestStateCode.ERROR);
+            }
+        }
+    }, [recommendPlugins, t]);
+
+    const handleRefresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            await Promise.all([
+                fetchRecommendSheets(true),
+                firstTopListPlugin
+                    ? getTopList(firstTopListPlugin.hash, true)
+                    : Promise.resolve(),
+            ]);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [fetchRecommendSheets, firstTopListPlugin, getTopList]);
+
+    useEffect(() => {
+        fetchRecommendSheets();
+    }, [fetchRecommendSheets]);
+
+    useEffect(() => {
+        recommendSheetsCountRef.current = recommendSheets.length;
+    }, [recommendSheets.length]);
 
     useEffect(() => {
         if (firstTopListPlugin) {
@@ -513,6 +595,15 @@ export default function Discover() {
         <ScrollView
             style={globalStyle.fwflex1}
             contentContainerStyle={styles.scrollContent}
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor={colors.primary}
+                    colors={[colors.primary]}
+                    progressBackgroundColor={colors.surfacePrimary}
+                />
+            }
             showsVerticalScrollIndicator={false}>
             <View style={styles.hero}>
                 <View style={styles.heroHeader}>

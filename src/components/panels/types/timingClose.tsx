@@ -6,32 +6,20 @@ import ThemeText from "@/components/base/themeText";
 import { setCloseAfterPlayEnd, setScheduleClose, useCloseAfterPlayEnd, useScheduleCloseCountDown } from "@/utils/scheduleClose";
 import timeformat from "@/utils/timeformat";
 import PanelBase from "../base/panelBase";
-import Divider from "@/components/base/divider";
 import PanelHeader from "../base/panelHeader";
 import Checkbox from "@/components/base/checkbox";
-import { Pressable } from "react-native-gesture-handler";
 import { useI18N } from "@/core/i18n";
 import { showDialog } from "@/components/dialogs/useDialog";
+import Icon from "@/components/base/icon";
+import useColors from "@/hooks/useColors";
+import { spacing } from "@/constants/spacing";
+import { radius } from "@/constants/borderRadius";
+import { iconSizeConst } from "@/constants/uiConst";
+import Color from "color";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 
 const shortCutTimes = [10, 20, 30, 45, 60] as const;
-
-
-function CountDownHeader() {
-    const countDown = useScheduleCloseCountDown();
-    const { t } = useI18N();
-
-    return (
-        <PanelHeader
-            hideDivider
-            hideButtons
-            title={countDown === null
-                ? t("sidebar.scheduleClose")
-                : t("panel.timingClose.countdown", { time: timeformat(countDown) })}
-        />
-    );
-}
-
 
 
 export default function TimingClose() {
@@ -40,52 +28,211 @@ export default function TimingClose() {
 
     const isCountingDown = countDown !== null;
     const { t } = useI18N();
+    const colors = useColors();
+    const safeAreaInsets = useSafeAreaInsets();
+
+    const primarySoft = Color(colors.primary).alpha(0.1).rgb().string();
+    const primaryBorder = Color(colors.primary).alpha(0.22).rgb().string();
+    const primaryStrong = Color(colors.primary).alpha(0.16).rgb().string();
+    const danger = colors.danger ?? "#ff5a6a";
+    const dangerSoft = Color(danger).alpha(0.1).rgb().string();
+    const dangerBorder = Color(danger).alpha(0.24).rgb().string();
+
+    const selectTime = (minutes: number) => {
+        setScheduleClose(Date.now() + minutes * 60000);
+    };
 
     return (
         <PanelBase
             keyboardAvoidBehavior="none"
             positionMethod='top'
-            height={rpx(450)}
+            height={rpx(620) + safeAreaInsets.bottom}
             renderBody={() => (
                 <>
-                    <CountDownHeader />
-                    <Divider />
-                    <View style={styles.bodyContainer}>
-                        {shortCutTimes.map((time, index) => (
-                            <TouchableOpacity style={styles.timeItem} key={index} activeOpacity={0.6} onPress={() => {
-                                setScheduleClose(
-                                    Date.now() + time * 60000,
-                                );
-                            }}>
-                                <ThemeText>{time}</ThemeText>
-                            </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity style={styles.timeItem} key='customize' activeOpacity={0.6} onPress={() => {
-                            showDialog("SetScheduleCloseTimeDialog", {
-                                onOk: (minutes: number) => {
-                                    setScheduleClose(Date.now() + minutes * 60000);
+                    <PanelHeader
+                        hideDivider
+                        hideButtons
+                        title={t("sidebar.scheduleClose")}
+                    />
+                    <View
+                        style={[
+                            styles.body,
+                            { paddingBottom: safeAreaInsets.bottom + spacing.lg },
+                        ]}>
+                        <View
+                            style={[
+                                styles.statusCard,
+                                {
+                                    backgroundColor: isCountingDown
+                                        ? primarySoft
+                                        : colors.surfaceSecondary,
+                                    borderColor: isCountingDown
+                                        ? primaryBorder
+                                        : colors.divider,
                                 },
-                            });
-                        }}>
-                            <ThemeText>{t("panel.timingClose.customize")}</ThemeText>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.bottomLine}>
-                        <Pressable style={styles.closeAfterPlayContainer} onPress={() => {
-                            setCloseAfterPlayEnd(!closeAfterPlay);
-                        }}>
-                            <Checkbox checked={closeAfterPlay} />
-                            <ThemeText style={styles.bottomLineText}>{t("panel.timingClose.closeAfterPlay")}</ThemeText>
-                        </Pressable>
-                        {isCountingDown && (
-                            <TouchableOpacity style={styles.cancelButton} onPress={() => {
-                                setScheduleClose(null);
-                            }}>
-                                <ThemeText style={styles.cancelButtonText}>{t("panel.timingClose.cancelScheduleClose")}</ThemeText>
-                            </TouchableOpacity>
-                        )}
-                    </View>
+                            ]}>
+                            <View
+                                style={[
+                                    styles.statusIcon,
+                                    { backgroundColor: primaryStrong },
+                                ]}>
+                                <Icon
+                                    name="alarm-outline"
+                                    size={iconSizeConst.normal}
+                                    color={colors.primary}
+                                />
+                            </View>
+                            <View style={styles.statusText}>
+                                <ThemeText
+                                    fontSize="description"
+                                    fontColor="textSecondary"
+                                    numberOfLines={1}>
+                                    {isCountingDown
+                                        ? t("panel.timingClose.active")
+                                        : t("panel.timingClose.inactive")}
+                                </ThemeText>
+                                <ThemeText
+                                    fontSize="appbar"
+                                    fontWeight="bold"
+                                    numberOfLines={1}
+                                    style={styles.countdownText}>
+                                    {isCountingDown
+                                        ? timeformat(countDown)
+                                        : t("panel.timingClose.notSet")}
+                                </ThemeText>
+                            </View>
+                        </View>
 
+                        <ThemeText
+                            fontSize="description"
+                            fontWeight="medium"
+                            fontColor="textSecondary"
+                            style={styles.sectionTitle}>
+                            {t("panel.timingClose.quickChoices")}
+                        </ThemeText>
+
+                        <View style={styles.timeGrid}>
+                            {shortCutTimes.map(time => (
+                                <TouchableOpacity
+                                    style={[
+                                        styles.timeItem,
+                                        {
+                                            backgroundColor: colors.surfaceSecondary,
+                                            borderColor: colors.divider,
+                                        },
+                                    ]}
+                                    key={time}
+                                    activeOpacity={0.78}
+                                    onPress={() => selectTime(time)}>
+                                    <ThemeText
+                                        fontSize="title"
+                                        fontWeight="bold">
+                                        {time}
+                                    </ThemeText>
+                                    <ThemeText
+                                        fontSize="description"
+                                        fontColor="textSecondary"
+                                        style={styles.minuteText}>
+                                        {t("panel.timingClose.minute")}
+                                    </ThemeText>
+                                </TouchableOpacity>
+                            ))}
+                            <TouchableOpacity
+                                style={[
+                                    styles.timeItem,
+                                    styles.customTimeItem,
+                                    {
+                                        backgroundColor: primarySoft,
+                                        borderColor: primaryBorder,
+                                    },
+                                ]}
+                                key='customize'
+                                activeOpacity={0.78}
+                                onPress={() => {
+                                    showDialog("SetScheduleCloseTimeDialog", {
+                                        onOk: (minutes: number) => {
+                                            selectTime(minutes);
+                                        },
+                                    });
+                                }}>
+                                <Icon
+                                    name="plus"
+                                    size={rpx(30)}
+                                    color={colors.primary}
+                                />
+                                <ThemeText
+                                    fontSize="subTitle"
+                                    fontWeight="semibold"
+                                    color={colors.primary}
+                                    style={styles.customText}>
+                                    {t("panel.timingClose.customize")}
+                                </ThemeText>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            activeOpacity={0.78}
+                            style={[
+                                styles.optionRow,
+                                {
+                                    backgroundColor: colors.surfaceSecondary,
+                                    borderColor: colors.divider,
+                                },
+                            ]}
+                            onPress={() => {
+                                setCloseAfterPlayEnd(!closeAfterPlay);
+                            }}>
+                            <View style={styles.optionContent}>
+                                <Icon
+                                    name="check-circle-outline"
+                                    size={iconSizeConst.light}
+                                    color={closeAfterPlay ? colors.primary : colors.textSecondary}
+                                />
+                                <View style={styles.optionText}>
+                                    <ThemeText
+                                        fontWeight="semibold"
+                                        numberOfLines={1}>
+                                        {t("panel.timingClose.closeAfterPlay")}
+                                    </ThemeText>
+                                    <ThemeText
+                                        fontSize="description"
+                                        fontColor="textSecondary"
+                                        numberOfLines={1}
+                                        style={styles.optionDescription}>
+                                        {t("panel.timingClose.closeAfterPlayDesc")}
+                                    </ThemeText>
+                                </View>
+                            </View>
+                            <Checkbox checked={closeAfterPlay} />
+                        </TouchableOpacity>
+
+                        {isCountingDown ? (
+                            <TouchableOpacity
+                                activeOpacity={0.78}
+                                style={[
+                                    styles.cancelButton,
+                                    {
+                                        backgroundColor: dangerSoft,
+                                        borderColor: dangerBorder,
+                                    },
+                                ]}
+                                onPress={() => {
+                                    setScheduleClose(null);
+                                }}>
+                                <Icon
+                                    name="x-mark"
+                                    size={rpx(30)}
+                                    color={danger}
+                                />
+                                <ThemeText
+                                    fontWeight="semibold"
+                                    color={danger}
+                                    style={styles.cancelButtonText}>
+                                    {t("panel.timingClose.cancelScheduleClose")}
+                                </ThemeText>
+                            </TouchableOpacity>
+                        ) : null}
+                    </View>
                 </>
             )}
         />
@@ -94,52 +241,96 @@ export default function TimingClose() {
 
 
 const styles = StyleSheet.create({
-    header: {
-        width: rpx(750),
-        paddingHorizontal: rpx(24),
-        height: rpx(90),
+    body: {
+        flex: 1,
+        width: "100%",
+        paddingHorizontal: spacing.md,
+    },
+    statusCard: {
+        minHeight: rpx(124),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.xxl,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
     },
-    bodyContainer: {
-        width: "100%",
-        height: rpx(160),
-        padding: rpx(24),
-        gap: rpx(16),
+    statusIcon: {
+        width: rpx(72),
+        height: rpx(72),
+        borderRadius: radius.pill,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: spacing.md,
+    },
+    statusText: {
+        flex: 1,
+        minWidth: 0,
+    },
+    countdownText: {
+        marginTop: rpx(8),
+    },
+    sectionTitle: {
+        marginTop: spacing.lg,
+        marginBottom: spacing.sm,
+    },
+    timeGrid: {
         flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
     },
     timeItem: {
-        flex: 1,
-        backgroundColor: "#99999999",
-        borderRadius: rpx(12),
+        width: "31.6%",
+        height: rpx(112),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.xl,
         alignItems: "center",
         justifyContent: "center",
     },
-    bottomLine: {
-        width: "100%",
-        marginTop: rpx(36),
-        height: rpx(64),
-        paddingHorizontal: rpx(24),
+    minuteText: {
+        marginTop: rpx(4),
+    },
+    customTimeItem: {
         flexDirection: "row",
-        justifyContent: "space-between",
+    },
+    customText: {
+        marginLeft: rpx(8),
+    },
+    optionRow: {
+        minHeight: rpx(104),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.xl,
+        paddingHorizontal: spacing.md,
+        marginTop: spacing.lg,
+        flexDirection: "row",
         alignItems: "center",
+        justifyContent: "space-between",
+    },
+    optionContent: {
+        flex: 1,
+        minWidth: 0,
+        flexDirection: "row",
+        alignItems: "center",
+        marginRight: spacing.md,
+    },
+    optionText: {
+        flex: 1,
+        minWidth: 0,
+        marginLeft: spacing.sm,
+    },
+    optionDescription: {
+        marginTop: rpx(6),
     },
     cancelButton: {
-        paddingHorizontal: rpx(16),
-        paddingVertical: rpx(8),
-        backgroundColor: "#ff666699",
-        borderRadius: rpx(8),
-    },
-    cancelButtonText: {
-        color: "#ffffff",
-        fontSize: rpx(24),
-    },
-    closeAfterPlayContainer: {
+        height: rpx(88),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.xl,
+        marginTop: spacing.sm,
         flexDirection: "row",
         alignItems: "center",
+        justifyContent: "center",
     },
-    bottomLineText: {
-        marginLeft: rpx(12),
+    cancelButtonText: {
+        marginLeft: rpx(8),
     },
 });

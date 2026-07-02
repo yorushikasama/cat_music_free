@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import { spacing } from "@/constants/spacing";
 import { iconSizeConst } from "@/constants/uiConst";
-import { ROUTE_PATH, useNavigate } from "@/core/router";
 import ThemeText from "./themeText";
 import useColors from "@/hooks/useColors";
 import { showPanel } from "../panels/usePanel";
@@ -24,10 +23,8 @@ export default function (props: IProps) {
     const { musicList, canStar, musicSheet } = props;
 
     const sheetName = musicSheet?.title;
-    const sheetId = musicSheet?.id;
 
     const colors = useColors();
-    const navigate = useNavigate();
     const { t } = useI18N();
 
     const starred = useSheetIsStarred(musicSheet);
@@ -37,7 +34,7 @@ export default function (props: IProps) {
             <Pressable
                 style={style.playAll}
                 onPress={() => {
-                    if (musicList) {
+                    if (musicList?.length) {
                         let defaultPlayMusic = musicList[0];
                         if (
                             TrackPlayer.repeatMode ===
@@ -52,6 +49,8 @@ export default function (props: IProps) {
                             defaultPlayMusic,
                             musicList,
                         );
+                    } else {
+                        Toast.warn(t("common.emptyList"));
                     }
                 }}>
                 <Icon
@@ -87,20 +86,6 @@ export default function (props: IProps) {
                     showPanel("AddToMusicSheet", {
                         musicItem: musicList ?? [],
                         newSheetDefaultName: sheetName,
-                    });
-                }}
-            />
-            <IconButton
-                name="pencil-square"
-                sizeType={"normal"}
-                style={style.optionButton}
-                onPress={async () => {
-                    navigate(ROUTE_PATH.MUSIC_LIST_EDITOR, {
-                        musicList: musicList,
-                        musicSheet: {
-                            title: sheetName,
-                            id: sheetId,
-                        },
                     });
                 }}
             />

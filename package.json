@@ -1,6 +1,6 @@
 {
   "name": "CatMusicFree",
-  "version": "0.6.7",
+  "version": "0.6.8",
   "private": true,
   "license": "AGPL",
   "author": {
@@ -17,6 +17,7 @@
     "lint-staged": "lint-staged",
     "connect-mumu": "adb kill-server & adb connect localhost:7555",
     "build-android": "cd .\\android\\ && .\\gradlew assembleRelease",
+    "release:feishu": "node tools/release-feishu.mjs",
     "generate-assets": "node ./generator/generate-assets.mjs",
     "prepare": "husky"
   },

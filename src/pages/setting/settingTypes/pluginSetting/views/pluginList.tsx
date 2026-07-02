@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
-import rpx from "@/utils/rpx";
+import rpx, { vmax } from "@/utils/rpx";
 import * as DocumentPicker from "expo-document-picker";
 import SkeletonList from "@/components/base/skeleton";
 
@@ -312,6 +312,7 @@ export default function PluginList() {
                         icon="plus"
                         onPress={() => {
                             showPanel("SimpleSelect", {
+                                height: vmax(72),
                                 header: t("pluginSetting.menu.installPlugin"),
                                 candidates: [
                                     {

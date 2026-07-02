@@ -85,6 +85,7 @@ class TrackPlayer extends EventEmitter<{
     private sourceFallbackAttemptKeys = new Set<string>();
     private sourceFallbackInFlightKeys = new Set<string>();
     private sourceFallbackTestingKeys = new Set<string>();
+    private sourceFallbackWatchToken = 0;
 
 
     private static maxMusicQueueLength = 10000;
@@ -615,6 +616,7 @@ class TrackPlayer extends EventEmitter<{
                 : true;
             if (!changedSource) {
                 await this.setTrackSource(track as Track);
+                this.watchCurrentTrackForSourceFallback(track);
             }
 
             if (changedSource && canPersistChangedSource) {
@@ -897,6 +899,7 @@ class TrackPlayer extends EventEmitter<{
         this.sourceFallbackAttemptKeys.clear();
         this.sourceFallbackInFlightKeys.clear();
         this.sourceFallbackTestingKeys.clear();
+        this.sourceFallbackWatchToken += 1;
     }
 
     private getPlayQualityOrder() {
@@ -918,7 +921,7 @@ class TrackPlayer extends EventEmitter<{
 
     private async confirmPlayableTrack(
         track: IMusic.IMusicItem,
-        timeoutMs = 2500,
+        timeoutMs = 6000,
     ) {
         const startTime = Date.now();
         while (Date.now() - startTime < timeoutMs) {
@@ -932,7 +935,6 @@ class TrackPlayer extends EventEmitter<{
                 }
                 if (
                     playbackState.state === State.Playing ||
-                    playbackState.state === State.Buffering ||
                     playbackState.state === State.Ready
                 ) {
                     return true;
@@ -951,6 +953,56 @@ class TrackPlayer extends EventEmitter<{
             await delay(200);
         }
         return false;
+    }
+
+    private async watchCurrentTrackForSourceFallback(track: IMusic.IMusicItem) {
+        const watchToken = ++this.sourceFallbackWatchToken;
+        await delay(12000);
+
+        if (
+            watchToken !== this.sourceFallbackWatchToken ||
+            !this.configService.getConfig("basic.tryChangeSourceWhenPlayFail") ||
+            LocalMusicSheet.isLocalMusic(track) ||
+            !this.isCurrentMusic(track)
+        ) {
+            return;
+        }
+
+        try {
+            const [activeTrack, playbackState, progress] = await Promise.all([
+                ReactNativeTrackPlayer.getActiveTrack(),
+                ReactNativeTrackPlayer.getPlaybackState(),
+                ReactNativeTrackPlayer.getProgress(),
+            ]);
+
+            if (
+                watchToken !== this.sourceFallbackWatchToken ||
+                !isSameMediaItem(activeTrack as IMusic.IMusicItem, track) ||
+                !this.isCurrentMusic(track) ||
+                progress.position > 2
+            ) {
+                return;
+            }
+
+            const isStuck =
+                playbackState.state === State.Loading ||
+                playbackState.state === State.Buffering ||
+                playbackState.state === State.Error ||
+                playbackState.state === State.Stopped ||
+                playbackState.state === State.None;
+
+            if (!isStuck) {
+                return;
+            }
+
+            trace("播放源长时间未就绪，尝试自动换源", {
+                state: playbackState.state,
+                music: getMediaUniqueKey(track),
+            });
+            await this.tryReplaceFailedCurrentMusicSource(track);
+        } catch (e: any) {
+            trace("播放源就绪检测失败", e?.message ?? e);
+        }
     }
 
     private async setTrackSourceAndConfirmFallback(track: IMusic.IMusicItem) {

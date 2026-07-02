@@ -496,6 +496,7 @@ export interface ILanguageData {
     // 对话框相关 - 下载
     "dialog.downloadDialog.title": string; // 发现新版本
     "dialog.downloadDialog.skipThisVersion": string; // 跳过此版本
+    "dialog.downloadDialog.downloadHint": string; // 下载方式提示
     "dialog.downloadDialog.backgroundDownload": string; // 后台下载
     "dialog.downloadDialog.backgroundDownloadStarted": string; // 已在后台开始下载
     "dialog.downloadDialog.backgroundDownloadFailed": string; // 无法启动后台下载
@@ -599,9 +600,15 @@ export interface ILanguageData {
 
     // 面板相关 - 定时关闭
     "panel.timingClose.countdown": string; // 关闭倒计时
+    "panel.timingClose.active": string; // 正在倒计时
+    "panel.timingClose.inactive": string; // 睡前播放
+    "panel.timingClose.notSet": string; // 还没有设置
+    "panel.timingClose.quickChoices": string; // 快速选择
+    "panel.timingClose.minute": string; // 分钟
     "panel.timingClose.customize": string; // 自定义
     "panel.timingClose.cancelScheduleClose": string; // 取消定时关闭
     "panel.timingClose.closeAfterPlay": string; // 播放完歌曲再关闭
+    "panel.timingClose.closeAfterPlayDesc": string; // 倒计时结束后等待当前歌曲播放完
 
     // 面板相关 - 播放速度
     "panel.playRate.title": string; // 播放速度

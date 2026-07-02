@@ -11,6 +11,7 @@ import rpx from "@/utils/rpx";
 import { FlashList } from "@shopify/flash-list";
 import React, {
     ForwardedRef,
+    useCallback,
     forwardRef,
     memo,
     useEffect,
@@ -41,7 +42,7 @@ interface ISortableFlatListProps<T> {
         | "space-around"
         | "space-evenly";
     // 滚动list距离顶部的距离, 这里写的不好
-    marginTop: number;
+    marginTop?: number;
     /** 拖拽时的背景色 */
     activeBackgroundColor?: string;
     /** 交换结束 */
@@ -70,6 +71,8 @@ export default function SortableFlatList<T extends any = any>(
     const [activeItem, setActiveItem] = useState<T | null>(null);
 
     const layoutRef = useRef<LayoutRectangle>();
+    const wrapperRef = useRef<View | null>(null);
+    const listTopInWindowRef = useRef<number>();
     // listref
     const listRef = useRef<FlashList<T> | null>(null);
     // fakeref
@@ -79,6 +82,12 @@ export default function SortableFlatList<T extends any = any>(
     const targetOffsetYRef = useRef<number>(0);
 
     const direction = useSharedValue(0);
+
+    const measureListPosition = useCallback(() => {
+        wrapperRef.current?.measureInWindow?.((_x, y) => {
+            listTopInWindowRef.current = y;
+        });
+    }, []);
 
     useEffect(() => {
         _setData([...(data ?? [])]);
@@ -156,7 +165,10 @@ export default function SortableFlatList<T extends any = any>(
     //#endregion
 
     return (
-        <View style={globalStyle.fwflex1}>
+        <View
+            ref={wrapperRef}
+            style={globalStyle.fwflex1}
+            onLayout={measureListPosition}>
             {/* 纯展示 */}
             <FakeFlatListItem
                 ref={_ => (fakeItemRef.current = _)}
@@ -173,6 +185,7 @@ export default function SortableFlatList<T extends any = any>(
                 }}
                 onLayout={evt => {
                     layoutRef.current = evt.nativeEvent.layout;
+                    measureListPosition();
                 }}
                 data={_data}
                 estimatedItemSize={itemHeight}
@@ -188,7 +201,10 @@ export default function SortableFlatList<T extends any = any>(
                     if (activeRef.current !== -1) {
                         offsetRef.current =
                             e.nativeEvent.pageY -
-                            (marginTop ?? layoutRef.current?.y ?? 0) -
+                            (listTopInWindowRef.current ??
+                                marginTop ??
+                                layoutRef.current?.y ??
+                                0) -
                             itemHeight / 2;
 
                         if (offsetRef.current < 0) {

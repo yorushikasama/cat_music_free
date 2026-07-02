@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from "react";
-import { StyleSheet } from "react-native";
+import { RefreshControl, StyleSheet } from "react-native";
 import rpx from "@/utils/rpx";
 import { FlashList } from "@shopify/flash-list";
 import useRecommendSheets from "../../hooks/useRecommendSheets";
@@ -10,6 +10,7 @@ import ListFooter from "@/components/base/listFooter";
 import { RequestStateCode } from "@/constants/commonConst";
 import { SkeletonGrid } from "@/components/base/skeleton";
 import { spacing } from "@/constants/spacing";
+import useColors from "@/hooks/useColors";
 
 interface ISheetListProps {
     tag: ICommon.IUnique;
@@ -19,7 +20,8 @@ interface ISheetListProps {
 function SheetList(props: ISheetListProps) {
     const { tag, pluginHash } = props ?? {};
 
-    const [query, sheets, status] = useRecommendSheets(pluginHash, tag);
+    const [query, sheets, status, refreshing] = useRecommendSheets(pluginHash, tag);
+    const colors = useColors();
 
     function renderItem({ item }: { item: IMusic.IMusicSheetItemBase }) {
         return <SheetItem sheetInfo={item} pluginHash={pluginHash} />;
@@ -52,6 +54,15 @@ function SheetList(props: ISheetListProps) {
             onEndReached={() => {
                 query();
             }}
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={() => query(true)}
+                    tintColor={colors.primary}
+                    colors={[colors.primary]}
+                    progressBackgroundColor={colors.surfacePrimary}
+                />
+            }
             onEndReachedThreshold={0.1}
             estimatedItemSize={rpx(306)}
             numColumns={orientation === "vertical" ? 3 : 4}

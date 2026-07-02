@@ -46,12 +46,12 @@ class Network {
     }
 
     private mapState(state: any) {
-        if (state.type === "none") {
+        if (state.type === "none" || state.isConnected === false) {
             this._state = NetworkState.Offline;
-        } else if (state.type === "wifi") {
-            this._state = NetworkState.Wifi;
-        } else {
+        } else if (state.type === "cellular") {
             this._state = NetworkState.Cellular;
+        } else {
+            this._state = NetworkState.Wifi;
         }
     }
 

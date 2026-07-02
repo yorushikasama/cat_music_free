@@ -9,17 +9,19 @@ export default function useGetTopList() {
     const setPluginsTopList = useSetAtom(pluginsTopListAtom);
 
     const getTopList = useCallback(
-        async (pluginHash: string) => {
+        async (pluginHash: string, force = false) => {
             try {
                 const pluginsTopList =
                     getDefaultStore().get(pluginsTopListAtom);
                 const currentTopList = pluginsTopList[pluginHash];
                 // 有数据/加载中直接返回
                 if (
-                    currentTopList?.data?.length ||
-                    currentTopList?.state ===
-                        RequestStateCode.PENDING_FIRST_PAGE ||
-                    currentTopList?.state === RequestStateCode.PENDING_REST_PAGE
+                    !force &&
+                    (currentTopList?.data?.length ||
+                        currentTopList?.state ===
+                            RequestStateCode.PENDING_FIRST_PAGE ||
+                        currentTopList?.state ===
+                            RequestStateCode.PENDING_REST_PAGE)
                 ) {
                     return;
                 }

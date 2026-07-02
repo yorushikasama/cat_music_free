@@ -20,6 +20,7 @@ import Icon from "@/components/base/icon";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 import Color from "color";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type InputMode = "urls" | "file";
 
@@ -31,6 +32,7 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
     const { t } = useI18N();
     const colors = useColors();
     const { onBatchComplete } = props;
+    const safeAreaInsets = useSafeAreaInsets();
 
     const [mode, setMode] = useState<InputMode>("urls");
     const [urlText, setUrlText] = useState("");
@@ -346,7 +348,15 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView style={styles.body} keyboardShouldPersistTaps="handled">
+                    <ScrollView
+                        style={styles.body}
+                        nestedScrollEnabled
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator
+                        contentContainerStyle={[
+                            styles.bodyContent,
+                            { paddingBottom: safeAreaInsets.bottom + spacing.xxl },
+                        ]}>
                         {mode === "urls" ? (
                             <>
                                 <ThemeText fontSize="description" fontColor="textSecondary" style={styles.hint}>
@@ -473,6 +483,9 @@ const styles = StyleSheet.create({
     body: {
         flex: 1,
         paddingHorizontal: rpx(24),
+    },
+    bodyContent: {
+        flexGrow: 1,
     },
     hint: {
         marginBottom: rpx(12),

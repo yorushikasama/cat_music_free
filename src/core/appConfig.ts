@@ -187,6 +187,9 @@ class AppConfig implements IAppConfig {
         if (!configStore.contains("theme.particleEffect")) {
             this.setConfig("theme.particleEffect", "none");
         }
+        if (!configStore.contains("basic.tryChangeSourceWhenPlayFail")) {
+            this.setConfig("basic.tryChangeSourceWhenPlayFail", true);
+        }
     }
 
     setConfig<K extends keyof IAppConfigProperties>(

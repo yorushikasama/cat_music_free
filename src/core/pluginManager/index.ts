@@ -32,6 +32,19 @@ import delay from "@/utils/delay";
 const pluginsAtom = atom<Plugin[]>([]);
 const pluginCacheStore = getOrCreateMMKV("plugin.cache");
 
+function comparePluginOrder(
+    order: Record<string, number>,
+    a: Plugin,
+    b: Plugin,
+) {
+    const orderA = order[a.name] ?? Number.MAX_SAFE_INTEGER;
+    const orderB = order[b.name] ?? Number.MAX_SAFE_INTEGER;
+    if (orderA !== orderB) {
+        return orderA - orderB;
+    }
+    return a.name.localeCompare(b.name);
+}
+
 const ee = new EventEmitter<{
     "order-updated": () => void;
     "enabled-updated": (pluginName: string, enabled: boolean) => void;
@@ -517,9 +530,7 @@ class PluginManager implements IPluginManager, IInjectable {
     getSortedPlugins() {
         const order = pluginMeta.getPluginOrder();
         return [...this.getPlugins()].sort((a, b) =>
-            (order[a.name] ?? Infinity) - (order[b.name] ?? Infinity) < 0
-                ? -1
-                : 1,
+            comparePluginOrder(order, a, b),
         );
     }
 
@@ -549,10 +560,7 @@ class PluginManager implements IPluginManager, IInjectable {
     getSortedSearchablePlugins(supportedSearchType?: ICommon.SupportMediaType) {
         const order = pluginMeta.getPluginOrder();
         return [...this.getSearchablePlugins(supportedSearchType)].sort(
-            (a, b) =>
-                (order[a.name] ?? Infinity) - (order[b.name] ?? Infinity) < 0
-                    ? -1
-                    : 1,
+            (a, b) => comparePluginOrder(order, a, b),
         );
     }
 
@@ -577,9 +585,7 @@ class PluginManager implements IPluginManager, IInjectable {
     getSortedPluginsWithAbility(ability: keyof IPlugin.IPluginInstanceMethods) {
         const order = pluginMeta.getPluginOrder();
         return [...this.getPluginsWithAbility(ability)].sort((a, b) =>
-            (order[a.name] ?? Infinity) - (order[b.name] ?? Infinity) < 0
-                ? -1
-                : 1,
+            comparePluginOrder(order, a, b),
         );
     }
 
@@ -646,7 +652,7 @@ export const usePlugins = () => useAtomValue(pluginsAtom);
 
 export function useSortedPlugins() {
     const plugins = useAtomValue(pluginsAtom);
-    const [, setOrderVersion] = useState(0);
+    const [orderVersion, setOrderVersion] = useState(0);
 
     useEffect(() => {
         const callback = () => {
@@ -661,11 +667,9 @@ export function useSortedPlugins() {
     return useMemo(() => {
         const order = pluginMeta.getPluginOrder();
         return [...plugins].sort((a, b) =>
-            (order[a.name] ?? Infinity) - (order[b.name] ?? Infinity) < 0
-                ? -1
-                : 1,
+            comparePluginOrder(order, a, b),
         );
-    }, [plugins]);
+    }, [plugins, orderVersion]);
 }
 
 export function usePluginEnabled(plugin: Plugin) {

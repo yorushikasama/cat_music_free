@@ -55,6 +55,12 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                 version: version,
             })}</Dialog.Title>
             <ScrollView style={style.scrollView}>
+                <ThemeText
+                    fontColor="textSecondary"
+                    lineHeight
+                    style={style.downloadHint}>
+                    {t("dialog.downloadDialog.downloadHint")}
+                </ThemeText>
                 {content?.map?.(_ => (
                     <ThemeText key={_} style={style.item}>
                         {_}
@@ -87,19 +93,19 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                     <Button
                         style={style.button}
                         onPress={async () => {
-                            await startBackgroundDownload(fromUrl);
+                            PersistStatus.set("app.skipVersion", undefined);
+                            openUrl(fromUrl);
+                            Clipboard.setString(fromUrl);
                         }}>
-                        {t("dialog.downloadDialog.backgroundDownload")}
+                        {t("dialog.downloadDialog.downloadUsingBrowser")}
                     </Button>
                     {backUrl && (
                         <Button
                             style={style.button}
                             onPress={async () => {
-                                PersistStatus.set("app.skipVersion", undefined);
-                                openUrl(backUrl);
-                                Clipboard.setString(backUrl);
+                                await startBackgroundDownload(backUrl);
                             }}>
-                            {t("dialog.downloadDialog.backupUrl")}
+                            {t("dialog.downloadDialog.backgroundDownload")}
                         </Button>
                     )}
                 </View>
@@ -112,6 +118,9 @@ const style = StyleSheet.create({
     item: {
         marginBottom: rpx(20),
         lineHeight: rpx(36),
+    },
+    downloadHint: {
+        marginBottom: rpx(20),
     },
     content: {
         flex: 1,

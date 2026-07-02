@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { ScrollView, StyleSheet } from "react-native";
-import rpx from "@/utils/rpx";
+import rpx, { vmax } from "@/utils/rpx";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PanelBase from "../base/panelBase";
 import { hidePanel } from "../usePanel";
@@ -27,7 +27,7 @@ interface ISimpleSelectProps {
 
 export default function SimpleSelect(props: ISimpleSelectProps) {
     const {
-        height = rpx(520),
+        height,
         header = "",
         candidates = [],
         onPress,
@@ -35,19 +35,33 @@ export default function SimpleSelect(props: ISimpleSelectProps) {
 
     const safeAreaInsets = useSafeAreaInsets();
     const colors = useColors();
+    const panelHeight = useMemo(() => {
+        if (height) {
+            return height;
+        }
+        const headerHeight = rpx(112);
+        const itemHeight = rpx(104);
+        const verticalPadding = spacing.sm + spacing.lg + safeAreaInsets.bottom;
+        return Math.min(
+            vmax(78),
+            headerHeight + candidates.length * itemHeight + verticalPadding,
+        );
+    }, [candidates.length, height, safeAreaInsets.bottom]);
 
     return (
         <PanelBase
-            height={height}
+            height={panelHeight}
             renderBody={() => (
                 <>
                     <PanelHeader title={header} hideButtons />
 
                     <ScrollView
                         style={styles.body}
+                        nestedScrollEnabled
+                        showsVerticalScrollIndicator
                         contentContainerStyle={[
                             styles.bodyContent,
-                            { paddingBottom: safeAreaInsets.bottom + spacing.lg },
+                            { paddingBottom: safeAreaInsets.bottom + spacing.xxl },
                         ]}>
                         {candidates.map((it, index) => {
                             return (
