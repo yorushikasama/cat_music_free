@@ -257,17 +257,21 @@ async function main() {
     const fallbackUrls = Array.isArray(versionJson.download)
         ? versionJson.download.filter(url => url && url !== folderShareUrl)
         : [];
+    const downloadUrls = fallbackUrls.length > 0
+        ? [
+            fallbackUrls[0],
+            folderShareUrl,
+            ...fallbackUrls.slice(1),
+        ]
+        : [folderShareUrl];
     const nextVersionJson = {
         ...versionJson,
         version,
         changeLog: normalizeChangeLog(args.changelog || getEnv("RELEASE_CHANGELOG"), versionJson.changeLog || []),
-        download: [
-            folderShareUrl,
-            ...fallbackUrls,
-        ],
+        download: downloadUrls,
     };
     await writeJson(versionJsonPath, nextVersionJson);
-    console.log(`Updated ${path.relative(process.cwd(), versionJsonPath)} with Feishu primary download URL.`);
+    console.log(`Updated ${path.relative(process.cwd(), versionJsonPath)} with Feishu browser download URL.`);
 }
 
 main().catch(error => {

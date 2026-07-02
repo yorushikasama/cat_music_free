@@ -25,6 +25,8 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
     const [skipState, setSkipState] = useState(false);
 
     const { t } = useI18N();
+    const browserDownloadUrl = backUrl ?? fromUrl;
+    const backgroundDownloadUrl = fromUrl;
 
     async function startBackgroundDownload(url: string) {
         try {
@@ -94,20 +96,18 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                         style={style.button}
                         onPress={async () => {
                             PersistStatus.set("app.skipVersion", undefined);
-                            openUrl(fromUrl);
-                            Clipboard.setString(fromUrl);
+                            openUrl(browserDownloadUrl);
+                            Clipboard.setString(browserDownloadUrl);
                         }}>
                         {t("dialog.downloadDialog.downloadUsingBrowser")}
                     </Button>
-                    {backUrl && (
-                        <Button
-                            style={style.button}
-                            onPress={async () => {
-                                await startBackgroundDownload(backUrl);
-                            }}>
-                            {t("dialog.downloadDialog.backgroundDownload")}
-                        </Button>
-                    )}
+                    <Button
+                        style={style.button}
+                        onPress={async () => {
+                            await startBackgroundDownload(backgroundDownloadUrl);
+                        }}>
+                        {t("dialog.downloadDialog.backgroundDownload")}
+                    </Button>
                 </View>
             </Dialog.Actions>
         </Dialog>
