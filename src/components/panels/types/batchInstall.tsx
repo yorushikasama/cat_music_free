@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import rpx, { vmax } from "@/utils/rpx";
 import { fontSizeConst } from "@/constants/uiConst";
 import useColors from "@/hooks/useColors";
@@ -44,13 +44,16 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
         }
         return Math.min(1, Math.max(0, progress.current / progress.total));
     }, [progress.current, progress.total]);
-
     const parseUrls = useCallback((text: string): string[] => {
         return text
             .split(/[\n,;，；]+/)
             .map(u => u.trim())
             .filter(u => u.length > 0 && (u.startsWith("http://") || u.startsWith("https://")));
     }, []);
+    const parsedUrlCount = useMemo(
+        () => parseUrls(urlText).length,
+        [parseUrls, urlText],
+    );
 
     const parseCsvUrls = useCallback((csvText: string): string[] => {
         const lines = csvText.split(/[\r\n]+/).filter(l => l.trim());
@@ -318,31 +321,51 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
                 <>
                     <PanelHeader
                         title={t("pluginSetting.batchInstall.title")}
-                        okText={t("pluginSetting.batchInstall.install")}
-                        onOk={mode === "urls" ? handleOk : undefined}
-                        onCancel={() => {
-                            hidePanel();
-                        }}
+                        hideButtons
                     />
 
-                    <View style={styles.tabBar}>
+                    <View style={[styles.modeCard, { backgroundColor: colors.surfaceSecondary }]}>
                         <TouchableOpacity
-                            style={[styles.tab, mode === "urls" && styles.activeTab, mode === "urls" && { borderColor: colors.primary }]}
+                            style={[
+                                styles.tab,
+                                mode === "urls" && {
+                                    backgroundColor: colors.surfacePrimary,
+                                    shadowColor: colors.shadowMedium ?? colors.shadow,
+                                },
+                            ]}
                             onPress={() => setMode("urls")}>
+                            <Icon
+                                name="link"
+                                size={rpx(28)}
+                                color={mode === "urls" ? colors.primary : colors.textSecondary}
+                            />
                             <ThemeText
                                 fontSize="subTitle"
                                 fontColor={mode === "urls" ? "primary" : "textSecondary"}
-                                fontWeight={mode === "urls" ? "medium" : "regular"}>
+                                fontWeight={mode === "urls" ? "semibold" : "regular"}
+                                style={styles.tabText}>
                                 {t("pluginSetting.batchInstall.tabManualInput")}
                             </ThemeText>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.tab, mode === "file" && styles.activeTab, mode === "file" && { borderColor: colors.primary }]}
+                            style={[
+                                styles.tab,
+                                mode === "file" && {
+                                    backgroundColor: colors.surfacePrimary,
+                                    shadowColor: colors.shadowMedium ?? colors.shadow,
+                                },
+                            ]}
                             onPress={() => setMode("file")}>
+                            <Icon
+                                name="document-outline"
+                                size={rpx(28)}
+                                color={mode === "file" ? colors.primary : colors.textSecondary}
+                            />
                             <ThemeText
                                 fontSize="subTitle"
                                 fontColor={mode === "file" ? "primary" : "textSecondary"}
-                                fontWeight={mode === "file" ? "medium" : "regular"}>
+                                fontWeight={mode === "file" ? "semibold" : "regular"}
+                                style={styles.tabText}>
                                 {t("pluginSetting.batchInstall.tabImportFile")}
                             </ThemeText>
                         </TouchableOpacity>
@@ -359,32 +382,79 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
                         ]}>
                         {mode === "urls" ? (
                             <>
-                                <ThemeText fontSize="description" fontColor="textSecondary" style={styles.hint}>
-                                    {t("pluginSetting.batchInstall.urlHint")}
-                                </ThemeText>
-                                <TextInput
-                                    value={urlText}
-                                    accessible
-                                    autoFocus
-                                    multiline
-                                    accessibilityLabel={t("pluginSetting.batchInstall.urlInputLabel")}
-                                    onChangeText={setUrlText}
+                                <View
                                     style={[
-                                        styles.textInput,
+                                        styles.inputCard,
                                         {
-                                            color: colors.text,
-                                            backgroundColor: colors.placeholder,
+                                            backgroundColor: colors.surfaceSecondary,
+                                            borderColor: colors.divider,
                                         },
-                                    ]}
-                                    placeholderTextColor={colors.textSecondary}
-                                    placeholder={t("pluginSetting.batchInstall.urlPlaceholder")}
-                                    textAlignVertical="top"
-                                />
-                                <View style={styles.urlActions}>
+                                    ]}>
+                                    <View style={styles.inputHeader}>
+                                        <View style={styles.inputTitleWrap}>
+                                            <ThemeText fontWeight="semibold">
+                                                {t("pluginSetting.batchInstall.tabManualInput")}
+                                            </ThemeText>
+                                            <ThemeText
+                                                fontSize="description"
+                                                fontColor="textSecondary"
+                                                numberOfLines={2}
+                                                style={styles.hint}>
+                                                {t("pluginSetting.batchInstall.urlHint")}
+                                            </ThemeText>
+                                        </View>
+                                        {parsedUrlCount ? (
+                                            <View
+                                                style={[
+                                                    styles.countBadge,
+                                                    { backgroundColor: Color(colors.primary).alpha(0.1).rgb().string() },
+                                                ]}>
+                                                <ThemeText
+                                                    fontSize="description"
+                                                    fontWeight="semibold"
+                                                    color={colors.primary}>
+                                                    {parsedUrlCount}
+                                                </ThemeText>
+                                            </View>
+                                        ) : null}
+                                    </View>
+                                    <TextInput
+                                        value={urlText}
+                                        accessible
+                                        autoFocus
+                                        multiline
+                                        accessibilityLabel={t("pluginSetting.batchInstall.urlInputLabel")}
+                                        onChangeText={setUrlText}
+                                        style={[
+                                            styles.textInput,
+                                            {
+                                                color: colors.text,
+                                                backgroundColor: colors.surfacePrimary,
+                                                borderColor: colors.divider,
+                                            },
+                                        ]}
+                                        placeholderTextColor={Color(colors.textSecondary ?? colors.text).alpha(0.7).rgb().string()}
+                                        placeholder={t("pluginSetting.batchInstall.urlPlaceholder")}
+                                        textAlignVertical="top"
+                                    />
                                     <TouchableOpacity
-                                        style={[styles.actionBtn, { backgroundColor: colors.surfaceSecondary ?? colors.placeholder }]}
+                                        style={[
+                                            styles.secondaryAction,
+                                            {
+                                                backgroundColor: Color(colors.primary).alpha(0.09).rgb().string(),
+                                            },
+                                        ]}
                                         onPress={handleImportFromUrl}>
-                                        <ThemeText fontSize="subTitle" fontColor="primary">
+                                        <Icon
+                                            name="arrow-down-tray"
+                                            size={rpx(28)}
+                                            color={colors.primary}
+                                        />
+                                        <ThemeText
+                                            fontSize="subTitle"
+                                            fontColor="primary"
+                                            fontWeight="semibold"
+                                            style={styles.secondaryActionText}>
                                             {t("pluginSetting.batchInstall.installFromListUrl")}
                                         </ThemeText>
                                     </TouchableOpacity>
@@ -392,31 +462,73 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
                             </>
                         ) : (
                             <>
-                                <ThemeText fontSize="description" fontColor="textSecondary" style={styles.hint}>
-                                    {t("pluginSetting.batchInstall.fileHint")}
-                                </ThemeText>
-                                <View style={styles.fileButtons}>
+                                <View
+                                    style={[
+                                        styles.inputCard,
+                                        {
+                                            backgroundColor: colors.surfaceSecondary,
+                                            borderColor: colors.divider,
+                                        },
+                                    ]}>
+                                    <View style={styles.fileHero}>
+                                        <View
+                                            style={[
+                                                styles.fileIcon,
+                                                { backgroundColor: Color(colors.primary).alpha(0.12).rgb().string() },
+                                            ]}>
+                                            <Icon
+                                                name="document-outline"
+                                                size={rpx(44)}
+                                                color={colors.primary}
+                                            />
+                                        </View>
+                                        <ThemeText
+                                            fontWeight="semibold"
+                                            style={styles.fileHeroTitle}>
+                                            {t("pluginSetting.batchInstall.fileHint")}
+                                        </ThemeText>
+                                    </View>
                                     <TouchableOpacity
-                                        style={[styles.fileBtn, { backgroundColor: colors.surfaceSecondary ?? colors.placeholder }]}
+                                        style={[
+                                            styles.fileBtn,
+                                            {
+                                                backgroundColor: colors.surfacePrimary,
+                                                borderColor: Color(colors.primary).alpha(0.22).rgb().string(),
+                                            },
+                                        ]}
                                         onPress={handleImportFile}>
-                                        <ThemeText fontSize="content" fontColor="primary" fontWeight="medium">
+                                        <Icon
+                                            name="folder-plus"
+                                            size={rpx(32)}
+                                            color={colors.primary}
+                                        />
+                                        <View style={styles.fileBtnText}>
+                                            <ThemeText fontSize="content" fontColor="primary" fontWeight="semibold">
                                             {t("pluginSetting.batchInstall.selectFile")}
-                                        </ThemeText>
-                                        <ThemeText fontSize="description" fontColor="textSecondary" style={styles.fileBtnSub}>
-                                            {t("pluginSetting.batchInstall.supportedFormats")}
-                                        </ThemeText>
+                                            </ThemeText>
+                                            <ThemeText fontSize="description" fontColor="textSecondary" style={styles.fileBtnSub}>
+                                                {t("pluginSetting.batchInstall.supportedFormats")}
+                                            </ThemeText>
+                                        </View>
                                     </TouchableOpacity>
                                 </View>
-                                <View style={styles.formatExamples}>
+                                <View
+                                    style={[
+                                        styles.formatExamples,
+                                        {
+                                            backgroundColor: colors.surfaceSecondary,
+                                            borderColor: colors.divider,
+                                        },
+                                    ]}>
                                     <ThemeText fontSize="description" fontColor="textSecondary" fontWeight="medium">
                                         {t("pluginSetting.batchInstall.formatExamplesTitle")}
                                     </ThemeText>
-                                    <View style={[styles.codeBlock, { backgroundColor: colors.placeholder }]}>
+                                    <View style={[styles.codeBlock, { backgroundColor: colors.surfacePrimary }]}>
                                         <Text style={[styles.codeText, { color: colors.textSecondary }]}>
                                             {"JSON:\n{\n  \"plugins\": [\n    {\"url\": \"https://...\"}\n  ]\n}"}
                                         </Text>
                                     </View>
-                                    <View style={[styles.codeBlock, { backgroundColor: colors.placeholder }]}>
+                                    <View style={[styles.codeBlock, { backgroundColor: colors.surfacePrimary }]}>
                                         <Text style={[styles.codeText, { color: colors.textSecondary }]}>
                                             {"CSV:\nhttps://plugin1.js\nhttps://plugin2.js"}
                                         </Text>
@@ -425,6 +537,49 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
                             </>
                         )}
                     </ScrollView>
+
+                    <View
+                        style={[
+                            styles.bottomBar,
+                            {
+                                backgroundColor: colors.surfacePrimary,
+                                borderTopColor: colors.divider,
+                                paddingBottom: safeAreaInsets.bottom + spacing.md,
+                            },
+                        ]}>
+                        <Pressable
+                            style={styles.cancelBtn}
+                            onPress={() => {
+                                hidePanel();
+                            }}>
+                            <ThemeText fontWeight="medium">
+                                {t("common.cancel")}
+                            </ThemeText>
+                        </Pressable>
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.primaryBtn,
+                                {
+                                    backgroundColor: colors.primary,
+                                    opacity: pressed ? 0.78 : 1,
+                                },
+                            ]}
+                            onPress={mode === "urls" ? handleOk : handleImportFile}>
+                            <Icon
+                                name={mode === "urls" ? "inbox-arrow-down" : "folder-plus"}
+                                size={rpx(30)}
+                                color="#fff"
+                            />
+                            <ThemeText
+                                fontWeight="semibold"
+                                color="#fff"
+                                style={styles.primaryBtnText}>
+                                {mode === "urls"
+                                    ? t("pluginSetting.batchInstall.install")
+                                    : t("pluginSetting.batchInstall.selectFile")}
+                            </ThemeText>
+                        </Pressable>
+                    </View>
                 </>
             )}
         />
@@ -465,73 +620,146 @@ const styles = StyleSheet.create({
         marginTop: spacing.md,
         textAlign: "center",
     },
-    tabBar: {
+    modeCard: {
         flexDirection: "row",
-        paddingHorizontal: rpx(24),
-        marginBottom: rpx(16),
+        marginHorizontal: spacing.md,
+        marginBottom: spacing.md,
+        padding: rpx(6),
+        borderRadius: radius.pill,
     },
     tab: {
         flex: 1,
-        paddingVertical: rpx(16),
+        height: rpx(68),
         alignItems: "center",
-        borderBottomWidth: rpx(4),
-        borderBottomColor: "transparent",
+        justifyContent: "center",
+        flexDirection: "row",
+        borderRadius: radius.pill,
     },
-    activeTab: {
-        borderBottomWidth: rpx(4),
+    tabText: {
+        marginLeft: rpx(8),
     },
     body: {
         flex: 1,
-        paddingHorizontal: rpx(24),
     },
     bodyContent: {
-        flexGrow: 1,
+        paddingHorizontal: spacing.md,
     },
     hint: {
-        marginBottom: rpx(12),
+        marginTop: rpx(8),
+    },
+    inputCard: {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.xl,
+        padding: spacing.md,
+    },
+    inputHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        marginBottom: spacing.md,
+    },
+    inputTitleWrap: {
+        flex: 1,
+        minWidth: 0,
+    },
+    countBadge: {
+        minWidth: rpx(48),
+        height: rpx(48),
+        borderRadius: radius.pill,
+        alignItems: "center",
+        justifyContent: "center",
+        marginLeft: spacing.sm,
     },
     textInput: {
-        borderRadius: rpx(12),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.lg,
         fontSize: fontSizeConst.content,
         lineHeight: fontSizeConst.content * 1.5,
-        padding: rpx(16),
-        minHeight: rpx(240),
+        padding: spacing.md,
+        minHeight: rpx(260),
+        maxHeight: rpx(420),
     },
-    urlActions: {
+    secondaryAction: {
         flexDirection: "row",
-        justifyContent: "flex-end",
-        marginTop: rpx(16),
-    },
-    actionBtn: {
-        paddingHorizontal: rpx(24),
-        paddingVertical: rpx(16),
-        borderRadius: rpx(12),
-    },
-    fileButtons: {
         alignItems: "center",
-        marginTop: rpx(16),
+        justifyContent: "center",
+        minHeight: rpx(76),
+        borderRadius: radius.lg,
+        marginTop: spacing.md,
+    },
+    secondaryActionText: {
+        marginLeft: rpx(8),
+    },
+    fileHero: {
+        alignItems: "center",
+        marginBottom: spacing.md,
+    },
+    fileIcon: {
+        width: rpx(88),
+        height: rpx(88),
+        borderRadius: radius.pill,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: spacing.sm,
+    },
+    fileHeroTitle: {
+        textAlign: "center",
     },
     fileBtn: {
         width: "100%",
-        paddingVertical: rpx(32),
-        borderRadius: rpx(16),
+        minHeight: rpx(96),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.lg,
+        flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
+        paddingHorizontal: spacing.md,
+    },
+    fileBtnText: {
+        flex: 1,
+        marginLeft: spacing.sm,
     },
     fileBtnSub: {
         marginTop: rpx(8),
     },
     formatExamples: {
-        marginTop: rpx(24),
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.xl,
+        marginTop: spacing.md,
+        padding: spacing.md,
     },
     codeBlock: {
-        marginTop: rpx(12),
-        padding: rpx(16),
-        borderRadius: rpx(12),
+        marginTop: spacing.sm,
+        padding: spacing.sm,
+        borderRadius: radius.md,
     },
     codeText: {
         fontSize: fontSizeConst.description,
         fontFamily: "monospace",
         lineHeight: fontSizeConst.description * 1.6,
+    },
+    bottomBar: {
+        borderTopWidth: StyleSheet.hairlineWidth,
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.md,
+    },
+    cancelBtn: {
+        width: rpx(148),
+        height: rpx(76),
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: radius.pill,
+        marginRight: spacing.sm,
+    },
+    primaryBtn: {
+        flex: 1,
+        height: rpx(76),
+        borderRadius: radius.pill,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    primaryBtnText: {
+        marginLeft: rpx(8),
     },
 });

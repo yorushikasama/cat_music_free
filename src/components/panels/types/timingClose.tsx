@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import rpx from "@/utils/rpx";
 import ThemeText from "@/components/base/themeText";
 
@@ -54,10 +54,13 @@ export default function TimingClose() {
                         hideButtons
                         title={t("sidebar.scheduleClose")}
                     />
-                    <View
-                        style={[
-                            styles.body,
-                            { paddingBottom: safeAreaInsets.bottom + spacing.lg },
+                    <ScrollView
+                        style={styles.body}
+                        nestedScrollEnabled
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={[
+                            styles.bodyContent,
+                            { paddingBottom: safeAreaInsets.bottom + spacing.xl },
                         ]}>
                         <View
                             style={[
@@ -232,7 +235,7 @@ export default function TimingClose() {
                                 </ThemeText>
                             </TouchableOpacity>
                         ) : null}
-                    </View>
+                    </ScrollView>
                 </>
             )}
         />
@@ -244,6 +247,8 @@ const styles = StyleSheet.create({
     body: {
         flex: 1,
         width: "100%",
+    },
+    bodyContent: {
         paddingHorizontal: spacing.md,
     },
     statusCard: {

@@ -498,9 +498,14 @@ export interface ILanguageData {
     "dialog.downloadDialog.skipThisVersion": string; // 跳过此版本
     "dialog.downloadDialog.downloadHint": string; // 下载方式提示
     "dialog.downloadDialog.backgroundDownload": string; // 后台下载
+    "dialog.downloadDialog.backgroundDownloadDesc": string; // 后台下载说明
     "dialog.downloadDialog.backgroundDownloadStarted": string; // 已在后台开始下载
     "dialog.downloadDialog.backgroundDownloadFailed": string; // 无法启动后台下载
     "dialog.downloadDialog.downloadUsingBrowser": string; // 从浏览器下载
+    "dialog.downloadDialog.browserDownloadDesc": string; // 浏览器下载说明
+    "dialog.downloadDialog.changeLogTitle": string; // 更新内容标题
+    "dialog.downloadDialog.changeLogSubtitle": string; // 更新内容副标题
+    "dialog.downloadDialog.emptyChangeLog": string; // 更新内容为空
     "dialog.downloadDialog.backupUrl": string; // 备用链接
     "dialog.editSheetDetail.sheetName": string; // 歌单名
     "dialog.subscriptionPluginDialog.title": string; // 订阅

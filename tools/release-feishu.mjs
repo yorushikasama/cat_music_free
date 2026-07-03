@@ -163,13 +163,19 @@ async function deleteOldApks(token, folderToken, keepFileName) {
         return tokenValue && name.endsWith(".apk") && name !== keepFileName;
     });
 
+    let deletedCount = 0;
     for (const file of apkFiles) {
         const name = file.name || file.file_name;
         const tokenValue = file.token || file.file_token;
         console.log(`Deleting old APK: ${name}`);
-        await deleteFile(token, tokenValue);
+        try {
+            await deleteFile(token, tokenValue);
+            deletedCount += 1;
+        } catch (error) {
+            console.warn(`Warning: failed to delete old APK "${name}": ${error?.message || error}`);
+        }
     }
-    return apkFiles.length;
+    return deletedCount;
 }
 
 async function uploadApk(token, folderToken, apkPath, fileName) {
