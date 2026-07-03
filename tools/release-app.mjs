@@ -57,6 +57,64 @@ function normalizeChangeLog(rawValue, fallback) {
         .filter(Boolean);
 }
 
+async function loadEnvFile(filePath) {
+    try {
+        const content = await fs.readFile(filePath, "utf8");
+        for (const line of content.split(/\r?\n/)) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith("#")) {
+                continue;
+            }
+            const eqIndex = trimmed.indexOf("=");
+            if (eqIndex <= 0) {
+                continue;
+            }
+            const key = trimmed.slice(0, eqIndex).trim();
+            let value = trimmed.slice(eqIndex + 1).trim();
+            if (
+                (value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'"))
+            ) {
+                value = value.slice(1, -1);
+            }
+            if (!process.env[key]) {
+                process.env[key] = value;
+            }
+        }
+    } catch (error) {
+        if (error?.code !== "ENOENT") {
+            throw error;
+        }
+    }
+}
+
+async function notifyFeishuBot(text) {
+    const webhook = process.env.FEISHU_BOT_WEBHOOK?.trim();
+    if (!webhook) {
+        return;
+    }
+    try {
+        const response = await fetch(webhook, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+            },
+            body: JSON.stringify({
+                msg_type: "text",
+                content: {
+                    text,
+                },
+            }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.code !== 0) {
+            console.warn(`Warning: Feishu bot notification failed: ${data.msg || response.statusText}`);
+        }
+    } catch (error) {
+        console.warn(`Warning: Feishu bot notification failed: ${error?.message || error}`);
+    }
+}
+
 async function run(command, args, options = {}) {
     const display = [command, ...args].join(" ");
     console.log(`\n> ${display}`);
@@ -124,6 +182,7 @@ async function getCurrentVersionCode() {
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
+    await loadEnvFile(path.resolve(args.env || ".env.feishu.local"));
     const packageJson = await readJson(path.resolve("package.json"));
     const version = args.version || bumpPatch(packageJson.version);
     const versionCode = args.versionCode
@@ -139,37 +198,43 @@ async function main() {
         throw new Error(`Invalid versionCode: ${args.versionCode}`);
     }
 
-    console.log(`Preparing CatMusicFree release ${version} (${versionCode})`);
-    if (changeLog.length) {
-        console.log("ChangeLog:");
-        changeLog.forEach(item => console.log(`- ${item}`));
-    } else {
-        console.log(`ChangeLog: keep existing ${VERSION_JSON} content`);
+    try {
+        console.log(`Preparing CatMusicFree release ${version} (${versionCode})`);
+        if (changeLog.length) {
+            console.log("ChangeLog:");
+            changeLog.forEach(item => console.log(`- ${item}`));
+        } else {
+            console.log(`ChangeLog: keep existing ${VERSION_JSON} content`);
+        }
+
+        await updatePackageVersion(version);
+        await updateAndroidVersion(version, versionCode);
+        await updateVersionJson(version, changeLog);
+
+        if (shouldCheck) {
+            await run("npx", ["tsc", "--noEmit"]);
+            await run("git", ["diff", "--check"]);
+        }
+
+        if (shouldBuild) {
+            await run(path.join(".", "android", "gradlew.bat"), ["-p", "android", "assembleRelease"]);
+        }
+
+        if (shouldUpload) {
+            await run("npm", ["run", "release:feishu"]);
+        }
+
+        if (shouldCommit) {
+            await run("git", ["add", "-A"]);
+            await run("git", ["commit", "-m", `chore: release ${version}`]);
+        }
+
+        await notifyFeishuBot(`CatMusicFree ${version} 发布流程完成。`);
+        console.log(`\nRelease ${version} workflow completed.`);
+    } catch (error) {
+        await notifyFeishuBot(`CatMusicFree ${version} 发布流程失败：${error?.message || error}`);
+        throw error;
     }
-
-    await updatePackageVersion(version);
-    await updateAndroidVersion(version, versionCode);
-    await updateVersionJson(version, changeLog);
-
-    if (shouldCheck) {
-        await run("npx", ["tsc", "--noEmit"]);
-        await run("git", ["diff", "--check"]);
-    }
-
-    if (shouldBuild) {
-        await run(path.join(".", "android", "gradlew.bat"), ["-p", "android", "assembleRelease"]);
-    }
-
-    if (shouldUpload) {
-        await run("npm", ["run", "release:feishu"]);
-    }
-
-    if (shouldCommit) {
-        await run("git", ["add", "-A"]);
-        await run("git", ["commit", "-m", `chore: release ${version}`]);
-    }
-
-    console.log(`\nRelease ${version} workflow completed.`);
 }
 
 main().catch(error => {
