@@ -19,6 +19,7 @@
     "build-android": "cd .\\android\\ && .\\gradlew assembleRelease",
     "release:app": "node tools/release-app.mjs",
     "release:feishu": "node tools/release-feishu.mjs",
+    "feishu:chats": "node tools/feishu-list-chats.mjs",
     "generate-assets": "node ./generator/generate-assets.mjs",
     "prepare": "husky"
   },

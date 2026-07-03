@@ -39,8 +39,9 @@ npm run release:app -- --version 0.6.11 --commit=false
 
 本地飞书配置放在 `.env.feishu.local`，不要提交。
 
-如果要把发布结果推送到飞书群机器人，在 `.env.feishu.local` 里添加：
+如果要把发布结果推送到飞书应用机器人，在 `.env.feishu.local` 里添加：
 
 ```bash
-FEISHU_BOT_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/你的机器人地址
+FEISHU_BOT_RECEIVE_ID_TYPE=chat_id
+FEISHU_BOT_RECEIVE_ID=目标群聊或用户 ID
 ```

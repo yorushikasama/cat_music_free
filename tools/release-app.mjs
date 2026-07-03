@@ -89,29 +89,59 @@ async function loadEnvFile(filePath) {
 }
 
 async function notifyFeishuBot(text) {
-    const webhook = process.env.FEISHU_BOT_WEBHOOK?.trim();
-    if (!webhook) {
+    const receiveId = process.env.FEISHU_BOT_RECEIVE_ID?.trim();
+    const receiveIdType = process.env.FEISHU_BOT_RECEIVE_ID_TYPE?.trim() || "chat_id";
+
+    if (!receiveId) {
         return;
     }
+
+    const appId = process.env.FEISHU_APP_ID?.trim();
+    const appSecret = process.env.FEISHU_APP_SECRET?.trim();
+    if (!appId || !appSecret) {
+        console.warn("Warning: Feishu app bot notification skipped: missing FEISHU_APP_ID or FEISHU_APP_SECRET");
+        return;
+    }
+
     try {
-        const response = await fetch(webhook, {
+        const tokenResponse = await fetch("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json; charset=utf-8",
             },
             body: JSON.stringify({
-                msg_type: "text",
-                content: {
-                    text,
-                },
+                app_id: appId,
+                app_secret: appSecret,
             }),
         });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.code !== 0) {
-            console.warn(`Warning: Feishu bot notification failed: ${data.msg || response.statusText}`);
+        const tokenData = await tokenResponse.json().catch(() => ({}));
+        const tenantAccessToken = tokenData.tenant_access_token;
+        if (!tokenResponse.ok || tokenData.code !== 0 || !tenantAccessToken) {
+            console.warn(`Warning: Feishu app bot token failed: ${tokenData.msg || tokenResponse.statusText}`);
+            return;
+        }
+
+        const params = new URLSearchParams({
+            receive_id_type: receiveIdType,
+        });
+        const messageResponse = await fetch(`https://open.feishu.cn/open-apis/im/v1/messages?${params.toString()}`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${tenantAccessToken}`,
+                "Content-Type": "application/json; charset=utf-8",
+            },
+            body: JSON.stringify({
+                receive_id: receiveId,
+                msg_type: "text",
+                content: JSON.stringify({ text }),
+            }),
+        });
+        const messageData = await messageResponse.json().catch(() => ({}));
+        if (!messageResponse.ok || messageData.code !== 0) {
+            console.warn(`Warning: Feishu app bot notification failed: ${messageData.msg || messageResponse.statusText}`);
         }
     } catch (error) {
-        console.warn(`Warning: Feishu bot notification failed: ${error?.message || error}`);
+        console.warn(`Warning: Feishu app bot notification failed: ${error?.message || error}`);
     }
 }
 
