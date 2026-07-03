@@ -9,7 +9,6 @@ import deviceInfoModule from "react-native-device-info";
 import Color from "color";
 
 import { Button } from "@/components/base/button";
-import Icon from "@/components/base/icon";
 import LinkText from "@/components/base/linkText";
 import ThemeText from "@/components/base/themeText";
 import { ImgAsset } from "@/constants/assetsConst";
@@ -86,33 +85,12 @@ function InfoRow(props: IInfoRowProps) {
 }
 
 function BrandMark() {
-    const colors = useColors();
-    const primaryTint = Color(colors.primary).alpha(0.12).rgb().string();
-    const primarySoft = Color(colors.primary).alpha(0.18).rgb().string();
-
     return (
-        <View
-            style={[
-                style.brandMark,
-                {
-                    backgroundColor: primaryTint,
-                    borderColor: primarySoft,
-                },
-            ]}>
-            <Icon
-                name="musical-note"
-                size={rpx(34)}
-                color={colors.primary}
-                style={style.brandIcon}
-            />
-            <ThemeText
-                fontSize="title"
-                fontWeight="bold"
-                color={colors.primary}
-                style={style.brandLetters}>
-                CM
-            </ThemeText>
-        </View>
+        <Image
+            source={ImgAsset.logo}
+            style={style.brandMark}
+            resizeMode="cover"
+        />
     );
 }
 
@@ -314,20 +292,7 @@ const style = StyleSheet.create({
         width: rpx(132),
         height: rpx(132),
         borderRadius: radius.lg,
-        borderWidth: StyleSheet.hairlineWidth,
-        alignItems: "center",
-        justifyContent: "center",
         overflow: "hidden",
-    },
-    brandIcon: {
-        position: "absolute",
-        right: rpx(18),
-        top: rpx(18),
-        opacity: 0.36,
-    },
-    brandLetters: {
-        letterSpacing: 0,
-        lineHeight: rpx(50),
     },
     appName: {
         marginTop: spacing.md,

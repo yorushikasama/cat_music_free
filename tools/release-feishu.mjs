@@ -6,6 +6,7 @@ const FEISHU_API = "https://open.feishu.cn/open-apis";
 const MAX_SIMPLE_UPLOAD_SIZE = 20 * 1024 * 1024;
 const DEFAULT_APK_PATH = "android/app/build/outputs/apk/release/app-arm64-v8a-release.apk";
 const DEFAULT_VERSION_JSON = "release/version.json";
+const ADLER_MOD = 65521;
 
 function parseArgs(argv) {
     const args = {};
@@ -178,14 +179,17 @@ async function deleteOldApks(token, folderToken, keepFileName) {
     return deletedCount;
 }
 
-async function uploadApk(token, folderToken, apkPath, fileName) {
-    const stat = await fs.stat(apkPath);
-    if (stat.size > MAX_SIMPLE_UPLOAD_SIZE) {
-        throw new Error(
-            `APK is ${(stat.size / 1024 / 1024).toFixed(2)}MB; Feishu simple upload only supports files <= 20MB. Use multipart upload or upload the universal APK manually.`,
-        );
+function getAdler32(buffer) {
+    let a = 1;
+    let b = 0;
+    for (const byte of buffer) {
+        a = (a + byte) % ADLER_MOD;
+        b = (b + a) % ADLER_MOD;
     }
+    return String((((b << 16) | a) >>> 0));
+}
 
+async function uploadSmallApk(token, folderToken, apkPath, fileName, stat) {
     const buffer = await fs.readFile(apkPath);
     const form = new FormData();
     form.append("file_name", fileName);
@@ -202,6 +206,105 @@ async function uploadApk(token, folderToken, apkPath, fileName) {
         body: form,
     });
     return json.data || {};
+}
+
+async function prepareMultipartUpload(token, folderToken, fileName, fileSize) {
+    const json = await feishuRequest("/drive/v1/files/upload_prepare", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json; charset=utf-8",
+        },
+        body: JSON.stringify({
+            file_name: fileName,
+            parent_type: "explorer",
+            parent_node: folderToken,
+            size: fileSize,
+        }),
+    });
+    const data = json.data || {};
+    if (!data.upload_id || !data.block_size || !data.block_num) {
+        throw new Error("Feishu multipart upload_prepare did not return upload_id, block_size, or block_num");
+    }
+    return {
+        uploadId: data.upload_id,
+        blockSize: data.block_size,
+        blockNum: data.block_num,
+    };
+}
+
+async function uploadMultipartPart(token, uploadId, seq, chunk) {
+    const form = new FormData();
+    form.append("upload_id", uploadId);
+    form.append("seq", String(seq));
+    form.append("size", String(chunk.length));
+    form.append("checksum", getAdler32(chunk));
+    form.append("file", new Blob([chunk]), `part-${seq}`);
+
+    await feishuRequest("/drive/v1/files/upload_part", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+        body: form,
+    });
+}
+
+async function finishMultipartUpload(token, uploadId, blockNum) {
+    const json = await feishuRequest("/drive/v1/files/upload_finish", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json; charset=utf-8",
+        },
+        body: JSON.stringify({
+            upload_id: uploadId,
+            block_num: blockNum,
+        }),
+    });
+    return json.data || {};
+}
+
+async function uploadMultipartApk(token, folderToken, apkPath, fileName, stat) {
+    const { uploadId, blockSize, blockNum } = await prepareMultipartUpload(
+        token,
+        folderToken,
+        fileName,
+        stat.size,
+    );
+    console.log(`Multipart upload prepared: ${blockNum} blocks, ${(blockSize / 1024 / 1024).toFixed(2)}MB each`);
+
+    const fileHandle = await fs.open(apkPath, "r");
+    try {
+        for (let seq = 0; seq < blockNum; seq += 1) {
+            const offset = seq * blockSize;
+            const size = Math.min(blockSize, stat.size - offset);
+            const buffer = Buffer.allocUnsafe(size);
+            const { bytesRead } = await fileHandle.read(buffer, 0, size, offset);
+            const chunk = bytesRead === buffer.length ? buffer : buffer.subarray(0, bytesRead);
+            await uploadMultipartPart(token, uploadId, seq, chunk);
+            console.log(`Uploaded multipart block ${seq + 1}/${blockNum}`);
+        }
+    } finally {
+        await fileHandle.close();
+    }
+
+    return finishMultipartUpload(token, uploadId, blockNum);
+}
+
+async function uploadApk(token, folderToken, apkPath, fileName) {
+    const stat = await fs.stat(apkPath);
+    if (stat.size <= 0) {
+        throw new Error("APK is empty; Feishu does not support uploading empty files.");
+    }
+
+    if (stat.size <= MAX_SIMPLE_UPLOAD_SIZE) {
+        console.log(`Using Feishu simple upload for ${(stat.size / 1024 / 1024).toFixed(2)}MB APK.`);
+        return uploadSmallApk(token, folderToken, apkPath, fileName, stat);
+    }
+
+    console.log(`Using Feishu multipart upload for ${(stat.size / 1024 / 1024).toFixed(2)}MB APK.`);
+    return uploadMultipartApk(token, folderToken, apkPath, fileName, stat);
 }
 
 function normalizeChangeLog(rawValue, existing = []) {
