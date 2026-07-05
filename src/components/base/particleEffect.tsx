@@ -13,6 +13,7 @@ import Animated, {
     cancelAnimation,
 } from "react-native-reanimated";
 import Svg, { Path, Circle } from "react-native-svg";
+import { toSvgColor } from "@/utils/svgColor";
 
 export type ParticleEffectType = "none" | "sakura" | "snow" | "star" | "firefly";
 
@@ -55,16 +56,17 @@ interface ParticleConfig {
 function SakuraPetal({ size, color }: { size: number; color: string }) {
     const w = size;
     const h = size * 0.7;
+    const svgColor = toSvgColor(color);
     const petalPath = `M ${w * 0.5} ${h * 0.05}
         C ${w * 0.85} ${h * 0.05} ${w * 0.95} ${h * 0.45} ${w * 0.5} ${h * 0.95}
         C ${w * 0.05} ${h * 0.45} ${w * 0.15} ${h * 0.05} ${w * 0.5} ${h * 0.05} Z`;
 
     return (
         <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-            <Path d={petalPath} fill={color} opacity={0.85} />
+            <Path d={petalPath} fill={svgColor} opacity={0.85} />
             <Path
                 d={`M ${w * 0.5} ${h * 0.15} Q ${w * 0.48} ${h * 0.5} ${w * 0.5} ${h * 0.85}`}
-                stroke={color}
+                stroke={svgColor}
                 strokeWidth={0.5}
                 opacity={0.3}
                 fill="none"
@@ -74,6 +76,7 @@ function SakuraPetal({ size, color }: { size: number; color: string }) {
 }
 
 function SnowflakeShape({ size, color }: { size: number; color: string }) {
+    const svgColor = toSvgColor(color);
     const r = size / 2;
     const branchLen = r * 0.8;
     const cx = r;
@@ -89,7 +92,7 @@ function SnowflakeShape({ size, color }: { size: number; color: string }) {
             <Path
                 key={`b${i}`}
                 d={`M ${cx} ${cy} L ${ex} ${ey}`}
-                stroke={color}
+                stroke={svgColor}
                 strokeWidth={size * 0.04}
                 strokeLinecap="round"
             />,
@@ -98,13 +101,14 @@ function SnowflakeShape({ size, color }: { size: number; color: string }) {
 
     return (
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-            <Circle cx={cx} cy={cy} r={size * 0.06} fill={color} />
+            <Circle cx={cx} cy={cy} r={size * 0.06} fill={svgColor} />
             {branches}
         </Svg>
     );
 }
 
 function StarShape({ size, color }: { size: number; color: string }) {
+    const svgColor = toSvgColor(color);
     const cx = size / 2;
     const cy = size / 2;
     const outerR = size * 0.45;
@@ -123,7 +127,7 @@ function StarShape({ size, color }: { size: number; color: string }) {
 
     return (
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-            <Path d={path} fill={color} />
+            <Path d={path} fill={svgColor} />
         </Svg>
     );
 }

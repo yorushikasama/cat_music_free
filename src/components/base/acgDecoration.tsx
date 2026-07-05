@@ -4,18 +4,23 @@ import rpx from "@/utils/rpx";
 import Svg, { RNSVGCircle, RNSVGEllipse, RNSVGPath } from "react-native-svg";
 import useColors from "@/hooks/useColors";
 import Theme from "@/core/theme";
+import { toSvgColor } from "@/utils/svgColor";
+
+const whiteFill = toSvgColor("white");
 
 function Cloud({ size = rpx(80), x, y, opacity = 0.3 }: { size?: number; x: number; y: number; opacity?: number }) {
     const colors = useColors();
     const isAcg = Theme.useTheme().id.startsWith("p-acg");
     if (!isAcg) return null;
 
+    const primaryFill = toSvgColor(colors.primary);
+
     return (
         <Svg width={size} height={size * 0.6} style={{ position: "absolute", left: x, top: y, opacity }}>
-            <RNSVGEllipse cx={size * 0.35} cy={size * 0.4} rx={size * 0.25} ry={size * 0.2} fill={colors.primary} />
-            <RNSVGEllipse cx={size * 0.55} cy={size * 0.35} rx={size * 0.3} ry={size * 0.22} fill={colors.primary} />
-            <RNSVGEllipse cx={size * 0.7} cy={size * 0.4} rx={size * 0.2} ry={size * 0.17} fill={colors.primary} />
-            <RNSVGEllipse cx={size * 0.5} cy={size * 0.48} rx={size * 0.38} ry={size * 0.12} fill={colors.primary} />
+            <RNSVGEllipse cx={size * 0.35} cy={size * 0.4} rx={size * 0.25} ry={size * 0.2} fill={primaryFill} />
+            <RNSVGEllipse cx={size * 0.55} cy={size * 0.35} rx={size * 0.3} ry={size * 0.22} fill={primaryFill} />
+            <RNSVGEllipse cx={size * 0.7} cy={size * 0.4} rx={size * 0.2} ry={size * 0.17} fill={primaryFill} />
+            <RNSVGEllipse cx={size * 0.5} cy={size * 0.48} rx={size * 0.38} ry={size * 0.12} fill={primaryFill} />
         </Svg>
     );
 }
@@ -25,11 +30,13 @@ function Heart({ size = rpx(24), x, y, opacity = 0.25, rotation = 0 }: { size?: 
     const isAcg = Theme.useTheme().id.startsWith("p-acg");
     if (!isAcg) return null;
 
+    const primaryFill = toSvgColor(colors.primary);
+
     return (
         <Svg width={size} height={size} style={{ position: "absolute", left: x, top: y, opacity, transform: [{ rotate: `${rotation}deg` }] }}>
             <RNSVGPath
                 d={`M ${size * 0.5} ${size * 0.85} C ${size * 0.15} ${size * 0.55} 0 ${size * 0.3} ${size * 0.15} ${size * 0.2} C ${size * 0.3} ${size * 0.05} ${size * 0.5} ${size * 0.15} ${size * 0.5} ${size * 0.35} C ${size * 0.5} ${size * 0.15} ${size * 0.7} ${size * 0.05} ${size * 0.85} ${size * 0.2} C ${size} ${size * 0.3} ${size * 0.85} ${size * 0.55} ${size * 0.5} ${size * 0.85} Z`}
-                fill={colors.primary}
+                fill={primaryFill}
             />
         </Svg>
     );
@@ -55,10 +62,11 @@ function Star({ size = rpx(20), x, y, opacity = 0.2 }: { size?: number; x: numbe
         path += (i === 0 ? "M" : "L") + ` ${ox} ${oy} L ${ix} ${iy} `;
     }
     path += "Z";
+    const primaryFill = toSvgColor(colors.primary);
 
     return (
         <Svg width={size} height={size} style={{ position: "absolute", left: x, top: y, opacity }}>
-            <RNSVGPath d={path} fill={colors.primary} />
+            <RNSVGPath d={path} fill={primaryFill} />
         </Svg>
     );
 }
@@ -70,6 +78,7 @@ function RibbonBow({ size = rpx(40), x, y, opacity = 0.18 }: { size?: number; x:
 
     const w = size;
     const h = size * 0.7;
+    const primaryFill = toSvgColor(colors.primary);
 
     return (
         <Svg width={w} height={h} style={{ position: "absolute", left: x, top: y, opacity }}>
@@ -79,9 +88,9 @@ function RibbonBow({ size = rpx(40), x, y, opacity = 0.18 }: { size?: number; x:
                    C ${w * 0.05} ${h * 0.7} ${w * 0.2} ${h * 0.85} ${w * 0.5} ${h * 0.5}
                    C ${w * 0.8} ${h * 0.85} ${w * 0.95} ${h * 0.7} ${w * 0.85} ${h * 0.5}
                    C ${w * 0.95} ${h * 0.3} ${w * 0.8} ${h * 0.15} ${w * 0.5} ${h * 0.5} Z`}
-                fill={colors.primary}
+                fill={primaryFill}
             />
-            <RNSVGCircle cx={w * 0.5} cy={h * 0.5} r={size * 0.06} fill="white" opacity={0.5} />
+            <RNSVGCircle cx={w * 0.5} cy={h * 0.5} r={size * 0.06} fill={whiteFill} opacity={0.5} />
         </Svg>
     );
 }
@@ -90,6 +99,7 @@ function FloatingBubbles() {
     const colors = useColors();
     const isAcg = Theme.useTheme().id.startsWith("p-acg");
     const animRefs = useRef<Animated.Value[]>([]);
+    const primaryFill = toSvgColor(colors.primary);
 
     const bubbles = useMemo(() => {
         const items: Array<{
@@ -167,14 +177,14 @@ function FloatingBubbles() {
                                 cx={bubble.size / 2}
                                 cy={bubble.size / 2}
                                 r={bubble.size / 2 - 1}
-                                fill={colors.primary}
+                                fill={primaryFill}
                                 opacity={0.5}
                             />
                             <RNSVGCircle
                                 cx={bubble.size * 0.35}
                                 cy={bubble.size * 0.35}
                                 r={bubble.size * 0.1}
-                                fill="white"
+                                fill={whiteFill}
                                 opacity={0.4}
                             />
                         </Svg>
