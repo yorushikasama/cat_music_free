@@ -7,15 +7,17 @@ import {
     ViewStyle,
 } from "react-native";
 import Color from "color";
+import { ResizeMode, Video } from "expo-av";
 import Image from "./image";
 import useColors from "@/hooks/useColors";
 import Theme from "@/core/theme";
-import { ImgAsset } from "@/constants/assetsConst";
+import { ImgAsset, VideoAsset } from "@/constants/assetsConst";
 
 const DEFAULT_BACKGROUND_BLUR = 20;
 const DEFAULT_BACKGROUND_OPACITY = 0.6;
 const FIREFLY_BACKGROUND_BLUR = 4;
 const FIREFLY_BACKGROUND_OPACITY = 0.8;
+const FIREFLY_VIDEO_OPACITY = 0.72;
 
 interface IThemedBackgroundLayerProps {
     style?: StyleProp<ViewStyle>;
@@ -32,8 +34,13 @@ export function useResolvedThemedBackground() {
         theme.id === "p-acg-firefly"
             ? ImgAsset.fireflyThemeBackground
             : undefined;
+    const fireflyVideo =
+        theme.id === "p-acg-firefly"
+            ? VideoAsset.fireflyThemeBackground
+            : undefined;
     const customBackgroundUrl = fireflyBackground ? undefined : background.url;
     const hasBackgroundImage = !!customBackgroundUrl || !!fireflyBackground;
+    const hasBackgroundVideo = !!fireflyVideo;
 
     let baseBackgroundColor = colors?.pageBackground ?? colors.background;
     if (hasBackgroundImage) {
@@ -49,7 +56,9 @@ export function useResolvedThemedBackground() {
         baseBackgroundColor,
         customBackgroundUrl,
         fireflyBackground,
+        fireflyVideo,
         hasBackgroundImage,
+        hasBackgroundVideo,
         isFireflyBackground: !!fireflyBackground,
         imageOpacity: customBackgroundUrl
             ? background.opacity ?? DEFAULT_BACKGROUND_OPACITY
@@ -103,10 +112,32 @@ function ThemedBackgroundLayer(props: IThemedBackgroundLayerProps) {
                     blurRadius={background.imageBlurRadius}
                 />
             ) : null}
+            {withImage && background.hasBackgroundVideo ? (
+                <Video
+                    pointerEvents="none"
+                    source={background.fireflyVideo}
+                    style={[
+                        styles.wrapper,
+                        style,
+                        { opacity: FIREFLY_VIDEO_OPACITY },
+                    ]}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay
+                    isLooping
+                    isMuted
+                    useNativeControls={false}
+                    volume={0}
+                />
+            ) : null}
             {withFireflyScrim && background.isFireflyBackground ? (
                 <View
                     pointerEvents="none"
-                    style={[styles.wrapper, style, styles.fireflyScrim]}
+                    style={[
+                        styles.wrapper,
+                        style,
+                        styles.fireflyScrim,
+                        background.hasBackgroundVideo ? styles.fireflyVideoScrim : null,
+                    ]}
                 />
             ) : null}
         </>
@@ -127,5 +158,8 @@ const styles = StyleSheet.create({
     },
     fireflyScrim: {
         backgroundColor: "rgba(236,248,235,0.14)",
+    },
+    fireflyVideoScrim: {
+        backgroundColor: `rgba(236,248,235,${1 - FIREFLY_VIDEO_OPACITY})`,
     },
 });

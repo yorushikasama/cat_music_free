@@ -1,6 +1,6 @@
 {
   "name": "CatMusicFree",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "private": true,
   "license": "AGPL",
   "author": {
@@ -45,6 +45,7 @@
     "dayjs": "^1.11.12",
     "eventemitter3": "^5.0.1",
     "expo": "^52.0.0",
+    "expo-av": "~15.0.2",
     "expo-document-picker": "~13.0.1",
     "expo-file-system": "~18.0.6",
     "expo-keep-awake": "~14.0.1",
