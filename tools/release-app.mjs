@@ -5,6 +5,8 @@ import { spawn } from "node:child_process";
 
 const VERSION_JSON = "release/version.json";
 const BUILD_GRADLE = "android/app/build.gradle";
+const DEFAULT_PUSH_REMOTE = "cat-music-free";
+const DEFAULT_PUSH_BRANCH = "main";
 
 function parseArgs(argv) {
     const args = {};
@@ -221,8 +223,11 @@ async function main() {
     const changeLog = normalizeChangeLog(args.changelog, []);
     const shouldUpload = args.upload !== "false";
     const shouldCommit = args.commit !== "false";
+    const shouldPush = args.push !== "false";
     const shouldBuild = args.build !== "false";
     const shouldCheck = args.check !== "false";
+    const pushRemote = args.pushRemote || process.env.RELEASE_PUSH_REMOTE || DEFAULT_PUSH_REMOTE;
+    const pushBranch = args.pushBranch || process.env.RELEASE_PUSH_BRANCH || DEFAULT_PUSH_BRANCH;
 
     if (!Number.isInteger(versionCode)) {
         throw new Error(`Invalid versionCode: ${args.versionCode}`);
@@ -256,7 +261,15 @@ async function main() {
 
         if (shouldCommit) {
             await run("git", ["add", "-A"]);
-            await run("git", ["commit", "-m", `chore: release ${version}`]);
+            await run("git", ["commit", "-m", `chore: release ${version}`], { shell: false });
+        }
+
+        if (shouldPush) {
+            if (!shouldCommit) {
+                console.log("Skip git push because --commit=false was set.");
+            } else {
+                await run("git", ["push", pushRemote, `HEAD:${pushBranch}`], { shell: false });
+            }
         }
 
         await notifyFeishuBot(`CatMusicFree ${version} 发布流程完成。`);

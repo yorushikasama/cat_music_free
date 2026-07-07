@@ -1,13 +1,14 @@
 {
-  "version": "0.6.11",
+  "version": "0.6.12",
   "changeLog": [
-    "更换 Android 应用图标为新版 custom_icon",
-    "优化应用界面主题、首页、播放页及设置页细节",
-    "清理旧设计稿和临时资源"
+    "启动页新增猫咪动效",
+    "二次元主题底部 Tab 换成猫咪图标",
+    "优化多源更新检查，优先提示最高版本",
+    "发布流程同步推送 GitHub 和 Gitee"
   ],
   "download": [
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v0.6.11/app-arm64-v8a-release.apk",
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v0.6.12/app-arm64-v8a-release.apk",
     "https://fcn294wj6t7e.feishu.cn/drive/folder/OPBTfWOgylTFrndwg4dcVSg6nTc?from=from_copylink",
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v0.6.11/app-universal-release.apk"
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v0.6.12/app-universal-release.apk"
   ]
 }

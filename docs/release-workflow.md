@@ -17,7 +17,14 @@ npm run release:app -- --version 0.6.11 --changelog "第一条更新|第二条�
 5. 运行 `git diff --check`。
 6. 构建 Android release 包。
 7. 上传 APK 到飞书并刷新下载配置。
-8. `git add -A` 并提交 `chore: release <version>`。
+8. `git add -A`，提交 `chore: release <version>`，并推送到 `cat-music-free` 的 `main` 分支。
+
+当前 `cat-music-free` remote 配了两个 push URL：
+
+- `https://github.com/yorushikasama/cat_music_free.git`
+- `https://gitee.com/qianmeng_a/cat_music_free.git`
+
+所以默认发布会同时推送 GitHub 和 Gitee。
 
 如果不传 `--version`，脚本会自动把补丁版本号加 1，并把 `versionCode` 加 1。
 
@@ -43,6 +50,12 @@ npm run release:feishu
 
 ```bash
 npm run release:app -- --version 0.6.11 --commit=false
+```
+
+如果只想提交但暂时不推送：
+
+```bash
+npm run release:app -- --version 0.6.11 --push=false
 ```
 
 本地飞书配置放在 `.env.feishu.local`，不要提交。

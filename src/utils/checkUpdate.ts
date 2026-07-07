@@ -35,6 +35,8 @@ export default async function checkUpdate(): Promise<IUpdateInfo> {
     );
 
     let hasValidSource = false;
+    let latestInfo: IUpdateData | undefined;
+
     for (const result of results) {
         if (result.status !== "fulfilled") {
             continue;
@@ -44,12 +46,16 @@ export default async function checkUpdate(): Promise<IUpdateInfo> {
             continue;
         }
         hasValidSource = true;
-        if (compare(rawInfo.version, currentVersion, ">")) {
-            return {
-                needUpdate: true,
-                data: rawInfo,
-            };
+        if (!latestInfo || compare(rawInfo.version, latestInfo.version, ">")) {
+            latestInfo = rawInfo;
         }
+    }
+
+    if (latestInfo && compare(latestInfo.version, currentVersion, ">")) {
+        return {
+            needUpdate: true,
+            data: latestInfo,
+        };
     }
 
     if (hasValidSource) {

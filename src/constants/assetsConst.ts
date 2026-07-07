@@ -17,6 +17,9 @@ export const ImgAsset = {
         fox: require("@/assets/imgs/xilian-tab-icons/xilian-fox.png"),
         sakura: require("@/assets/imgs/xilian-tab-icons/xilian-sakura.png"),
         sunset: require("@/assets/imgs/xilian-tab-icons/xilian-sunset.png"),
+        catDiscover: require("@/assets/imgs/xilian-tab-icons/xilian-cat-discover.png"),
+        catSheets: require("@/assets/imgs/xilian-tab-icons/xilian-cat-sheets.png"),
+        catProfile: require("@/assets/imgs/xilian-tab-icons/xilian-cat-profile.png"),
     },
     // 音质
     quality: {
