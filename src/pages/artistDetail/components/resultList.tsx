@@ -6,8 +6,10 @@ import rpx from "@/utils/rpx";
 import { FlashList } from "@shopify/flash-list";
 import { useAtom } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
+import { StyleSheet } from "react-native";
 import useQueryArtist from "../hooks/useQuery";
 import { IQueryResult, scrollToTopAtom } from "../store/atoms";
+import { spacing } from "@/constants/spacing";
 
 const ITEM_HEIGHT = rpx(120);
 
@@ -29,7 +31,7 @@ export default function ResultList(props: IResultListProps) {
 
     useEffect(() => {
         queryState === RequestStateCode.IDLE && queryArtist(artistItem, 1, tab);
-    }, []);
+    }, [artistItem, queryArtist, queryState, tab]);
 
     useEffect(() => {
         setQueryState(data?.state ?? RequestStateCode.IDLE);
@@ -66,9 +68,16 @@ export default function ResultList(props: IResultListProps) {
                     queryArtist(artistItem, undefined, tab);
             }}
             estimatedItemSize={ITEM_HEIGHT}
-            overScrollMode="always" 
+            overScrollMode="always"
+            contentContainerStyle={style.listContent}
             data={data.data ?? []}
             renderItem={renderItem}
         />
     );
 }
+
+const style = StyleSheet.create({
+    listContent: {
+        paddingBottom: spacing.xl,
+    },
+});

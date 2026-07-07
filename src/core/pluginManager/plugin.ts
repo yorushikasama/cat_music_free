@@ -120,6 +120,30 @@ function formatAuthUrl(url: string) {
     };
 }
 
+function firstString(...values: unknown[]) {
+    return values.find(
+        value => typeof value === "string" && value.trim().length > 0,
+    ) as string | undefined;
+}
+
+function normalizeLyricSource(
+    source?: ILyric.ILyricSource | null,
+): ILyric.ILyricSource | null {
+    if (!source) {
+        return null;
+    }
+
+    return {
+        ...source,
+        rawLrc: firstString(source.rawLrc, source.lyric),
+        translation: firstString(
+            source.translation,
+            source.trans,
+            source.tlyric,
+        ),
+    };
+}
+
 export enum PluginState {
     // 初始化
     Initializing,
@@ -330,11 +354,11 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
             return null;
         }
         try {
-            return (
-                this.plugin.instance.getMusicInfo(
+            const info =
+                (await this.plugin.instance.getMusicInfo(
                     resetMediaItem(musicItem, undefined, true),
-                ) ?? null
-            );
+                )) ?? null;
+            return info;
         } catch (e: any) {
             devLog("error", "获取音乐详情失败", e, e?.message);
             return null;
@@ -408,24 +432,24 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
 
             return {
                 rawLrc,
-                translation: translation || undefined, // TODO: 这里写的不好
+                translation: translation || undefined,
             };
         }
 
         // 2. 缓存歌词 / 对象上本身的歌词
-        if (musicItemCache?.lyric) {
-            // 缓存的远程结果
-            let cacheLyric: ILyric.ILyricSource | null =
-                musicItemCache.lyric || null;
-            // 缓存的本地结果
-            let localLyric: ILyric.ILyricSource | null =
-                musicItemCache.$localLyric || null;
+        const cacheLyric = normalizeLyricSource(
+            musicItemCache?.lyric ?? musicItem.lyric ?? null,
+        );
+        // 缓存的本地结果
+        const localLyric: ILyric.ILyricSource | null =
+            musicItemCache?.$localLyric || null;
+        if (cacheLyric || localLyric) {
 
             // 优先用缓存的结果
-            if (cacheLyric.rawLrc || cacheLyric.translation) {
+            if (cacheLyric?.rawLrc || cacheLyric?.translation) {
                 return {
-                    rawLrc: cacheLyric.rawLrc,
-                    translation: cacheLyric.translation,
+                    rawLrc: cacheLyric?.rawLrc,
+                    translation: cacheLyric?.translation,
                 };
             }
 
@@ -473,6 +497,7 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                     )
                     ?.catch(() => null)) || null;
         }
+        lrcSource = normalizeLyricSource(lrcSource);
 
         if (lrcSource) {
             rawLrc = lrcSource?.rawLrc || rawLrc;
@@ -693,7 +718,6 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
             result.forEach(_ => resetMediaItem(_, this.plugin.name));
             return result;
         } catch (e: any) {
-            console.log(e);
             devLog("error", "导入歌单失败", e, e?.message);
 
             return [];
@@ -1052,8 +1076,8 @@ const localFilePluginDefine: IPlugin.IPluginDefine = {
             // 读取内嵌歌词
             try {
                 rawLrc = await Mp3Util.getLyric(localPath);
-            } catch (e) {
-                console.log("读取内嵌歌词失败", e);
+            } catch (e: any) {
+                devLog("warn", "读取内嵌歌词失败", e, e?.message);
             }
             if (!rawLrc) {
                 // 读取配置歌词

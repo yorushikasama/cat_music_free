@@ -6,11 +6,13 @@ import timeformat from "@/utils/timeformat";
 import { fontSizeConst } from "@/constants/uiConst";
 import TrackPlayer, { useProgress } from "@/core/trackPlayer";
 import useColors from "@/hooks/useColors";
+import { getDetailControlPalette, withAlpha } from "../controlPalette";
 
 /**************** 类型定义 ******************/
 
 interface ITimeLabelProps {
     time: number;
+    color: string;
 }
 
 /**************** 时间标签组件 ******************/
@@ -20,12 +22,8 @@ interface ITimeLabelProps {
  * @param props.time - 时间值（秒）
  */
 function TimeLabel(props: ITimeLabelProps) {
-    const colors = useColors();
-
-    const textColor = colors.seekTextColor;
-
     return (
-        <Text style={[style.text, { color: textColor }]}>
+        <Text style={[style.text, { color: props.color }]}>
             {timeformat(Math.max(props.time, 0))}
         </Text>
     );
@@ -49,16 +47,22 @@ export default function SeekBar() {
 
     // 4. 根据主题确定滑块颜色
     const colors = useColors();
+    const palette = getDetailControlPalette(colors);
 
     /*********** 滑块颜色配置 ***********/
     const minTrackColor = colors.seekTrackColor;
-    const maxTrackColor = colors.seekInactiveTrackColor;
+    const maxTrackColor = colors.hasCustomBackground
+        ? withAlpha(palette.iconColor, 0.18)
+        : colors.seekInactiveTrackColor;
     const thumbColor = colors.seekThumbColor;
 
     return (
         <View style={style.wrapper}>
             {/* 当前播放时间：拖拽时显示临时进度，否则显示实际进度 */}
-            <TimeLabel time={tmpProgress ?? progress.position} />
+            <TimeLabel
+                color={palette.seekTextColor}
+                time={tmpProgress ?? progress.position}
+            />
             <Slider
                 style={style.slider}
                 minimumTrackTintColor={minTrackColor}
@@ -92,7 +96,7 @@ export default function SeekBar() {
                 value={progress.position}
             />
             {/* 总时长 */}
-            <TimeLabel time={progress.duration} />
+            <TimeLabel color={palette.seekTextColor} time={progress.duration} />
         </View>
     );
 }
@@ -102,22 +106,23 @@ export default function SeekBar() {
 const style = StyleSheet.create({
     wrapper: {
         width: "100%",
-        height: rpx(52),
+        height: rpx(44),
         justifyContent: "center",
         alignItems: "center",
         flexDirection: "row",
-        paddingHorizontal: rpx(8),
+        paddingHorizontal: rpx(12),
     },
     slider: {
         flex: 1,
-        height: rpx(52),
+        height: rpx(44),
         marginHorizontal: rpx(12),
     },
     text: {
-        fontSize: fontSizeConst.subTitle,
+        fontSize: fontSizeConst.description,
+        fontWeight: "500",
         includeFontPadding: false,
         fontVariant: ["tabular-nums"],
-        minWidth: rpx(80),
+        minWidth: rpx(70),
         textAlign: "center",
     },
 });

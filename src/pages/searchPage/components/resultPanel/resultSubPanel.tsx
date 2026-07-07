@@ -1,6 +1,6 @@
 import Empty from "@/components/base/empty";
 import { useI18N } from "@/core/i18n";
-import PluginManager from "@/core/pluginManager";
+import { useSortedSearchablePlugins } from "@/core/pluginManager";
 import useColors from "@/hooks/useColors";
 import rpx, { vw } from "@/utils/rpx";
 import { useAtomValue } from "jotai";
@@ -14,7 +14,6 @@ import ResultWrapper from "./resultWrapper";
 import ThemeText from "@/components/base/themeText";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
-import Color from "color";
 
 interface IResultSubPanelProps {
     tab: ICommon.SupportMediaType;
@@ -59,7 +58,6 @@ function getSubRouterScene(
 ) {
     const scene: Record<string, React.FC> = {};
     routes.forEach(r => {
-        // todo: 是否声明不可搜索
         scene[r.key] = getResultComponent(tab, r.key, r.title);
     });
     return SceneMap(scene);
@@ -69,22 +67,33 @@ function ResultSubPanel(props: IResultSubPanelProps) {
     const [index, setIndex] = useState(0);
     const colors = useColors();
     const { t } = useI18N();
-    const activeBg = Color(colors.primary).alpha(0.1).rgb().string();
-    const activeBorder = Color(colors.primary).alpha(0.18).rgb().string();
+    const plugins = useSortedSearchablePlugins(props.tab);
     const activeLabelStyle = {
-        backgroundColor: activeBg,
-        borderColor: activeBorder,
+        backgroundColor: colors.selectedBackground,
+        borderColor: colors.selectedBorder,
+    };
+    const inactiveLabelStyle = {
+        backgroundColor: colors.controlBackground,
+        borderColor: colors.controlBorder ?? colors.divider,
     };
 
     const routes = useMemo(
-        () => PluginManager.getSortedSearchablePlugins(props.tab).map(
+        () => plugins.map(
             _ => ({
                 key: _.hash,
                 title: _.name,
             }),
         ),
-        [props.tab],
+        [plugins],
     );
+
+    useEffect(() => {
+        if (index >= routes.length) {
+            setIndex(Math.max(routes.length - 1, 0));
+        }
+    }, [index, routes.length]);
+    const activeIndex = routes.length ? Math.min(index, routes.length - 1) : 0;
+
     const renderScene = useMemo(
         () => getSubRouterScene(props.tab, routes),
         [props.tab, routes],
@@ -105,7 +114,7 @@ function ResultSubPanel(props: IResultSubPanelProps) {
         <TabView
             lazy
             navigationState={{
-                index,
+                index: activeIndex,
                 routes,
             }}
             renderTabBar={_ => (
@@ -123,7 +132,7 @@ function ResultSubPanel(props: IResultSubPanelProps) {
                                 styles.pluginLabel,
                                 focused
                                     ? activeLabelStyle
-                                    : styles.inactivePluginLabel,
+                                    : inactiveLabelStyle,
                             ]}>
                             <ThemeText
                                 numberOfLines={1}
@@ -176,10 +185,6 @@ const styles = StyleSheet.create({
         marginRight: spacing.xs,
         alignItems: "center",
         justifyContent: "center",
-    },
-    inactivePluginLabel: {
-        backgroundColor: "transparent",
-        borderColor: "transparent",
     },
     pluginLabelText: {
         textAlign: "center",

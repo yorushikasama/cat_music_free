@@ -51,7 +51,7 @@ export default function PluginSubscribe() {
                 setSubscribes([]);
             }
         }
-    }, [urls]);
+    }, [t, urls]);
 
     const onSubmit = (
         subscribeItem: ISubscribeItem,
@@ -108,7 +108,7 @@ export default function PluginSubscribe() {
                                     style.subscribeItem,
                                     {
                                         backgroundColor: colors.surfacePrimary,
-                                        borderColor: colors.divider,
+                                        borderColor: colors.controlBorder ?? colors.divider,
                                     },
                                 ]}
                                 onPress={() => {

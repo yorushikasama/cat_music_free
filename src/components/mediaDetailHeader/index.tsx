@@ -1,6 +1,10 @@
 import React, { ReactNode, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import Color from "color";
+import {
+    ImageRequireSource,
+    Pressable,
+    StyleSheet,
+    View,
+} from "react-native";
 
 import FastImage from "@/components/base/fastImage";
 import Tag from "@/components/base/tag";
@@ -13,7 +17,7 @@ import useColors from "@/hooks/useColors";
 import rpx from "@/utils/rpx";
 
 interface IMediaDetailHeaderProps {
-    cover?: string;
+    cover?: string | ImageRequireSource;
     title?: string;
     subtitle?: string;
     description?: string;
@@ -26,24 +30,30 @@ export default function MediaDetailHeader(props: IMediaDetailHeaderProps) {
     const colors = useColors();
     const [maxLines, setMaxLines] = useState<number | undefined>(4);
 
-    const tagBgColor = Color(colors.primary).alpha(0.12).rgb().string();
     const tagTextColor = colors.accent ?? colors.primary;
+    const platformTagTextStyle = { color: tagTextColor };
     const descriptionColor = colors.textSecondary ?? colors.text;
+    const wrapperStyle = {
+        backgroundColor: colors.hasCustomBackground
+            ? colors.surfacePrimary ?? colors.card
+            : "transparent",
+        borderBottomColor: colors.controlBorder ?? colors.divider,
+    };
 
     return (
         <View
             style={[
                 styles.wrapper,
-                {
-                    backgroundColor: colors.surfacePrimary ?? colors.card,
-                    borderBottomColor: colors.divider,
-                },
+                wrapperStyle,
             ]}>
             <View style={styles.hero}>
                 <View
                     style={[
                         styles.coverShadow,
-                        { shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000" },
+                        {
+                            borderColor: colors.controlBorder ?? colors.divider,
+                            shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000",
+                        },
                     ]}>
                     <FastImage
                         style={styles.cover}
@@ -77,14 +87,11 @@ export default function MediaDetailHeader(props: IMediaDetailHeaderProps) {
                                     containerStyle={[
                                         styles.platformTag,
                                         {
-                                            backgroundColor: tagBgColor,
-                                            borderColor: Color(colors.primary)
-                                                .alpha(0.18)
-                                                .rgb()
-                                                .string(),
+                                            backgroundColor: colors.selectedBackground,
+                                            borderColor: colors.selectedBorder,
                                         },
                                     ]}
-                                    style={{ color: tagTextColor }}
+                                    style={platformTagTextStyle}
                                 />
                             ) : null}
                         </View>
@@ -129,17 +136,18 @@ const styles = StyleSheet.create({
     coverShadow: {
         width: rpx(216),
         height: rpx(216),
-        borderRadius: radius.xl,
-        shadowOffset: { width: 0, height: rpx(8) },
-        shadowOpacity: 0.18,
-        shadowRadius: rpx(12),
-        elevation: 8,
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        shadowOffset: { width: 0, height: rpx(5) },
+        shadowOpacity: 0.12,
+        shadowRadius: rpx(9),
+        elevation: 4,
         backgroundColor: "transparent",
     },
     cover: {
         width: "100%",
         height: "100%",
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         overflow: "hidden",
     },
     info: {

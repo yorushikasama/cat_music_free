@@ -12,7 +12,6 @@ import { useI18N } from "@/core/i18n";
 import ThemeText from "@/components/base/themeText";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
-import Color from "color";
 
 const routes = results;
 
@@ -32,11 +31,13 @@ function ResultPanel() {
     const [index, setIndex] = useState(0);
     const colors = useColors();
     const { t } = useI18N();
-    const activeBg = Color(colors.primary).alpha(0.12).rgb().string();
-    const activeBorder = Color(colors.primary).alpha(0.18).rgb().string();
     const activeLabelStyle = {
-        backgroundColor: activeBg,
-        borderColor: activeBorder,
+        backgroundColor: colors.selectedBackground,
+        borderColor: colors.selectedBorder,
+    };
+    const inactiveLabelStyle = {
+        backgroundColor: colors.controlBackground,
+        borderColor: colors.controlBorder ?? colors.divider,
     };
 
     return (
@@ -62,7 +63,7 @@ function ResultPanel() {
                                     styles.label,
                                     focused
                                         ? activeLabelStyle
-                                        : styles.inactiveLabel,
+                                        : inactiveLabelStyle,
                                 ]}>
                                 <ThemeText
                                     numberOfLines={1}
@@ -115,10 +116,6 @@ const styles = StyleSheet.create({
         marginRight: spacing.xs,
         alignItems: "center",
         justifyContent: "center",
-    },
-    inactiveLabel: {
-        backgroundColor: "transparent",
-        borderColor: "transparent",
     },
     labelText: {
         textAlign: "center",

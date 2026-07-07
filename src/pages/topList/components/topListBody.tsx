@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import rpx from "@/utils/rpx";
-import PluginManager from "@/core/pluginManager";
+import { useSortedEnabledPluginsWithAbility } from "@/core/pluginManager";
 import { TabView } from "react-native-tab-view";
 import BoardPanelWrapper from "./boardPanelWrapper";
 import NoPlugin from "@/components/base/noPlugin";
@@ -8,14 +8,22 @@ import i18n from "@/core/i18n";
 import SourceTabBar from "@/components/base/sourceTabBar";
 
 export default function TopListBody() {
+    const plugins = useSortedEnabledPluginsWithAbility("getTopLists");
     const routes = useMemo(
-        () => PluginManager.getSortedPluginsWithAbility("getTopLists").map(_ => ({
+        () => plugins.map(_ => ({
             key: _.hash,
             title: _.name,
         })),
-        [],
+        [plugins],
     );
     const [index, setIndex] = useState(0);
+
+    useEffect(() => {
+        if (index >= routes.length) {
+            setIndex(Math.max(routes.length - 1, 0));
+        }
+    }, [index, routes.length]);
+    const activeIndex = routes.length ? Math.min(index, routes.length - 1) : 0;
 
     const renderScene = useCallback(
         (props: { route: { key: string } }) => (
@@ -31,7 +39,7 @@ export default function TopListBody() {
         <TabView
             lazy
             navigationState={{
-                index,
+                index: activeIndex,
                 routes,
             }}
             renderTabBar={props => (

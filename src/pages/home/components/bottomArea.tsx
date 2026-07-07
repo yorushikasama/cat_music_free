@@ -7,15 +7,14 @@ import Animated, {
     withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import rpx from "@/utils/rpx";
 import BottomTabBar from "./bottomTabBar";
 import MusicBar from "@/components/musicBar";
 import { useCurrentMusic } from "@/core/trackPlayer";
 import { timingConfig } from "@/constants/commonConst";
-import { spacing } from "@/constants/spacing";
-
-const FLOATING_MUSIC_BAR_HEIGHT = rpx(112);
-const FLOATING_MUSIC_BAR_GAP = spacing.sm;
+import {
+    HOME_FLOATING_MUSIC_BAR_GAP,
+    HOME_FLOATING_MUSIC_BAR_HEIGHT,
+} from "./bottomAreaMetrics";
 
 export default function BottomArea(props: BottomTabBarProps) {
     const musicItem = useCurrentMusic();
@@ -45,7 +44,7 @@ export default function BottomArea(props: BottomTabBarProps) {
             prevShouldShowRef.current = shouldShowBar;
             barHeight.value = withTiming(
                 shouldShowBar
-                    ? FLOATING_MUSIC_BAR_HEIGHT + FLOATING_MUSIC_BAR_GAP
+                    ? HOME_FLOATING_MUSIC_BAR_HEIGHT + HOME_FLOATING_MUSIC_BAR_GAP
                     : 0,
                 timingConfig.animationFast,
             );
@@ -55,11 +54,14 @@ export default function BottomArea(props: BottomTabBarProps) {
 
     const musicBarWrapperStyle = useAnimatedStyle(() => ({
         height: barHeight.value,
+        paddingBottom: Math.min(barHeight.value, HOME_FLOATING_MUSIC_BAR_GAP),
     }));
 
     return (
         <View style={styles.container} pointerEvents="box-none">
-            <Animated.View style={[styles.musicBarWrapper, musicBarWrapperStyle]}>
+            <Animated.View
+                pointerEvents={shouldShowBar ? "auto" : "none"}
+                style={[styles.musicBarWrapper, musicBarWrapperStyle]}>
                 <MusicBar variant="floating" />
             </Animated.View>
             <BottomTabBar {...props} />
@@ -74,6 +76,5 @@ const styles = StyleSheet.create({
     },
     musicBarWrapper: {
         overflow: "hidden",
-        paddingBottom: FLOATING_MUSIC_BAR_GAP,
     },
 });

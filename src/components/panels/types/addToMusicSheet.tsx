@@ -12,6 +12,7 @@ import { hidePanel, showPanel } from "../usePanel";
 import PanelHeader from "../base/panelHeader";
 import MusicSheet, { useSheetsBase } from "@/core/musicSheet";
 import { useI18N } from "@/core/i18n";
+import { getSheetCover } from "@/utils/mediaUtils";
 
 interface IAddToMusicSheetProps {
     musicItem: IMusic.IMusicItem | IMusic.IMusicItem[];
@@ -98,8 +99,12 @@ export default function AddToMusicSheet(props: IAddToMusicSheetProps) {
                                         }
                                     }}>
                                     <ListItem.ListItemImage
-                                        uri={sheet.coverImg}
-                                        fallbackImg={ImgAsset.albumDefault}
+                                        uri={getSheetCover(sheet)}
+                                        fallbackImg={
+                                            sheet.id === MusicSheet.defaultSheet.id
+                                                ? ImgAsset.favoriteDefault
+                                                : ImgAsset.albumDefault
+                                        }
                                     />
                                     <ListItem.Content
                                         title={sheet.title}

@@ -31,7 +31,7 @@ function _MusicEditorItem(props: IMusicEditorItemProps) {
                 draft[index].checked = !draft[index].checked;
             }),
         );
-    }, [index]);
+    }, [index, setEditingMusicList]);
 
     return (
         <MusicItem
@@ -43,6 +43,7 @@ function _MusicEditorItem(props: IMusicEditorItemProps) {
             )}
             showMoreIcon={false}
             itemPaddingRight={rpx(100)}
+            highlight={editorMusicItem.checked}
             onItemPress={onPress}
         />
     );
@@ -66,13 +67,13 @@ export default function MusicList() {
         ({ index, item }: any) => {
             return <MusicEditorItem editorMusicItem={item} index={index!} />;
         },
-        [editingMusicList],
+        [],
     );
     const colors = useColors();
 
     return editingMusicList?.length ? (
         <SortableFlatList
-            activeBackgroundColor={colors.placeholder}
+            activeBackgroundColor={colors.selectedBackground ?? colors.placeholder}
             marginTop={marginTop}
             data={editingMusicList}
             renderItem={renderItem}

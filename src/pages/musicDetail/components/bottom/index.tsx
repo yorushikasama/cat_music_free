@@ -7,11 +7,23 @@ import useOrientation from "@/hooks/useOrientation";
 import useColors from "@/hooks/useColors";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
+import { getDetailControlPalette } from "../controlPalette";
 
 export default function Bottom() {
     const orientation = useOrientation();
     const colors = useColors();
+    const palette = getDetailControlPalette(colors);
     const isHorizontal = orientation === "horizontal";
+    const showConsoleSurface = colors.hasCustomBackground;
+    const consoleSurfaceStyle = {
+        backgroundColor: showConsoleSurface
+            ? palette.panelSurface
+            : "transparent",
+        borderColor: showConsoleSurface ? palette.borderColor : "transparent",
+        shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000",
+        shadowOpacity: showConsoleSurface ? 0.03 : 0,
+        elevation: showConsoleSurface ? 1 : 0,
+    };
 
     return (
         <View
@@ -23,13 +35,7 @@ export default function Bottom() {
                 style={[
                     style.console,
                     isHorizontal ? style.horizontalConsole : undefined,
-                    {
-                        backgroundColor: colors.hasCustomBackground
-                            ? colors.surfacePrimary
-                            : colors.musicBar,
-                        borderColor: colors.divider,
-                        shadowColor: colors.shadowHeavy ?? colors.shadow ?? "#000",
-                    },
+                    consoleSurfaceStyle,
                 ]}>
                 <SeekBar />
                 <PlayControl />
@@ -41,30 +47,32 @@ export default function Bottom() {
 const style = StyleSheet.create({
     wrapper: {
         width: "100%",
-        height: rpx(260),
-        paddingHorizontal: spacing.lg,
+        height: rpx(220),
+        paddingHorizontal: spacing.xl,
         paddingBottom: spacing.lg,
         justifyContent: "flex-end",
     },
     horizontalWrapper: {
-        height: rpx(166),
+        height: rpx(138),
         paddingBottom: spacing.sm,
     },
     console: {
         width: "100%",
-        minHeight: rpx(220),
-        borderRadius: radius.xxxl,
+        alignSelf: "center",
+        maxWidth: rpx(650),
+        minHeight: rpx(184),
+        borderRadius: radius.xxl,
         borderWidth: StyleSheet.hairlineWidth,
-        paddingTop: spacing.sm,
-        paddingBottom: spacing.sm,
-        shadowOffset: { width: 0, height: rpx(10) },
-        shadowOpacity: 0.18,
-        shadowRadius: rpx(14),
-        elevation: 10,
+        paddingTop: spacing.xs,
+        paddingBottom: spacing.xs,
+        shadowOffset: { width: 0, height: rpx(3) },
+        shadowOpacity: 0.03,
+        shadowRadius: rpx(7),
+        elevation: 1,
     },
     horizontalConsole: {
-        minHeight: rpx(148),
-        borderRadius: radius.xxl,
+        minHeight: rpx(124),
+        borderRadius: radius.xl,
         paddingTop: 0,
         paddingBottom: 0,
     },

@@ -1,24 +1,19 @@
-import React, { useEffect, useMemo } from "react";
-import rpx from "@/utils/rpx";
-import { ImgAsset } from "@/constants/assetsConst";
-import FastImage from "@/components/base/fastImage";
-import useOrientation from "@/hooks/useOrientation";
+import React, { useMemo } from "react";
+import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { useCurrentMusic, useMusicState } from "@/core/trackPlayer";
-import { musicIsPaused } from "@/utils/trackUtils";
-import globalStyle from "@/constants/globalStyle";
-import { View, StyleSheet } from "react-native";
-import Operations from "./operations";
-import { showPanel } from "@/components/panels/usePanel.ts";
+
+import FastImage from "@/components/base/fastImage";
+import Tag from "@/components/base/tag";
+import ThemeText from "@/components/base/themeText";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
+import { ImgAsset } from "@/constants/assetsConst";
+import { useCurrentMusic } from "@/core/trackPlayer";
 import useColors from "@/hooks/useColors";
-import Animated, {
-    Easing,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withTiming,
-    cancelAnimation,
-} from "react-native-reanimated";
+import useOrientation from "@/hooks/useOrientation";
+import rpx from "@/utils/rpx";
+import { showPanel } from "@/components/panels/usePanel.ts";
+import Operations from "./operations";
 
 interface IProps {
     onTurnPageClick?: () => void;
@@ -29,34 +24,11 @@ export default function AlbumCover(props: IProps) {
 
     const musicItem = useCurrentMusic();
     const orientation = useOrientation();
-    const musicState = useMusicState();
-    const isPaused = musicIsPaused(musicState);
     const colors = useColors();
 
-    const rotation = useSharedValue(0);
-
     const artworkSize = useMemo(() => {
-        return orientation === "vertical" ? rpx(500) : rpx(260);
+        return orientation === "vertical" ? rpx(470) : rpx(260);
     }, [orientation]);
-
-    useEffect(() => {
-        if (isPaused) {
-            cancelAnimation(rotation);
-        } else {
-            rotation.value = withRepeat(
-                withTiming(rotation.value + 360, {
-                    duration: 40000,
-                    easing: Easing.linear,
-                }),
-                -1,
-                false,
-            );
-        }
-    }, [isPaused, rotation]);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ rotate: `${rotation.value % 360}deg` }],
-    }));
 
     const longPress = Gesture.LongPress()
         .onStart(() => {
@@ -75,43 +47,77 @@ export default function AlbumCover(props: IProps) {
         .runOnJS(true);
 
     const combineGesture = Gesture.Race(tap, longPress);
-    const coverStageBackgroundColor = colors.hasCustomBackground
-        ? colors.surfaceSecondary
-        : "rgba(255,255,255,0.08)";
+    const tagTextColor = colors.accent ?? colors.primary;
+    const platformTagTextStyle = { color: tagTextColor };
 
     return (
         <>
             <GestureDetector gesture={combineGesture}>
-                <View style={globalStyle.fullCenter}>
+                <View
+                    style={[
+                        styles.wrapper,
+                        orientation === "horizontal" ? styles.horizontalWrapper : null,
+                    ]}>
                     <View
                         style={[
-                            styles.coverStage,
+                            styles.coverFrame,
                             {
-                                width: artworkSize + rpx(44),
-                                height: artworkSize + rpx(44),
-                                borderRadius: (artworkSize + rpx(44)) / 2,
-                                backgroundColor: coverStageBackgroundColor,
-                                borderColor: colors.divider ?? "rgba(255,255,255,0.16)",
-                                shadowColor: colors.shadowHeavy ?? colors.shadow ?? "#000",
+                                width: artworkSize,
+                                height: artworkSize,
+                                borderColor: colors.controlBorder ?? colors.divider,
+                                shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000",
                             },
                         ]}>
-                        <View
+                        <FastImage
                             style={[
-                                styles.innerRing,
+                                styles.coverImage,
                                 {
-                                    width: artworkSize + rpx(18),
-                                    height: artworkSize + rpx(18),
-                                    borderRadius: (artworkSize + rpx(18)) / 2,
-                                    borderColor: colors.divider ?? "rgba(255,255,255,0.16)",
+                                    width: artworkSize,
+                                    height: artworkSize,
+                                    borderRadius: radius.lg,
                                 },
-                            ]}>
-                            <Animated.View style={[styles.cover, { width: artworkSize, height: artworkSize, borderRadius: artworkSize / 2 }, animatedStyle]}>
-                                <FastImage
-                                    style={styles.coverImage}
-                                    source={musicItem?.artwork}
-                                    placeholderSource={ImgAsset.albumDefault}
+                            ]}
+                            source={musicItem?.artwork}
+                            placeholderSource={ImgAsset.albumDefault}
+                        />
+                    </View>
+
+                    <View
+                        style={[
+                            styles.trackInfo,
+                            orientation === "horizontal" ? styles.horizontalTrackInfo : null,
+                        ]}>
+                        <ThemeText
+                            fontSize="title"
+                            fontWeight="bold"
+                            numberOfLines={2}
+                            lineHeight
+                            style={styles.trackTitle}>
+                            {musicItem?.title ?? "--"}
+                        </ThemeText>
+                        <View style={styles.metaRow}>
+                            {musicItem?.artist ? (
+                                <ThemeText
+                                    fontSize="subTitle"
+                                    fontColor="textSecondary"
+                                    numberOfLines={1}
+                                    style={styles.artist}>
+                                    {musicItem.artist}
+                                </ThemeText>
+                            ) : null}
+                            {musicItem?.platform ? (
+                                <Tag
+                                    tagName={musicItem.platform}
+                                    containerStyle={[
+                                        styles.platformTag,
+                                        {
+                                            backgroundColor: colors.selectedBackground,
+                                            borderColor: colors.selectedBorder,
+                                        },
+                                    ]}
+                                    style={platformTagTextStyle}
                                 />
-                            </Animated.View>
+                            ) : null}
                         </View>
                     </View>
                 </View>
@@ -122,28 +128,55 @@ export default function AlbumCover(props: IProps) {
 }
 
 const styles = StyleSheet.create({
-    coverStage: {
+    wrapper: {
+        width: "100%",
+        flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        borderWidth: StyleSheet.hairlineWidth,
-        shadowOffset: { width: 0, height: rpx(14) },
-        shadowOpacity: 0.24,
-        shadowRadius: rpx(22),
-        elevation: 12,
+        paddingHorizontal: spacing.xl,
+        paddingTop: spacing.sm,
     },
-    innerRing: {
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: StyleSheet.hairlineWidth,
+    horizontalWrapper: {
+        paddingTop: 0,
+        paddingHorizontal: spacing.lg,
     },
-    cover: {
+    coverFrame: {
+        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: radius.lg,
+        backgroundColor: "rgba(255,255,255,0.08)",
         overflow: "hidden",
+        shadowOffset: { width: 0, height: rpx(5) },
+        shadowOpacity: 0.12,
+        shadowRadius: rpx(8),
+        elevation: 4,
     },
     coverImage: {
-        position: "absolute",
-        top: -1,
-        left: -1,
-        right: -1,
-        bottom: -1,
+        overflow: "hidden",
+    },
+    trackInfo: {
+        width: "100%",
+        alignItems: "center",
+        marginTop: spacing.lg,
+        paddingHorizontal: spacing.md,
+    },
+    horizontalTrackInfo: {
+        marginTop: spacing.md,
+    },
+    trackTitle: {
+        textAlign: "center",
+    },
+    metaRow: {
+        maxWidth: "100%",
+        marginTop: spacing.xs,
+        minHeight: rpx(34),
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    artist: {
+        flexShrink: 1,
+    },
+    platformTag: {
+        marginLeft: spacing.xs,
     },
 });

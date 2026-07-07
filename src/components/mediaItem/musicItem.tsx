@@ -40,6 +40,7 @@ export default function MusicItem(props: IMusicItemProps) {
         <ListItem
             heightType="big"
             style={containerStyle}
+            selected={highlight}
             withHorizontalPadding
             leftPadding={index !== undefined ? 0 : undefined}
             rightPadding={itemPaddingRight}

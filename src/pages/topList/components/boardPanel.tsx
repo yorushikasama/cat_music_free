@@ -8,6 +8,8 @@ import ThemeText from "@/components/base/themeText";
 import ListEmpty from "@/components/base/listEmpty";
 import SkeletonList from "@/components/base/skeleton";
 import { spacing } from "@/constants/spacing";
+import useColors from "@/hooks/useColors";
+import { radius } from "@/constants/borderRadius";
 
 interface IBoardPanelProps {
     hash: string;
@@ -15,6 +17,7 @@ interface IBoardPanelProps {
 }
 function BoardPanel(props: IBoardPanelProps) {
     const { hash, topListData } = props ?? {};
+    const colors = useColors();
     const isLoading =
         !topListData ||
         topListData.state === RequestStateCode.PENDING_FIRST_PAGE ||
@@ -26,14 +29,30 @@ function BoardPanel(props: IBoardPanelProps) {
         };
 
     const renderSectionHeader: SectionListProps<IMusic.IMusicSheetItemBase>["renderSectionHeader"] =
-        ({ section: { title } }) => {
+        ({ section: { title, data } }) => {
             return (
                 <View style={style.sectionHeader}>
                     <ThemeText
+                        fontColor="textSecondary"
                         fontWeight="semibold"
-                        fontSize="subTitle">
+                        fontSize="description">
                         {title}
                     </ThemeText>
+                    <View
+                        style={[
+                            style.sectionCount,
+                            {
+                                backgroundColor: colors.controlBackground,
+                                borderColor: colors.controlBorder ?? colors.divider,
+                            },
+                        ]}>
+                        <ThemeText
+                            fontSize="tag"
+                            fontColor="textSecondary"
+                            fontWeight="semibold">
+                            {data.length}
+                        </ThemeText>
+                    </View>
                 </View>
             );
         };
@@ -68,5 +87,17 @@ const style = StyleSheet.create({
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.lg,
         paddingBottom: spacing.sm,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    sectionCount: {
+        minWidth: rpx(40),
+        height: rpx(34),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: spacing.xs,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });

@@ -31,6 +31,8 @@ interface IListItemProps {
     children?: ReactNode;
     onPress?: () => void;
     onLongPress?: () => void;
+    selected?: boolean;
+    disabled?: boolean;
 }
 
 const defaultPadding = spacing.md;
@@ -54,12 +56,17 @@ function ListItem(props: IListItemProps) {
         children,
         onPress,
         onLongPress,
+        selected,
+        disabled,
     } = props;
+    const colors = useColors();
 
     const defaultStyle: StyleProp<ViewStyle> = {
         paddingLeft: withHorizontalPadding ? leftPadding : 0,
         paddingRight: withHorizontalPadding ? rightPadding : 0,
         height: Size[heightType],
+        backgroundColor: selected ? colors.selectedBackground : undefined,
+        opacity: disabled ? 0.52 : 1,
     };
 
     const inner = (
@@ -71,7 +78,8 @@ function ListItem(props: IListItemProps) {
     if (onPress || onLongPress) {
         return (
             <TouchableOpacity
-                activeOpacity={0.7}
+                activeOpacity={0.76}
+                disabled={disabled}
                 onPress={onPress}
                 onLongPress={onLongPress}>
                 {inner}

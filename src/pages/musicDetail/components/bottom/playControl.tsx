@@ -12,6 +12,7 @@ import useOrientation from "@/hooks/useOrientation";
 import { musicIsPaused } from "@/utils/trackUtils";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
+import { getDetailControlPalette } from "../controlPalette";
 
 /**
  * 播放控制组件
@@ -25,17 +26,23 @@ export default function PlayControl() {
     const orientation = useOrientation();
     const theme = Theme.useTheme();
     const colors = useColors();
+    const palette = getDetailControlPalette(colors);
     const isRetro = theme.id === "p-retro";
     const isAcg = theme.id.startsWith("p-acg");
     const isSpotify = theme.id === "p-spotify";
+    const isPaused = musicIsPaused(musicState);
 
     /*********** 控件颜色配置 ***********/
-    const iconColor = colors.playControlIconColor ?? colors.text;
-    const playBtnColor = colors.playControlBtnColor ?? colors.text;
-    const playBtnBg = colors.playControlBtnBg ?? "transparent";
-    const playBtnBorder = colors.playControlBtnBorder ?? colors.divider ?? "rgba(255,255,255,0.2)";
-    const sideButtonBg = colors.surfaceSecondary ?? "transparent";
-    const sideButtonBorder = colors.divider ?? "transparent";
+    const iconColor = palette.iconColor;
+    const mutedIconColor = palette.mutedIconColor;
+    const playBtnBg =
+        colors.playControlBtnBg ?? palette.buttonSurface ?? colors.primary;
+    const playBtnColor = colors.playControlBtnColor ?? colors.primary;
+    const playBtnBorder =
+        colors.playControlBtnBorder ?? palette.borderColor ?? "transparent";
+    const sideButtonBg = palette.buttonSurface;
+    const sideButtonBorder = palette.borderColor;
+    const pressedOverlay = palette.pressedOverlay;
 
     const isSpecialTheme = isSpotify || isAcg || isRetro;
 
@@ -44,11 +51,22 @@ export default function PlayControl() {
             <View
                 style={[
                     style.wrapper,
-                    orientation === "horizontal" ? style.horizontalWrapper : null,
+                    orientation === "horizontal"
+                        ? style.horizontalWrapper
+                        : null,
                 ]}>
                 {/* 循环模式按钮 */}
                 <Pressable
-                    style={[style.sideButton, { backgroundColor: sideButtonBg, borderColor: sideButtonBorder }]}
+                    style={({ pressed }) => [
+                        style.sideButton,
+                        {
+                            backgroundColor: sideButtonBg,
+                            borderColor: sideButtonBorder,
+                            shadowColor:
+                                colors.shadowMedium ?? colors.shadow ?? "#000",
+                        },
+                        pressed ? { backgroundColor: pressedOverlay } : null,
+                    ]}
                     onPress={() => {
                         TrackPlayer.toggleRepeatMode();
                     }}>
@@ -59,26 +77,31 @@ export default function PlayControl() {
                     />
                 </Pressable>
                 <Pressable
-                    style={style.skipButton}
+                    style={({ pressed }) => [
+                        style.skipButton,
+                        pressed ? { backgroundColor: pressedOverlay } : null,
+                    ]}
                     onPress={() => {
                         TrackPlayer.skipToPrevious();
                     }}>
                     <Icon
-                        color={iconColor}
+                        color={mutedIconColor}
                         name={"skip-left"}
                         size={rpx(58)}
                     />
                 </Pressable>
                 {/* 播放/暂停按钮 */}
                 <Pressable
-                    style={[
+                    style={({ pressed }) => [
                         style.playBtnWrapper,
                         isSpecialTheme && style.specialPlayBtn,
                         {
                             borderColor: playBtnBorder,
                             backgroundColor: playBtnBg,
-                            shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000",
+                            shadowColor:
+                                colors.shadowMedium ?? colors.shadow ?? "#000",
                         },
+                        pressed ? style.playBtnPressed : null,
                     ]}
                     onPress={() => {
                         if (musicIsPaused(musicState)) {
@@ -89,33 +112,41 @@ export default function PlayControl() {
                     }}>
                     <Icon
                         color={playBtnColor}
-                        name={musicIsPaused(musicState) ? "play" : "pause"}
-                        size={rpx(80)}
+                        name={isPaused ? "play" : "pause"}
+                        size={isPaused ? rpx(56) : rpx(52)}
                     />
                 </Pressable>
                 {/* 下一曲 */}
                 <Pressable
-                    style={style.skipButton}
+                    style={({ pressed }) => [
+                        style.skipButton,
+                        pressed ? { backgroundColor: pressedOverlay } : null,
+                    ]}
                     onPress={() => {
                         TrackPlayer.skipToNext();
                     }}>
                     <Icon
-                        color={iconColor}
+                        color={mutedIconColor}
                         name={"skip-right"}
                         size={rpx(58)}
                     />
                 </Pressable>
                 {/* 播放列表 */}
                 <Pressable
-                    style={[style.sideButton, { backgroundColor: sideButtonBg, borderColor: sideButtonBorder }]}
+                    style={({ pressed }) => [
+                        style.sideButton,
+                        {
+                            backgroundColor: sideButtonBg,
+                            borderColor: sideButtonBorder,
+                            shadowColor:
+                                colors.shadowMedium ?? colors.shadow ?? "#000",
+                        },
+                        pressed ? { backgroundColor: pressedOverlay } : null,
+                    ]}
                     onPress={() => {
                         showPanel("PlayList");
                     }}>
-                    <Icon
-                        color={iconColor}
-                        name={"playlist"}
-                        size={rpx(42)}
-                    />
+                    <Icon color={iconColor} name={"playlist"} size={rpx(42)} />
                 </Pressable>
             </View>
         </>
@@ -125,45 +156,53 @@ export default function PlayControl() {
 const style = StyleSheet.create({
     wrapper: {
         width: "100%",
-        marginTop: spacing.sm,
-        height: rpx(126),
+        marginTop: spacing.xs,
+        height: rpx(108),
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: spacing.md,
     },
     horizontalWrapper: {
         marginTop: 0,
     },
     sideButton: {
-        width: rpx(72),
-        height: rpx(72),
+        width: rpx(62),
+        height: rpx(62),
         borderRadius: radius.pill,
         borderWidth: StyleSheet.hairlineWidth,
         justifyContent: "center",
         alignItems: "center",
+        shadowOffset: { width: 0, height: rpx(2) },
+        shadowOpacity: 0.03,
+        shadowRadius: rpx(5),
+        elevation: 1,
     },
     skipButton: {
-        width: rpx(82),
-        height: rpx(82),
+        width: rpx(76),
+        height: rpx(76),
+        borderRadius: radius.pill,
         justifyContent: "center",
         alignItems: "center",
     },
     playBtnWrapper: {
-        width: rpx(108),
-        height: rpx(108),
-        borderRadius: rpx(54),
-        borderWidth: rpx(2),
+        width: rpx(96),
+        height: rpx(96),
+        borderRadius: rpx(48),
+        borderWidth: StyleSheet.hairlineWidth,
         justifyContent: "center",
         alignItems: "center",
-        shadowOffset: { width: 0, height: rpx(6) },
-        shadowOpacity: 0.14,
-        shadowRadius: rpx(10),
-        elevation: 6,
+        shadowOffset: { width: 0, height: rpx(3) },
+        shadowOpacity: 0.08,
+        shadowRadius: rpx(7),
+        elevation: 3,
+    },
+    playBtnPressed: {
+        opacity: 0.82,
     },
     specialPlayBtn: {
-        width: rpx(120),
-        height: rpx(120),
-        borderRadius: rpx(60),
+        width: rpx(102),
+        height: rpx(102),
+        borderRadius: rpx(51),
     },
 });

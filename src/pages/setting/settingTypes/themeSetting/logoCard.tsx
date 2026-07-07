@@ -3,6 +3,8 @@ import { Image, Pressable, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import useColors from "@/hooks/useColors";
 import ThemeText from "@/components/base/themeText";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
 
 interface ILogoCardProps {
     selected?: boolean;
@@ -21,13 +23,14 @@ export default function LogoCard(props: ILogoCardProps) {
                 onPress={onPress}
                 style={[
                     styles.borderContainer,
-                    selected
-                        ? {
-                            borderWidth: 2,
-                            borderStyle: "solid",
-                            borderColor: colors.primary,
-                        }
-                        : null,
+                    {
+                        backgroundColor: selected
+                            ? colors.selectedBackground
+                            : colors.controlBackground,
+                        borderColor: selected
+                            ? colors.selectedBorder
+                            : colors.controlBorder ?? colors.divider,
+                    },
                 ]}>
                 <View style={styles.imageContainer}>
                     <Image style={styles.image} source={logo} />
@@ -35,7 +38,8 @@ export default function LogoCard(props: ILogoCardProps) {
             </Pressable>
             <ThemeText
                 numberOfLines={1}
-                fontSize="subTitle"
+                fontSize="description"
+                fontWeight={selected ? "semibold" : "medium"}
                 style={styles.title}
                 fontColor={selected ? "primary" : "text"}>
                 {title}
@@ -48,24 +52,26 @@ const styles = StyleSheet.create({
     borderContainer: {
         width: rpx(160),
         height: rpx(160),
-        borderRadius: rpx(22),
-        marginRight: rpx(24),
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        marginRight: spacing.md,
         justifyContent: "center",
         alignItems: "center",
     },
     imageContainer: {
         width: rpx(136),
         height: rpx(136),
-        borderRadius: rpx(12),
+        borderRadius: radius.md,
+        overflow: "hidden",
     },
     title: {
         textAlign: "center",
-        marginTop: rpx(12),
+        marginTop: spacing.sm,
         width: rpx(160),
     },
     image: {
         width: "100%",
         height: "100%",
-        borderRadius: rpx(12),
+        borderRadius: radius.md,
     },
 });

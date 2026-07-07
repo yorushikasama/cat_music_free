@@ -60,7 +60,7 @@ export default function BackupSetting() {
                         onReject(reason, hideDialog) {
                             hideDialog();
                             resolve(false);
-                            console.log(reason);
+                            errorLog("本地备份失败", reason);
                             Toast.warn(t("toast.backupFail", { reason: reason?.message ?? reason }));
                         },
                     });
@@ -99,7 +99,7 @@ export default function BackupSetting() {
                     onReject(reason, hideDialog) {
                         hideDialog();
                         resolve(false);
-                        console.log(reason);
+                        errorLog("本地恢复失败", reason);
                         Toast.warn(t("toast.resumeFail", { reason: reason?.message ?? reason }));
                     },
                 });
@@ -124,9 +124,10 @@ export default function BackupSetting() {
                         Toast.success(t("toast.resumeSuccess"));
                         closePanel();
                     } else {
-                        throw "无效的URL";
+                        throw new Error("无效的URL");
                     }
                 } catch (e: any) {
+                    errorLog("URL恢复失败", e);
                     Toast.warn(t("toast.resumeFail", { reason: e?.message ?? e }));
                 }
             },
@@ -166,6 +167,7 @@ export default function BackupSetting() {
             );
             Toast.success(t("toast.resumeSuccess"));
         } catch (e: any) {
+            errorLog("WebDAV恢复失败", e);
             Toast.warn(t("toast.resumeFail", { reason: e?.message ?? e }));
         }
     }
@@ -199,6 +201,7 @@ export default function BackupSetting() {
             );
             Toast.success(t("toast.backupSuccess"));
         } catch (e: any) {
+            errorLog("WebDAV备份失败", e);
             Toast.warn(t("toast.backupFail", { reason: e?.message ?? e }));
         }
     }

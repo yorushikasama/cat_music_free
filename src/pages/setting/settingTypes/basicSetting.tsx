@@ -26,6 +26,7 @@ import Slider from "@react-native-community/slider";
 import Color from "color";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { SectionList, StyleSheet, TouchableOpacity, View } from "react-native";
+import type { ViewToken } from "react-native";
 import { readdir } from "react-native-fs";
 import { FlatList, ScrollView } from "react-native-gesture-handler";
 
@@ -106,6 +107,12 @@ function useCacheSize() {
     return [cacheSize, refreshCacheSize] as const;
 }
 
+type SectionTitleViewToken = ViewToken & {
+    section?: {
+        title?: string;
+    };
+};
+
 export default function BasicSetting() {
     const colors = useColors();
 
@@ -148,10 +155,47 @@ export default function BasicSetting() {
     const [activeSection, setActiveSection] = useState(0);
 
     const sectionListRef = useRef<SectionList | null>(null);
+    const headerListRef = useRef<FlatList<string> | null>(null);
+    const sectionTitleIndexRef = useRef<Record<string, number>>({});
+    const viewabilityConfig = useRef({
+        itemVisiblePercentThreshold: 1,
+    }).current;
+    const onViewableItemsChanged = useRef((info: {
+        viewableItems: SectionTitleViewToken[];
+    }) => {
+        const firstVisibleSection = info.viewableItems.find(
+            item => item.isViewable && item.section?.title,
+        )?.section;
+        const nextSectionIndex = firstVisibleSection?.title
+            ? sectionTitleIndexRef.current[firstVisibleSection.title]
+            : undefined;
+
+        if (nextSectionIndex !== undefined) {
+            setActiveSection(current =>
+                current === nextSectionIndex ? current : nextSectionIndex,
+            );
+        }
+    }).current;
 
     useEffect(() => {
         refreshCacheSize();
-    }, []);
+    }, [refreshCacheSize]);
+
+    useEffect(() => {
+        if (activeSection === 0) {
+            headerListRef.current?.scrollToOffset({
+                offset: 0,
+                animated: true,
+            });
+            return;
+        }
+
+        headerListRef.current?.scrollToIndex({
+            index: activeSection,
+            animated: true,
+            viewPosition: 0.5,
+        });
+    }, [activeSection]);
 
     const basicOptions = [
         {
@@ -447,7 +491,7 @@ export default function BasicSetting() {
                             title: t("dialog.setCacheTitle"),
                             placeholder: t("dialog.setCachePlaceholder"),
                             onOk(text, closePanel) {
-                                let val = parseInt(text);
+                                let val = parseInt(text, 10);
                                 if (val < 100) {
                                     val = 100;
                                 } else if (val > 8192) {
@@ -579,15 +623,29 @@ export default function BasicSetting() {
             ],
         },
     ];
+    sectionTitleIndexRef.current = basicOptions.reduce<Record<string, number>>(
+        (indexMap, section, index) => {
+            indexMap[section.title] = index;
+            return indexMap;
+        },
+        {},
+    );
 
     return (
         <View style={styles.wrapper}>
             <FlatList
+                ref={headerListRef}
                 style={styles.headerContainer}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.headerContentContainer}
                 horizontal
                 data={basicOptions.map(it => it.title)}
+                onScrollToIndexFailed={({ index }) => {
+                    headerListRef.current?.scrollToOffset({
+                        offset: Math.max(0, index * rpx(96)),
+                        animated: true,
+                    });
+                }}
                 renderItem={({ item, index }) => (
                     <TouchableOpacity
                         onPress={() => {
@@ -624,6 +682,8 @@ export default function BasicSetting() {
                 sections={basicOptions}
                 stickySectionHeadersEnabled={false}
                 showsVerticalScrollIndicator={false}
+                viewabilityConfig={viewabilityConfig}
+                onViewableItemsChanged={onViewableItemsChanged}
                 contentContainerStyle={styles.listContentContainer}
                 renderSectionHeader={({ section }) => (
                     <View style={styles.sectionHeader}>
@@ -948,9 +1008,9 @@ function LyricSetting() {
                     showPanel("ColorPicker", {
                         closePanelWhenSelected: true,
                         defaultColor: color ?? "transparent",
-                        onSelected(color) {
+                        onSelected(selectedColor) {
                             if (showStatusBarLyric) {
-                                const colorStr = color.hexa();
+                                const colorStr = selectedColor.hexa();
                                 LyricUtil.setStatusBarColors(colorStr, null);
                                 Config.setConfig("lyric.color", colorStr);
                             }
@@ -968,9 +1028,9 @@ function LyricSetting() {
                         closePanelWhenSelected: true,
                         defaultColor:
                             backgroundColor ?? "transparent",
-                        onSelected(color) {
+                        onSelected(selectedColor) {
                             if (showStatusBarLyric) {
-                                const colorStr = color.hexa();
+                                const colorStr = selectedColor.hexa();
                                 LyricUtil.setStatusBarColors(null, colorStr);
                                 Config.setConfig(
                                     "lyric.backgroundColor",

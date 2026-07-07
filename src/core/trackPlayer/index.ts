@@ -947,7 +947,7 @@ class TrackPlayer extends EventEmitter<{
                     return false;
                 }
             } catch (e: any) {
-            trace("确认替代音源状态失败", e?.message ?? e);
+                trace("确认替代音源状态失败", e?.message ?? e);
                 return false;
             }
             await delay(200);
@@ -1044,12 +1044,13 @@ class TrackPlayer extends EventEmitter<{
         }
 
         const orderedMusicItem = this.withPlayListOrder(oldMusicItem, newMusicItem);
-        const newPlayList = this.playList
-            .map((item, index) => (index === oldIndex ? orderedMusicItem : item))
-            .filter(
-                (item, index) =>
-                    index === oldIndex || !isSameMediaItem(item, orderedMusicItem),
-            );
+        const newPlayList: IMusic.IMusicItem[] = [];
+        this.playList.forEach((item, index) => {
+            const nextItem = index === oldIndex ? orderedMusicItem : item;
+            if (index === oldIndex || !isSameMediaItem(nextItem, orderedMusicItem)) {
+                newPlayList.push(nextItem);
+            }
+        });
 
         this.setPlayList(newPlayList);
     }
@@ -1345,7 +1346,7 @@ class TrackPlayer extends EventEmitter<{
         maxCandidateCount = 8,
     ): Promise<ICommon.SupportMediaItemBase[T][]> {
         const keyword = musicItem.alias || musicItem.title;
-        const plugins = this.pluginManagerService.getSearchablePlugins(type);
+        const plugins = this.pluginManagerService.getSortedSearchablePlugins(type);
 
         let candidates: SimilarMusicCandidate<T>[] = [];
         const seenKeys = new Set<string>();

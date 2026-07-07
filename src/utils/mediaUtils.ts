@@ -19,25 +19,30 @@ export function getMediaUniqueKey(mediaItem: ICommon.IMediaBase) {
  * @returns 
  */
 export function parseMediaUniqueKey(key: string): ICommon.IMediaBase {
+    const input = key.trim();
+    let parsed: unknown = input;
+
     try {
-        const str = JSON.parse(key.trim());
-        let platform, id;
-        if (typeof str === "string") {
-            [platform, id] = str.split("@");
-        } else {
-            platform = str?.platform;
-            id = str?.id;
-        }
-        if (!platform || !id) {
-            throw new Error("mediakey不完整");
-        }
-        return {
-            platform,
-            id,
-        };
-    } catch (e: any) {
-        throw e;
+        parsed = JSON.parse(input);
+    } catch {}
+
+    let platform: string | undefined;
+    let id: string | undefined;
+    if (typeof parsed === "string") {
+        [platform, id] = parsed.split("@");
+    } else if (parsed && typeof parsed === "object") {
+        const media = parsed as Partial<ICommon.IMediaBase>;
+        platform = media.platform;
+        id = media.id;
     }
+
+    if (!platform || !id) {
+        throw new Error("mediakey不完整");
+    }
+    return {
+        platform,
+        id,
+    };
 }
 
 /**
@@ -79,6 +84,33 @@ export function resetMediaItem<T extends ICommon.IMediaBase>(
             [internalSerializeKey]: undefined,
         };
     }
+}
+
+function nonEmptyString(value: unknown) {
+    if (typeof value !== "string") {
+        return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : undefined;
+}
+
+export function getSheetCover(
+    musicSheet: Partial<IMusic.IMusicSheetItemBase> | null | undefined,
+) {
+    if (!musicSheet) {
+        return undefined;
+    }
+
+    return (
+        nonEmptyString(musicSheet.artwork) ??
+        nonEmptyString(musicSheet.coverImg) ??
+        nonEmptyString(musicSheet.cover) ??
+        nonEmptyString(musicSheet.coverUrl) ??
+        nonEmptyString(musicSheet.coverImgUrl) ??
+        nonEmptyString(musicSheet.picUrl) ??
+        nonEmptyString(musicSheet.img) ??
+        nonEmptyString(musicSheet.image)
+    );
 }
 
 /**

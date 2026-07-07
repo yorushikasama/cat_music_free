@@ -91,7 +91,20 @@ export interface CustomizedColors extends IColors {
     playControlBtnBg?: string;
     /** 播放控制 — 播放按钮描边色 */
     playControlBtnBorder?: string;
+    /** 轻触反馈底色 */
+    pressedOverlay?: string;
+    /** 列表/按钮选中底色 */
+    selectedBackground?: string;
+    /** 列表/按钮选中描边 */
+    selectedBorder?: string;
+    /** 控件背景色 — 搜索框、次级圆形按钮 */
+    controlBackground?: string;
+    /** 控件描边色 */
+    controlBorder?: string;
+    /** 禁用文字颜色 */
+    disabledText?: string;
     hasCustomBackground?: boolean;
+    hasBackgroundImage?: boolean;
 }
 
 function toSemiTransparent(colorStr: string, alpha: number): string {
@@ -106,16 +119,23 @@ function toSemiTransparent(colorStr: string, alpha: number): string {
 
 export default function useColors() {
     const { colors } = useTheme();
+    const currentTheme = Theme.useTheme();
     const background = Theme.useBackground();
-    const hasBg = !!background?.url;
+    const isFireflyTheme = currentTheme.id === "p-acg-firefly";
+    const hasCustomBackground = !!background?.url;
+    const hasBackgroundImage = hasCustomBackground || isFireflyTheme;
 
     const cColors: CustomizedColors = useMemo(() => {
         const c = colors as CustomizedColors;
-        const isDark = (colors as any).dark ?? Color(c.pageBackground ?? c.background ?? "#000").isDark();
+        const isDark =
+            (colors as any).dark ??
+            Color(c.pageBackground ?? c.background ?? "#000").isDark();
 
-        const rawSurfacePrimary = c.surfacePrimary ?? c.card ?? c.backdrop ?? c.pageBackground;
+        const rawSurfacePrimary =
+            c.surfacePrimary ?? c.card ?? c.backdrop ?? c.pageBackground;
         const rawSurfaceSecondary = c.surfaceSecondary ?? c.backdrop ?? c.card;
-        const rawSurfaceTertiary = c.surfaceTertiary ?? c.placeholder ?? c.card ?? "#e0e0e0";
+        const rawSurfaceTertiary =
+            c.surfaceTertiary ?? c.placeholder ?? c.card ?? "#e0e0e0";
         const rawCard = c.card;
         const rawBackdrop = c.backdrop;
         const rawPageBg = c.pageBackground ?? c.background;
@@ -128,16 +148,27 @@ export default function useColors() {
         let pageBackground = rawPageBg;
         let appBar = c.appBar;
         let musicBar = c.musicBar;
+        const defaultDetailGradientColors = [
+            "rgba(0,0,0,0.1)",
+            "rgba(0,0,0,0.4)",
+            "rgba(0,0,0,0.7)",
+        ];
 
-        if (hasBg) {
-            const cardAlpha = isDark ? 0.72 : 0.78;
-            const surfaceAlpha = isDark ? 0.65 : 0.72;
-            const tertiaryAlpha = isDark ? 0.55 : 0.60;
-            const barAlpha = isDark ? 0.75 : 0.80;
+        if (hasBackgroundImage) {
+            const cardAlpha = isDark ? 0.82 : 0.86;
+            const surfaceAlpha = isDark ? 0.78 : 0.82;
+            const tertiaryAlpha = isDark ? 0.7 : 0.72;
+            const barAlpha = isDark ? 0.82 : 0.86;
 
             surfacePrimary = toSemiTransparent(rawSurfacePrimary, cardAlpha);
-            surfaceSecondary = toSemiTransparent(rawSurfaceSecondary, surfaceAlpha);
-            surfaceTertiary = toSemiTransparent(rawSurfaceTertiary, tertiaryAlpha);
+            surfaceSecondary = toSemiTransparent(
+                rawSurfaceSecondary,
+                surfaceAlpha,
+            );
+            surfaceTertiary = toSemiTransparent(
+                rawSurfaceTertiary,
+                tertiaryAlpha,
+            );
             card = toSemiTransparent(rawCard, cardAlpha);
             backdrop = toSemiTransparent(rawBackdrop ?? rawCard, surfaceAlpha);
             pageBackground = toSemiTransparent(rawPageBg, 0);
@@ -151,7 +182,8 @@ export default function useColors() {
 
         return {
             ...colors,
-            textSecondary: c.textSecondary ?? Color(c.text).alpha(0.7).toString(),
+            textSecondary:
+                c.textSecondary ?? Color(c.text).alpha(0.7).toString(),
             textHighlight: c.textHighlight ?? c.primary,
             // @ts-ignore
             background: pageBackground,
@@ -165,21 +197,26 @@ export default function useColors() {
             musicBar,
             accent: c.accent ?? Color(c.primary).alpha(0.7).toString(),
             gradientStart: c.gradientStart ?? c.primary,
-            gradientEnd: c.gradientEnd ?? Color(c.primary).darken(0.15).toString(),
+            gradientEnd:
+                c.gradientEnd ?? Color(c.primary).darken(0.15).toString(),
             shadowLight: c.shadowLight ?? "rgba(0,0,0,0.08)",
             shadowMedium: c.shadowMedium ?? "rgba(0,0,0,0.16)",
             shadowHeavy: c.shadowHeavy ?? "rgba(0,0,0,0.24)",
             progressActiveColor: c.progressActiveColor ?? c.primary,
-            progressInactiveColor: c.progressInactiveColor ?? Color(c.primary).alpha(0.12).rgb().string(),
+            progressInactiveColor:
+                c.progressInactiveColor ??
+                Color(c.primary).alpha(0.12).rgb().string(),
             seekTrackColor: c.seekTrackColor ?? c.primary,
-            seekInactiveTrackColor: c.seekInactiveTrackColor ?? (isDark ? "#999999" : "#cccccc"),
-            seekThumbColor: c.seekThumbColor ?? (isDark ? "#dddddd" : "#dddddd"),
+            seekInactiveTrackColor:
+                c.seekInactiveTrackColor ?? (isDark ? "#999999" : "#cccccc"),
+            seekThumbColor:
+                c.seekThumbColor ?? (isDark ? "#dddddd" : "#dddddd"),
             seekTextColor: c.seekTextColor ?? (isDark ? "#cccccc" : "#999999"),
             playlistIconColor: c.playlistIconColor ?? c.musicBarText ?? c.text,
-            detailGradientColors: c.detailGradientColors ?? (isDark
-                ? ["rgba(0,0,0,0.1)", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.7)"]
-                : ["rgba(0,0,0,0.1)", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.7)"]),
-            detailBgColor: c.detailBgColor ?? c.pageBackground ?? c.background ?? "#000",
+            detailGradientColors:
+                c.detailGradientColors ?? defaultDetailGradientColors,
+            detailBgColor:
+                c.detailBgColor ?? c.pageBackground ?? c.background ?? "#000",
             detailBlurRadius: c.detailBlurRadius ?? 50,
             detailBlurOpacity: c.detailBlurOpacity ?? 0.5,
             detailVignetteColor: c.detailVignetteColor,
@@ -188,9 +225,41 @@ export default function useColors() {
             playControlBtnColor: c.playControlBtnColor,
             playControlBtnBg: c.playControlBtnBg,
             playControlBtnBorder: c.playControlBtnBorder,
-            hasCustomBackground: hasBg,
+            pressedOverlay:
+                c.pressedOverlay ??
+                Color(c.text)
+                    .alpha(isDark ? 0.12 : 0.08)
+                    .rgb()
+                    .string(),
+            selectedBackground:
+                c.selectedBackground ??
+                Color(c.primary)
+                    .alpha(isDark ? 0.18 : 0.1)
+                    .rgb()
+                    .string(),
+            selectedBorder:
+                c.selectedBorder ??
+                Color(c.primary)
+                    .alpha(isDark ? 0.34 : 0.24)
+                    .rgb()
+                    .string(),
+            controlBackground: c.controlBackground ?? surfaceSecondary,
+            controlBorder:
+                c.controlBorder ??
+                Color(c.divider ?? c.text)
+                    .alpha(isDark ? 0.22 : 0.18)
+                    .rgb()
+                    .string(),
+            disabledText:
+                c.disabledText ??
+                Color(c.text)
+                    .alpha(isDark ? 0.38 : 0.32)
+                    .rgb()
+                    .string(),
+            hasCustomBackground: hasBackgroundImage,
+            hasBackgroundImage,
         };
-    }, [colors, hasBg]);
+    }, [colors, hasBackgroundImage]);
 
     return cColors;
 }

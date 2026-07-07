@@ -55,7 +55,7 @@ export default function SettingSection(props: ISettingSectionProps) {
                     styles.card,
                     {
                         backgroundColor: colors.surfacePrimary,
-                        borderColor: colors.divider,
+                        borderColor: colors.controlBorder ?? colors.divider,
                     },
                     cardStyle,
                 ]}>
@@ -73,7 +73,7 @@ export function SettingDivider() {
             style={[
                 styles.divider,
                 {
-                    backgroundColor: colors.divider,
+                    backgroundColor: colors.controlBorder ?? colors.divider,
                 },
             ]}
         />
@@ -82,7 +82,7 @@ export function SettingDivider() {
 
 const styles = StyleSheet.create({
     section: {
-        marginTop: spacing.xl,
+        marginTop: spacing.lg,
         paddingHorizontal: spacing.md,
     },
     header: {
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
         marginTop: spacing.xs,
     },
     card: {
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         borderWidth: StyleSheet.hairlineWidth,
         overflow: "hidden",
     },

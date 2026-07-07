@@ -35,7 +35,7 @@ function _LyricItemComponent(props: ILyricItemComponentProps) {
         if (isRetro) {
             return { color: colors.textSecondary, opacity: 0.5 };
         }
-        return { color: "white", opacity: 0.6 };
+        return { color: colors.textSecondary, opacity: 0.62 };
     };
 
     const getHighlightStyle = () => {
@@ -61,7 +61,12 @@ function _LyricItemComponent(props: ILyricItemComponentProps) {
         if (isRetro) {
             return { color: colors.primary, opacity: 1 };
         }
-        return { color: colors.primary, opacity: 1 };
+        return {
+            color: colors.primary,
+            opacity: 1,
+            fontSize: baseFontSize + rpx(1),
+            fontWeight: "600",
+        };
     };
 
     const getLightStyle = () => {
@@ -80,7 +85,7 @@ function _LyricItemComponent(props: ILyricItemComponentProps) {
         if (isRetro) {
             return { color: colors.text, opacity: 0.85 };
         }
-        return { color: "white", opacity: 0.9 };
+        return { color: colors.text, opacity: 0.86 };
     };
 
     return (

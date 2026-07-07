@@ -6,6 +6,7 @@ import { ImgAsset } from "@/constants/assetsConst";
 import { useCurrentMusic } from "@/core/trackPlayer";
 import AcgDecoration from "@/components/base/acgDecoration";
 import useColors from "@/hooks/useColors";
+import ThemedBackgroundLayer from "@/components/base/themedBackground";
 
 export default function Background() {
     const musicItem = useCurrentMusic();
@@ -24,20 +25,32 @@ export default function Background() {
         return musicItem.artwork;
     }, [musicItem?.artwork]);
 
-    const gradientColors = colors.detailGradientColors ?? ["rgba(0,0,0,0.1)", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.7)"];
+    const gradientColors = colors.detailGradientColors ?? [
+        "rgba(0,0,0,0.1)",
+        "rgba(0,0,0,0.4)",
+        "rgba(0,0,0,0.7)",
+    ];
     const bgColor = colors.detailBgColor ?? colors.pageBackground ?? "#000";
     const blurRadius = colors.detailBlurRadius ?? 50;
     const blurOpacity = colors.detailBlurOpacity ?? 0.5;
+    const hasSyncedBackground = colors.hasBackgroundImage;
 
     return (
         <>
-            <View style={[style.background, { backgroundColor: bgColor }]} />
-
-            <Image
-                style={[style.blur, { opacity: blurOpacity }]}
-                blurRadius={blurRadius}
-                source={artworkSource}
-            />
+            {hasSyncedBackground ? (
+                <ThemedBackgroundLayer />
+            ) : (
+                <>
+                    <View
+                        style={[style.background, { backgroundColor: bgColor }]}
+                    />
+                    <Image
+                        style={[style.blur, { opacity: blurOpacity }]}
+                        blurRadius={blurRadius}
+                        source={artworkSource}
+                    />
+                </>
+            )}
 
             <LinearGradient
                 style={style.gradientOverlay}
@@ -46,11 +59,21 @@ export default function Background() {
             />
 
             {colors.detailVignetteColor && (
-                <View style={[style.vignette, { backgroundColor: colors.detailVignetteColor }]} />
+                <View
+                    style={[
+                        style.vignette,
+                        { backgroundColor: colors.detailVignetteColor },
+                    ]}
+                />
             )}
 
             {colors.detailGrainColor && (
-                <View style={[style.grain, { backgroundColor: colors.detailGrainColor }]} />
+                <View
+                    style={[
+                        style.grain,
+                        { backgroundColor: colors.detailGrainColor },
+                    ]}
+                />
             )}
 
             <AcgDecoration />

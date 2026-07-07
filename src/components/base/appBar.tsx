@@ -51,7 +51,7 @@ interface IAppBarProps {
 }
 
 const ANIMATION_EASING: Animated.EasingFunction = Easing.out(Easing.exp);
-const ANIMATION_DURATION = 500;
+const ANIMATION_DURATION = 220;
 
 const timingConfig = {
     duration: ANIMATION_DURATION,
@@ -102,7 +102,7 @@ export default function AppBar(props: IAppBarProps) {
         } else {
             scaleRate.value = withTiming(0, timingConfig);
         }
-    }, [showMenu]);
+    }, [scaleRate, showMenu]);
 
     const transformStyle = useAnimatedStyle(() => {
         return {
@@ -195,7 +195,7 @@ export default function AppBar(props: IAppBarProps) {
                         pointerEvents={showMenu ? "auto" : "none"}
                         style={[
                             {
-                                borderBottomColor: colors.background,
+                                borderBottomColor: colors.surfacePrimary ?? colors.background,
                                 left:
                                     (menuIconLayout?.x ?? 0) +
                                     (menuIconLayout?.width ?? 0) / 2 -
@@ -215,7 +215,7 @@ export default function AppBar(props: IAppBarProps) {
                         pointerEvents={showMenu ? "auto" : "none"}
                         style={[
                             {
-                                backgroundColor: colors.background,
+                                backgroundColor: colors.surfacePrimary ?? colors.background,
                                 right: rpx(24),
                                 top:
                                     (menuIconLayout?.y ?? 0) +
@@ -224,7 +224,7 @@ export default function AppBar(props: IAppBarProps) {
                                     (menuWithStatusBar
                                         ? OriginalStatusBar.currentHeight ?? 0
                                         : 0),
-                                shadowColor: colors.shadow,
+                                shadowColor: colors.shadowMedium ?? colors.shadow,
                             },
                             transformStyle,
                             styles.menu,
@@ -316,8 +316,8 @@ const styles = StyleSheet.create({
             width: 0,
             height: 2,
         },
-        shadowOpacity: 0.23,
-        shadowRadius: 2.62,
-        elevation: 4,
+        shadowOpacity: 0.14,
+        shadowRadius: 8,
+        elevation: 3,
     },
 });

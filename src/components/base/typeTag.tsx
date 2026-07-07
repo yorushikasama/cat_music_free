@@ -35,14 +35,19 @@ export default function TypeTag(props: ITypeTagProps) {
                 style={[
                     style.wrapper,
                     {
-                        backgroundColor: colors.card,
-                        borderColor: colors.divider,
+                        backgroundColor: selected
+                            ? colors.selectedBackground
+                            : colors.controlBackground,
+                        borderColor: selected
+                            ? colors.selectedBorder
+                            : colors.controlBorder ?? colors.divider,
                     },
                     _style,
                 ]}>
                 <ThemeText
-                    fontSize="subTitle"
-                    fontColor={selected ? "primary" : "text"}>
+                    fontSize="description"
+                    fontWeight={selected ? "semibold" : "medium"}
+                    color={selected ? colors.primary : colors.text}>
                     {title}
                 </ThemeText>
             </View>
@@ -56,8 +61,7 @@ const style = StyleSheet.create({
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.sm,
         borderRadius: radius.pill,
-        marginHorizontal: spacing.sm,
-        borderWidth: 1,
-        borderStyle: "solid",
+        marginHorizontal: spacing.xs,
+        borderWidth: StyleSheet.hairlineWidth,
     },
 });

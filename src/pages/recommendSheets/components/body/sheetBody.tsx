@@ -10,6 +10,7 @@ import SheetList from "./sheetList";
 import { hidePanel, showPanel } from "@/components/panels/usePanel";
 import { useI18N } from "@/core/i18n";
 import { spacing } from "@/constants/spacing";
+import useColors from "@/hooks/useColors";
 
 interface IProps {
     hash: string;
@@ -20,6 +21,7 @@ function SheetBody(props: IProps) {
     const { hash } = props;
 
     const { t } = useI18N();
+    const colors = useColors();
 
     const defaultTag: ICommon.IUnique = useMemo(() => ({
         title: t("common.default"),
@@ -38,7 +40,13 @@ function SheetBody(props: IProps) {
     return (
         <View style={globalStyle.fwflex1}>
             <ScrollView
-                style={style.headerWrapper}
+                style={[
+                    style.headerWrapper,
+                    {
+                        backgroundColor: colors.surfacePrimary,
+                        borderBottomColor: colors.controlBorder ?? colors.divider,
+                    },
+                ]}
                 contentContainerStyle={style.header}
                 showsHorizontalScrollIndicator={false}
                 horizontal>
@@ -79,6 +87,7 @@ const style = StyleSheet.create({
     headerWrapper: {
         height: rpx(100),
         flexGrow: 0,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     header: {
         height: rpx(100),

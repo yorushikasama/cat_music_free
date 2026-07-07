@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, SectionList, SectionListData, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import ListItem from "@/components/base/listItem";
@@ -73,7 +73,10 @@ function DownloadingListItem(props: DownloadingListItemProps) {
             <View
                 style={[
                     styles.statusIcon,
-                    { backgroundColor: Color(tintColor).alpha(0.12).rgb().string() },
+                    {
+                        backgroundColor: Color(tintColor).alpha(0.1).rgb().string(),
+                        borderColor: Color(tintColor).alpha(0.18).rgb().string(),
+                    },
                 ]}>
                 <Icon
                     name={status === DownloadStatus.Error ? "exclamation-circle" : "arrow-down-tray"}
@@ -95,7 +98,7 @@ function DownloadingListItem(props: DownloadingListItemProps) {
                             <View
                                 style={[
                                     styles.progressTrack,
-                                    { backgroundColor: colors.surfaceSecondary },
+                                    { backgroundColor: colors.controlBackground },
                                 ]}>
                                 <View
                                     style={[
@@ -131,7 +134,8 @@ function DownloadingListItem(props: DownloadingListItemProps) {
 export default function DownloadingList() {
     const downloadQueue = useDownloadQueue();
     const { t } = useI18N();
-    const [taskVersion, setTaskVersion] = useState(0);
+    const colors = useColors();
+    const [, setTaskVersion] = useState(0);
 
     useEffect(() => {
         return downloader.onTaskUpdate(() => {
@@ -139,28 +143,26 @@ export default function DownloadingList() {
         });
     }, []);
 
-    const sections = useMemo(() => {
-        const active: IMusic.IMusicItem[] = [];
-        const waiting: IMusic.IMusicItem[] = [];
-        const failed: IMusic.IMusicItem[] = [];
+    const active: IMusic.IMusicItem[] = [];
+    const waiting: IMusic.IMusicItem[] = [];
+    const failed: IMusic.IMusicItem[] = [];
 
-        downloadQueue.forEach(item => {
-            const status = downloader.getTaskStatus?.(item);
-            if (status === DownloadStatus.Error) {
-                failed.push(item);
-            } else if (status === DownloadStatus.Pending) {
-                waiting.push(item);
-            } else {
-                active.push(item);
-            }
-        });
+    downloadQueue.forEach(item => {
+        const status = downloader.getTaskStatus?.(item);
+        if (status === DownloadStatus.Error) {
+            failed.push(item);
+        } else if (status === DownloadStatus.Pending) {
+            waiting.push(item);
+        } else {
+            active.push(item);
+        }
+    });
 
-        return [
-            active.length ? { title: t("downloading.title"), data: active } : null,
-            waiting.length ? { title: t("downloading.downloadStatus.pending"), data: waiting } : null,
-            failed.length ? { title: t("common.error"), data: failed } : null,
-        ].filter(Boolean) as SectionListData<IMusic.IMusicItem>[];
-    }, [downloadQueue, t, taskVersion]);
+    const sections = [
+        active.length ? { title: t("downloading.title"), data: active } : null,
+        waiting.length ? { title: t("downloading.downloadStatus.pending"), data: waiting } : null,
+        failed.length ? { title: t("common.error"), data: failed } : null,
+    ].filter(Boolean) as SectionListData<IMusic.IMusicItem>[];
 
 
     return (
@@ -177,6 +179,21 @@ export default function DownloadingList() {
                             fontWeight="semibold">
                             {section.title}
                         </ThemeText>
+                        <View
+                            style={[
+                                styles.sectionCount,
+                                {
+                                    backgroundColor: colors.controlBackground,
+                                    borderColor: colors.controlBorder ?? colors.divider,
+                                },
+                            ]}>
+                            <ThemeText
+                                fontSize="tag"
+                                fontColor="textSecondary"
+                                fontWeight="semibold">
+                                {section.data.length}
+                            </ThemeText>
+                        </View>
                     </View>
                 )}
                 ListEmptyComponent={(
@@ -208,6 +225,18 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.lg,
         paddingBottom: spacing.xs,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    sectionCount: {
+        minWidth: rpx(40),
+        height: rpx(34),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: spacing.xs,
+        alignItems: "center",
+        justifyContent: "center",
     },
     item: {
         minHeight: rpx(132),
@@ -216,6 +245,7 @@ const styles = StyleSheet.create({
         width: rpx(64),
         height: rpx(64),
         borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
         alignItems: "center",
         justifyContent: "center",
         marginRight: spacing.md,

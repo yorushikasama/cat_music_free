@@ -1,6 +1,9 @@
 import Config from "@/core/appConfig";
 
-import { DarkTheme as _DarkTheme, DefaultTheme as _DefaultTheme } from "@react-navigation/native";
+import {
+    DarkTheme as _DarkTheme,
+    DefaultTheme as _DefaultTheme,
+} from "@react-navigation/native";
 import { GlobalState } from "@/utils/stateMapper";
 import { CustomizedColors } from "@/hooks/useColors";
 import Color from "color";
@@ -48,7 +51,11 @@ export const lightTheme = {
         seekThumbColor: "#dddddd",
         seekTextColor: "#cccccc",
         playlistIconColor: "#333333",
-        detailGradientColors: ["rgba(0,0,0,0.1)", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.7)"],
+        detailGradientColors: [
+            "rgba(0,0,0,0.1)",
+            "rgba(0,0,0,0.4)",
+            "rgba(0,0,0,0.7)",
+        ],
         detailBgColor: "#f5f5f7",
         detailBlurRadius: 50,
         detailBlurOpacity: 0.5,
@@ -102,7 +109,11 @@ export const darkTheme = {
         seekThumbColor: "#dddddd",
         seekTextColor: "#cccccc",
         playlistIconColor: "#fcfcfc",
-        detailGradientColors: ["rgba(0,0,0,0.1)", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.7)"],
+        detailGradientColors: [
+            "rgba(0,0,0,0.1)",
+            "rgba(0,0,0,0.4)",
+            "rgba(0,0,0,0.7)",
+        ],
         detailBgColor: "#0f0f0f",
         detailBlurRadius: 50,
         detailBlurOpacity: 0.5,
@@ -156,7 +167,11 @@ export const retroTheme = {
         seekThumbColor: "#C4956A",
         seekTextColor: "#B0A48A",
         playlistIconColor: "#D4C5A9",
-        detailGradientColors: ["rgba(90,60,30,0.15)", "rgba(26,23,20,0.5)", "rgba(26,23,20,0.7)"],
+        detailGradientColors: [
+            "rgba(90,60,30,0.15)",
+            "rgba(26,23,20,0.5)",
+            "rgba(26,23,20,0.7)",
+        ],
         detailBgColor: "#1A1714",
         detailBlurRadius: 50,
         detailBlurOpacity: 0.5,
@@ -212,7 +227,11 @@ export const acgLightTheme = {
         seekThumbColor: "#ffc8dd",
         seekTextColor: "#8a7a8a",
         playlistIconColor: "#ff8fa3",
-        detailGradientColors: ["rgba(248,249,250,0.5)", "rgba(245,240,250,0.7)", "rgba(157,121,232,0.08)"],
+        detailGradientColors: [
+            "rgba(248,249,250,0.5)",
+            "rgba(245,240,250,0.7)",
+            "rgba(157,121,232,0.08)",
+        ],
         detailBgColor: "#f8f9fa",
         detailBlurRadius: 80,
         detailBlurOpacity: 0.25,
@@ -220,6 +239,66 @@ export const acgLightTheme = {
         playControlBtnColor: "#ffffff",
         playControlBtnBg: "#ff8fa3",
         playControlBtnBorder: "#ffccd8",
+    },
+};
+
+export const acgFireflyTheme = {
+    id: "p-acg-firefly",
+    ..._DefaultTheme,
+    dark: false,
+    colors: {
+        ..._DefaultTheme.colors,
+        background: "transparent",
+        text: "#1F463E",
+        textSecondary: Color("#1F463E").alpha(0.68).toString(),
+        primary: "#4FBF63",
+        pageBackground: "#EAF4ED",
+        shadow: "#365F55",
+        appBar: "rgba(239,249,240,0.86)",
+        appBarText: "#1F463E",
+        musicBar: "rgba(239,249,240,0.86)",
+        musicBarText: "#1F463E",
+        divider: "rgba(50,91,80,0.16)",
+        listActive: "rgba(79,191,99,0.13)",
+        mask: "rgba(31,70,62,0.22)",
+        backdrop: "#EFF9F1",
+        tabBar: "rgba(239,249,240,0.84)",
+        placeholder: "#D5E8DD",
+        success: "#5EBD68",
+        danger: "#E86A7E",
+        info: "#4AAFCB",
+        card: "#F3FBF2",
+        notification: "#E5F4E8",
+        surfacePrimary: "#F3FBF2",
+        surfaceSecondary: "#E6F4EA",
+        surfaceTertiary: "#D5E8DD",
+        accent: "#D2A34A",
+        gradientStart: "#7FD174",
+        gradientEnd: "#56BFA5",
+        shadowLight: "rgba(39,75,66,0.08)",
+        shadowMedium: "rgba(39,75,66,0.13)",
+        shadowHeavy: "rgba(39,75,66,0.22)",
+        progressActiveColor: "#4FBF63",
+        progressInactiveColor: "rgba(65,103,91,0.16)",
+        seekTrackColor: "#4FBF63",
+        seekInactiveTrackColor: "#B8CEC3",
+        seekThumbColor: "#D2A34A",
+        seekTextColor: "#6D8379",
+        playlistIconColor: "#4B6F63",
+        detailGradientColors: [
+            "rgba(245,250,239,0.08)",
+            "rgba(50,74,65,0.28)",
+            "rgba(22,44,38,0.68)",
+        ],
+        detailBgColor: "#F5FAEF",
+        detailBlurRadius: 64,
+        detailBlurOpacity: 0.28,
+        detailVignetteColor: "rgba(35,67,59,0.18)",
+        detailGrainColor: "#8AD879",
+        playControlIconColor: "#4B6F63",
+        playControlBtnColor: "#4FBF63",
+        playControlBtnBg: "rgba(248,252,245,0.88)",
+        playControlBtnBorder: "rgba(79,191,99,0.28)",
     },
 };
 
@@ -266,7 +345,11 @@ export const spotifyTheme = {
         seekThumbColor: "#ffffff",
         seekTextColor: "#b3b3b3",
         playlistIconColor: "#b3b3b3",
-        detailGradientColors: ["rgba(18,18,18,0.3)", "rgba(18,18,18,0.7)", "rgba(18,18,18,0.9)"],
+        detailGradientColors: [
+            "rgba(18,18,18,0.3)",
+            "rgba(18,18,18,0.7)",
+            "rgba(18,18,18,0.9)",
+        ],
         detailBgColor: "#121212",
         detailBlurRadius: 60,
         detailBlurOpacity: 0.3,
@@ -289,8 +372,27 @@ const DEFAULT_BACKGROUND_OPACITY = 0.6;
 const themeStore = new GlobalState(darkTheme);
 const backgroundStore = new GlobalState<IBackgroundInfo | null>(null);
 
+function getPresetTheme(themeName: string) {
+    if (themeName === "p-light") return lightTheme;
+    if (themeName === "p-dark") return darkTheme;
+    if (themeName === "p-retro") return retroTheme;
+    if (themeName === "p-acg") return acgLightTheme;
+    if (themeName === "p-acg-firefly") return acgFireflyTheme;
+    if (themeName === "p-spotify") return spotifyTheme;
+    return null;
+}
+
+function isPresetTheme(themeId: string) {
+    return getPresetTheme(themeId) != null;
+}
+
 function setup() {
-    let currentTheme = Config.getConfig("theme.selectedTheme") ?? "p-dark";
+    const selectedTheme = Config.getConfig("theme.selectedTheme");
+    let currentTheme = selectedTheme ?? "p-acg-firefly";
+
+    if (!selectedTheme) {
+        Config.setConfig("theme.selectedTheme", currentTheme);
+    }
 
     // 兼容旧版 ACG 主题 ID
     if (currentTheme === "p-acg-light" || currentTheme === "p-acg-dark") {
@@ -298,16 +400,9 @@ function setup() {
         Config.setConfig("theme.selectedTheme", "p-acg");
     }
 
-    if (currentTheme === "p-dark") {
-        themeStore.setValue(darkTheme);
-    } else if (currentTheme === "p-light") {
-        themeStore.setValue(lightTheme);
-    } else if (currentTheme === "p-retro") {
-        themeStore.setValue(retroTheme);
-    } else if (currentTheme === "p-acg") {
-        themeStore.setValue(acgLightTheme);
-    } else if (currentTheme === "p-spotify") {
-        themeStore.setValue(spotifyTheme);
+    const presetTheme = getPresetTheme(currentTheme);
+    if (presetTheme) {
+        themeStore.setValue(presetTheme);
     } else {
         themeStore.setValue({
             id: currentTheme,
@@ -337,16 +432,9 @@ function setTheme(
         background?: IBackgroundInfo;
     },
 ) {
-    if (themeName === "p-light") {
-        themeStore.setValue(lightTheme);
-    } else if (themeName === "p-dark") {
-        themeStore.setValue(darkTheme);
-    } else if (themeName === "p-retro") {
-        themeStore.setValue(retroTheme);
-    } else if (themeName === "p-acg") {
-        themeStore.setValue(acgLightTheme);
-    } else if (themeName === "p-spotify") {
-        themeStore.setValue(spotifyTheme);
+    const presetTheme = getPresetTheme(themeName);
+    if (presetTheme) {
+        themeStore.setValue(presetTheme);
     } else {
         themeStore.setValue({
             id: themeName,
@@ -389,7 +477,7 @@ function setTheme(
 
 function setColors(colors: Partial<CustomizedColors>) {
     const currentTheme = themeStore.getValue();
-    if (currentTheme.id !== "p-light" && currentTheme.id !== "p-dark" && currentTheme.id !== "p-retro" && currentTheme.id !== "p-acg" && currentTheme.id !== "p-spotify") {
+    if (!isPresetTheme(currentTheme.id)) {
         const newTheme = {
             ...currentTheme,
             colors: {
@@ -452,7 +540,6 @@ const configableColorKey: Array<keyof CustomizedColors> = [
     "tabBar",
     "notification",
 ];
-
 
 const Theme = {
     setup,

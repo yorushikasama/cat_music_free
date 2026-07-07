@@ -12,7 +12,6 @@ import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import rpx from "@/utils/rpx";
 import Icon from "@/components/base/icon";
-import Color from "color";
 import dayjs from "dayjs";
 
 export default function LocalMusicList() {
@@ -30,14 +29,15 @@ export default function LocalMusicList() {
                     styles.summary,
                     {
                         backgroundColor: colors.surfacePrimary,
-                        borderColor: colors.divider,
+                        borderColor: colors.controlBorder ?? colors.divider,
                     },
                 ]}>
                 <View
                     style={[
                         styles.summaryIcon,
                         {
-                            backgroundColor: Color(colors.primary).alpha(0.12).rgb().string(),
+                            backgroundColor: colors.selectedBackground,
+                            borderColor: colors.selectedBorder,
                         },
                     ]}>
                     <Icon
@@ -111,6 +111,7 @@ const styles = StyleSheet.create({
         width: rpx(68),
         height: rpx(68),
         borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
         alignItems: "center",
         justifyContent: "center",
         marginRight: spacing.md,

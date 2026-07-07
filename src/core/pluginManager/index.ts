@@ -30,6 +30,7 @@ import { IAppConfig } from "@/types/core/config";
 import delay from "@/utils/delay";
 
 const pluginsAtom = atom<Plugin[]>([]);
+const pluginEnabledAtom = atom<Record<string, boolean>>({});
 const pluginCacheStore = getOrCreateMMKV("plugin.cache");
 
 function comparePluginOrder(
@@ -595,8 +596,13 @@ class PluginManager implements IPluginManager, IInjectable {
      * @param enabled - 是否启用插件
      */
     setPluginEnabled(plugin: Plugin, enabled: boolean) {
-        ee.emit("enabled-updated", plugin.name, enabled);
         pluginMeta.setPluginEnabled(plugin.name, enabled);
+        const store = getDefaultStore();
+        store.set(pluginEnabledAtom, {
+            ...store.get(pluginEnabledAtom),
+            [plugin.name]: enabled,
+        });
+        ee.emit("enabled-updated", plugin.name, enabled);
     }
 
     /**
@@ -650,13 +656,25 @@ const pluginManager = new PluginManager();
 
 export const usePlugins = () => useAtomValue(pluginsAtom);
 
+function usePluginEnabledState(pluginName: string) {
+    const enabledMap = useAtomValue(pluginEnabledAtom);
+    return enabledMap[pluginName] ?? pluginMeta.isPluginEnabled(pluginName);
+}
+
+function isPluginEnabledWithMap(
+    plugin: Plugin,
+    enabledMap: Record<string, boolean>,
+) {
+    return enabledMap[plugin.name] ?? pluginMeta.isPluginEnabled(plugin.name);
+}
+
 export function useSortedPlugins() {
     const plugins = useAtomValue(pluginsAtom);
-    const [orderVersion, setOrderVersion] = useState(0);
+    const [order, setOrder] = useState(() => pluginMeta.getPluginOrder());
 
     useEffect(() => {
         const callback = () => {
-            setOrderVersion(v => v + 1);
+            setOrder(pluginMeta.getPluginOrder());
         };
         ee.on("order-updated", callback);
         return () => {
@@ -665,32 +683,53 @@ export function useSortedPlugins() {
     }, []);
 
     return useMemo(() => {
-        const order = pluginMeta.getPluginOrder();
         return [...plugins].sort((a, b) =>
             comparePluginOrder(order, a, b),
         );
-    }, [plugins, orderVersion]);
+    }, [plugins, order]);
 }
 
 export function usePluginEnabled(plugin: Plugin) {
-    const [enabled, setEnabled] = useState(
-        pluginManager.isPluginEnabled(plugin),
+    return usePluginEnabledState(plugin.name);
+}
+
+export function useSortedSearchablePlugins(
+    supportedSearchType?: ICommon.SupportMediaType,
+) {
+    const sortedPlugins = useSortedPlugins();
+    const enabledMap = useAtomValue(pluginEnabledAtom);
+
+    return useMemo(
+        () =>
+            sortedPlugins.filter(
+                plugin =>
+                    isPluginEnabledWithMap(plugin, enabledMap) &&
+                    plugin.supportedMethods.has("search") &&
+                    (supportedSearchType && plugin.instance.supportedSearchType
+                        ? plugin.instance.supportedSearchType.includes(
+                            supportedSearchType,
+                        )
+                        : true),
+            ),
+        [enabledMap, sortedPlugins, supportedSearchType],
     );
+}
 
-    useEffect(() => {
-        const callback = (pluginName: string, _enabled: boolean) => {
-            if (pluginName === plugin?.name) {
-                setEnabled(_enabled);
-            }
-        };
+export function useSortedEnabledPluginsWithAbility(
+    ability: keyof IPlugin.IPluginInstanceMethods,
+) {
+    const sortedPlugins = useSortedPlugins();
+    const enabledMap = useAtomValue(pluginEnabledAtom);
 
-        ee.on("enabled-updated", callback);
-        return () => {
-            ee.off("enabled-updated", callback);
-        };
-    }, [plugin]);
-
-    return enabled;
+    return useMemo(
+        () =>
+            sortedPlugins.filter(
+                plugin =>
+                    isPluginEnabledWithMap(plugin, enabledMap) &&
+                    plugin.supportedMethods.has(ability),
+            ),
+        [ability, enabledMap, sortedPlugins],
+    );
 }
 
 export default pluginManager;

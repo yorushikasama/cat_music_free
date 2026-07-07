@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import Color from "color";
 
 import AppBar from "@/components/base/appBar";
 import Empty from "@/components/base/empty";
@@ -53,14 +52,15 @@ export default function PluginSort() {
                     styles.item,
                     {
                         backgroundColor: colors.surfacePrimary,
-                        borderColor: colors.divider,
+                        borderColor: colors.controlBorder ?? colors.divider,
                     },
                 ]}>
                 <View
                     style={[
                         styles.indexBadge,
                         {
-                            backgroundColor: Color(colors.primary).alpha(0.1).rgb().string(),
+                            backgroundColor: colors.selectedBackground,
+                            borderColor: colors.selectedBorder,
                         },
                     ]}>
                     <ThemeText fontSize="description" fontWeight="bold" fontColor="primary">
@@ -96,8 +96,11 @@ export default function PluginSort() {
                             styles.doneNavButton,
                             {
                                 backgroundColor: hasChanges
-                                    ? Color(colors.primary).alpha(0.12).rgb().string()
-                                    : colors.surfaceSecondary ?? colors.placeholder,
+                                    ? colors.selectedBackground
+                                    : colors.controlBackground,
+                                borderColor: hasChanges
+                                    ? colors.selectedBorder
+                                    : colors.controlBorder ?? colors.divider,
                             },
                             !hasChanges && styles.disabledAction,
                         ]}
@@ -146,7 +149,7 @@ export default function PluginSort() {
                             renderItem={renderSortingItem}
                             itemHeight={ITEM_HEIGHT}
                             itemJustifyContent="center"
-                            activeBackgroundColor={colors.placeholder}
+                            activeBackgroundColor={colors.selectedBackground ?? colors.placeholder}
                             onSortEnd={setSortingPlugins}
                         />
                     ) : (
@@ -166,7 +169,8 @@ const styles = StyleSheet.create({
     doneNavButton: {
         minWidth: rpx(92),
         height: rpx(52),
-        borderRadius: radius.sm,
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
         alignItems: "center",
         justifyContent: "center",
         marginRight: spacing.sm,
@@ -215,6 +219,7 @@ const styles = StyleSheet.create({
         width: rpx(48),
         height: rpx(48),
         borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
         alignItems: "center",
         justifyContent: "center",
         marginRight: spacing.md,

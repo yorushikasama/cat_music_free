@@ -185,7 +185,13 @@ class AppConfig implements IAppConfig {
     async setup(): Promise<void> {
         await this.migrateConfig();
         if (!configStore.contains("theme.particleEffect")) {
-            this.setConfig("theme.particleEffect", "none");
+            const selectedTheme = this.getConfig("theme.selectedTheme");
+            this.setConfig(
+                "theme.particleEffect",
+                !selectedTheme || selectedTheme === "p-acg-firefly"
+                    ? "firefly"
+                    : "none",
+            );
         }
         if (!configStore.contains("basic.tryChangeSourceWhenPlayFail")) {
             this.setConfig("basic.tryChangeSourceWhenPlayFail", true);

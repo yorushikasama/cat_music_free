@@ -2,7 +2,14 @@ import ThemeText from "@/components/base/themeText";
 import useColors from "@/hooks/useColors";
 import rpx from "@/utils/rpx";
 import React from "react";
-import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import {
+    Image,
+    ImageSourcePropType,
+    StyleProp,
+    StyleSheet,
+    View,
+    ViewStyle,
+} from "react-native";
 import { TouchableOpacity } from "react-native-gesture-handler";
 import Icon, { IIconName } from "@/components/base/icon.tsx";
 import { spacing } from "@/constants/spacing";
@@ -13,15 +20,23 @@ import Theme from "@/core/theme";
 interface IActionButtonProps {
     iconName: IIconName;
     iconColor?: string;
+    acgMascot?: ImageSourcePropType;
     title: string;
     action?: () => void;
     style?: StyleProp<ViewStyle>;
 }
 
 export default function ActionButton(props: IActionButtonProps) {
-    const { iconName, iconColor, title, action, style } = props;
+    const { iconName, iconColor, acgMascot, title, action, style } = props;
     const colors = useColors();
     const theme = Theme.useTheme();
+    const showAcgMascot = theme.id === "p-acg-firefly" && acgMascot;
+    const iconContainerColorStyle = {
+        backgroundColor: showAcgMascot
+            ? "transparent"
+            : `${colors.surfaceTertiary}80`,
+    };
+
     return (
         <TouchableOpacity
             onPress={action}
@@ -43,14 +58,22 @@ export default function ActionButton(props: IActionButtonProps) {
                 <View
                     style={[
                         styles.iconContainer,
-                        { backgroundColor: `${colors.surfaceTertiary}80` },
+                        iconContainerColorStyle,
                     ]}>
-                    <Icon
-                        accessible={false}
-                        name={iconName}
-                        color={iconColor ?? colors.primary}
-                        size={rpx(40)}
-                    />
+                    {showAcgMascot ? (
+                        <Image
+                            source={acgMascot}
+                            style={styles.mascotImage}
+                            resizeMode="contain"
+                        />
+                    ) : (
+                        <Icon
+                            accessible={false}
+                            name={iconName}
+                            color={iconColor ?? colors.primary}
+                            size={rpx(40)}
+                        />
+                    )}
                 </View>
                 <ThemeText
                     accessible={false}
@@ -92,6 +115,10 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         marginBottom: spacing.sm,
+    },
+    mascotImage: {
+        width: rpx(64),
+        height: rpx(64),
     },
     text: {
         marginTop: spacing.xs,

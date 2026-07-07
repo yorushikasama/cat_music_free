@@ -23,7 +23,6 @@ import PageShell from "@/components/base/pageShell";
 import SkeletonList from "@/components/base/skeleton";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
-import Color from "color";
 
 interface IPathItem {
     path: string;
@@ -54,8 +53,8 @@ export default function FileSelector() {
     const [filesData, setFilesData] = useState<IFileItem[]>([]);
     const [checkedItems, setCheckedItems] = useState<IFileItem[]>([]);
 
-    const checkedPaths = useMemo(
-        () => checkedItems.map(_ => _.path),
+    const checkedPathSet = useMemo(
+        () => new Set(checkedItems.map(item => item.path)),
         [checkedItems],
     );
     const navigation = useNavigation();
@@ -66,6 +65,10 @@ export default function FileSelector() {
         currentPath.path === "/"
             ? i18n.t("fileSelector.storageRoots")
             : currentPath.path;
+
+    useEffect(() => {
+        currentPathRef.current = currentPath;
+    }, [currentPath]);
 
     useEffect(() => {
         (async () => {
@@ -142,9 +145,8 @@ export default function FileSelector() {
                 setFilesData([]);
             }
             setLoading(false);
-            currentPathRef.current = currentPath;
         })();
-    }, [currentPath.path]);
+    }, [currentPath.path, fileType, matchExtension]);
 
     useHardwareBack(() => {
         // 注意闭包
@@ -159,28 +161,26 @@ export default function FileSelector() {
 
     const selectPath = useCallback(
         (item: IFileItem | IFileItem[], nextChecked: boolean) => {
+            const targetItems = Array.isArray(item) ? item : [item];
             if (multi) {
-                if (!Array.isArray(item)) {
-                    item = [item];
-                }
                 setCheckedItems(prev => {
-                    const itemPaths = (item as IFileItem[]).map(_ => _.path);
+                    const itemPathSet = new Set(
+                        targetItems.map(targetItem => targetItem.path),
+                    );
                     const newCheckedItem = prev.filter(
-                        _ => !itemPaths.includes(_.path),
+                        checkedItem => !itemPathSet.has(checkedItem.path),
                     );
                     if (nextChecked) {
-                        return [...newCheckedItem, ...(item as IFileItem[])];
+                        return [...newCheckedItem, ...targetItems];
                     } else {
                         return newCheckedItem;
                     }
                 });
             } else {
-                setCheckedItems(
-                    nextChecked ? (Array.isArray(item) ? item : [item]) : [],
-                );
+                setCheckedItems(nextChecked ? targetItems : []);
             }
         },
-        [],
+        [multi],
     );
 
     const renderItem = ({ item }: { item: IFileItem }) => (
@@ -198,7 +198,7 @@ export default function FileSelector() {
                     selectPath(item, !currentChecked);
                 }
             }}
-            checked={checkedPaths.includes(item.path)}
+            checked={checkedPathSet.has(item.path)}
             onCheckedChange={checked => {
                 selectPath(item, checked);
             }}
@@ -207,10 +207,10 @@ export default function FileSelector() {
 
     const currentPageAllChecked = useMemo(() => {
         return (
-            filesData.length &&
-            filesData.every(file => checkedPaths.includes(file.path))
+            filesData.length > 0 &&
+            filesData.every(file => checkedPathSet.has(file.path))
         );
-    }, [filesData, checkedPaths]);
+    }, [filesData, checkedPathSet]);
 
     const renderHeader = () => {
         return (
@@ -220,17 +220,15 @@ export default function FileSelector() {
                         style.locationCard,
                         {
                             backgroundColor: colors.surfacePrimary,
-                            borderColor: colors.divider,
+                            borderColor: colors.controlBorder ?? colors.divider,
                         },
                     ]}>
                     <View
                         style={[
                             style.locationIcon,
                             {
-                                backgroundColor: Color(colors.primary)
-                                    .alpha(0.1)
-                                    .rgb()
-                                    .string(),
+                                backgroundColor: colors.selectedBackground,
+                                borderColor: colors.selectedBorder,
                             },
                         ]}>
                         <IconButton
@@ -304,10 +302,10 @@ export default function FileSelector() {
                 onAction={
                     canGoParent && currentPath.parent
                         ? () => {
-                              if (currentPath.parent) {
-                                  setCurrentPath(currentPath.parent);
-                              }
-                          }
+                            if (currentPath.parent) {
+                                setCurrentPath(currentPath.parent);
+                            }
+                        }
                         : undefined
                 }
             />
@@ -350,6 +348,8 @@ export default function FileSelector() {
     const bottom = (
         <Pressable
             disabled={!checkedItems.length}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !checkedItems.length }}
             onPress={async () => {
                 if (checkedItems.length) {
                     const shouldBack = await onAction?.(checkedItems);
@@ -362,7 +362,7 @@ export default function FileSelector() {
                 style.actionBar,
                 {
                     backgroundColor: colors.surfacePrimary,
-                    borderTopColor: colors.divider,
+                    borderTopColor: colors.controlBorder ?? colors.divider,
                     opacity: pressed && checkedItems.length ? 0.84 : 1,
                 },
             ]}>
@@ -372,19 +372,22 @@ export default function FileSelector() {
                     {
                         backgroundColor: checkedItems.length
                             ? colors.primary
-                            : colors.surfaceSecondary,
+                            : colors.controlBackground,
+                        borderColor: checkedItems.length
+                            ? colors.primary
+                            : colors.controlBorder ?? colors.divider,
                     },
                 ]}>
                 <ThemeText
                     fontWeight="medium"
-                    color={checkedItems.length ? "#fff" : colors.textSecondary}>
+                    color={checkedItems.length ? "#fff" : colors.disabledText}>
                     {multi && checkedItems?.length > 0
                         ? `${actionText} (${i18n.t(
-                              "fileSelector.selectedCount",
-                              {
-                                  count: checkedItems.length,
-                              },
-                          )})`
+                            "fileSelector.selectedCount",
+                            {
+                                count: checkedItems.length,
+                            },
+                        )})`
                         : actionText}
                 </ThemeText>
             </View>
@@ -463,6 +466,7 @@ const style = StyleSheet.create({
         width: rpx(64),
         height: rpx(64),
         borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
         alignItems: "center",
         justifyContent: "center",
         marginRight: spacing.md,
@@ -492,6 +496,7 @@ const style = StyleSheet.create({
         width: "100%",
         minHeight: rpx(84),
         borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
         alignItems: "center",
         justifyContent: "center",
     },

@@ -23,9 +23,83 @@ import Color from "color";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type InputMode = "urls" | "file";
+type PluginListExtension = ".json" | ".csv" | ".txt";
 
 interface IBatchInstallProps {
     onBatchComplete?: (results: IInstallPluginResult[]) => void;
+}
+
+const SUPPORTED_LIST_EXTENSIONS: PluginListExtension[] = [".json", ".csv", ".txt"];
+const NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+    Expires: "0",
+};
+
+function isHttpUrl(url?: string): url is string {
+    return !!url && (url.startsWith("http://") || url.startsWith("https://"));
+}
+
+function getListExtension(filename?: string): PluginListExtension | undefined {
+    const normalizedName = filename?.toLowerCase() ?? "";
+    return SUPPORTED_LIST_EXTENSIONS.find(ext => normalizedName.endsWith(ext));
+}
+
+function parseUrls(text: string): string[] {
+    return text
+        .split(/[\n,;，；]+/)
+        .map(u => u.trim())
+        .filter(isHttpUrl);
+}
+
+function parseCsvUrls(csvText: string): string[] {
+    const lines = csvText.split(/[\r\n]+/).filter(l => l.trim());
+    const urls: string[] = [];
+    for (const line of lines) {
+        const url = line.split(",")[0]?.trim();
+        if (isHttpUrl(url)) {
+            urls.push(url);
+        }
+    }
+    return urls;
+}
+
+function parseJsonUrls(data: any): string[] {
+    if (Array.isArray(data?.plugins)) {
+        return data.plugins
+            .map((item: any) => item?.url)
+            .filter((url: string) => url);
+    }
+
+    if (Array.isArray(data)) {
+        return data
+            .map((item: any) => typeof item === "string" ? item : item?.url)
+            .filter(isHttpUrl);
+    }
+
+    return [];
+}
+
+function parseListUrls(data: any, extension: PluginListExtension): string[] {
+    if (extension === ".json") {
+        return parseJsonUrls(data);
+    }
+
+    if (extension === ".csv") {
+        return parseCsvUrls(data);
+    }
+
+    return parseUrls(data);
+}
+
+async function fetchPluginListUrls(uri: string, extension: PluginListExtension) {
+    const response = await axios.get(
+        uri,
+        extension === ".json"
+            ? { headers: NO_CACHE_HEADERS }
+            : undefined,
+    );
+    return parseListUrls(response.data, extension);
 }
 
 export default function BatchInstallPanel(props: IBatchInstallProps) {
@@ -43,33 +117,15 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
             return 0;
         }
         return Math.min(1, Math.max(0, progress.current / progress.total));
-    }, [progress.current, progress.total]);
-    const parseUrls = useCallback((text: string): string[] => {
-        return text
-            .split(/[\n,;，；]+/)
-            .map(u => u.trim())
-            .filter(u => u.length > 0 && (u.startsWith("http://") || u.startsWith("https://")));
-    }, []);
+    }, [progress]);
     const parsedUrlCount = useMemo(
         () => parseUrls(urlText).length,
-        [parseUrls, urlText],
+        [urlText],
     );
-
-    const parseCsvUrls = useCallback((csvText: string): string[] => {
-        const lines = csvText.split(/[\r\n]+/).filter(l => l.trim());
-        const urls: string[] = [];
-        for (const line of lines) {
-            const parts = line.split(",");
-            const url = parts[0]?.trim();
-            if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
-                urls.push(url);
-            }
-        }
-        return urls;
-    }, []);
 
     const installBatch = useCallback(async (urls: string[]) => {
         if (!urls.length) {
+            setInstalling(false);
             Toast.warn(t("pluginSetting.batchInstall.noValidUrls"));
             return;
         }
@@ -79,12 +135,14 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
 
         const successResults: IInstallPluginResult[] = [];
         const failResults: IInstallPluginResult[] = [];
+        const notCheckVersion = Config.getConfig("basic.notCheckPluginVersion");
 
         for (let i = 0; i < urls.length; i++) {
+            const pluginUrl = urls[i];
             setProgress({ current: i + 1, total: urls.length });
             try {
-                const result = await PluginManager.installPluginFromUrl(urls[i], {
-                    notCheckVersion: Config.getConfig("basic.notCheckPluginVersion"),
+                const result = await PluginManager.installPluginFromUrl(pluginUrl, {
+                    notCheckVersion,
                 });
                 if (result.success) {
                     successResults.push(result);
@@ -95,7 +153,7 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
                 failResults.push({
                     success: false,
                     message: e?.message ?? "",
-                    pluginUrl: urls[i],
+                    pluginUrl,
                 });
             }
         }
@@ -149,7 +207,7 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
             const urls = parseUrls(urlText);
             await installBatch(urls);
         }
-    }, [mode, urlText, parseUrls, installBatch]);
+    }, [mode, urlText, installBatch]);
 
     const handleImportFile = useCallback(async () => {
         try {
@@ -165,38 +223,14 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
             const file = results.assets[0];
             setInstalling(true);
 
-            let urls: string[] = [];
-
-            if (file.name?.endsWith(".json")) {
-                const response = await axios.get(file.uri, {
-                    headers: {
-                        "Cache-Control": "no-cache",
-                        Pragma: "no-cache",
-                        Expires: "0",
-                    },
-                });
-                const data = response.data;
-                if (Array.isArray(data?.plugins)) {
-                    urls = data.plugins
-                        .map((_: any) => _?.url)
-                        .filter((u: string) => u);
-                } else if (Array.isArray(data)) {
-                    urls = data
-                        .map((_: any) => typeof _ === "string" ? _ : _?.url)
-                        .filter((u: string) => u && (u.startsWith("http://") || u.startsWith("https://")));
-                }
-            } else if (file.name?.endsWith(".csv")) {
-                const response = await axios.get(file.uri);
-                urls = parseCsvUrls(response.data);
-            } else if (file.name?.endsWith(".txt")) {
-                const response = await axios.get(file.uri);
-                urls = parseUrls(response.data);
-            } else {
+            const extension = getListExtension(file.name);
+            if (!extension) {
                 setInstalling(false);
                 Toast.warn(t("pluginSetting.batchInstall.unsupportedFileType"));
                 return;
             }
 
+            const urls = await fetchPluginListUrls(file.uri, extension);
             await installBatch(urls);
         } catch (e: any) {
             setInstalling(false);
@@ -204,7 +238,7 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
                 reason: e?.message ?? "",
             }));
         }
-    }, [parseUrls, parseCsvUrls, installBatch, t]);
+    }, [installBatch, t]);
 
     const handleImportFromUrl = useCallback(async () => {
         if (!urlText.trim()) {
@@ -213,38 +247,16 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
         }
 
         const inputUrl = urlText.trim();
-        if (!inputUrl.startsWith("http://") && !inputUrl.startsWith("https://")) {
+        if (!isHttpUrl(inputUrl)) {
             Toast.warn(t("pluginSetting.batchInstall.noValidUrls"));
             return;
         }
 
-        if (inputUrl.endsWith(".json") || inputUrl.endsWith(".csv") || inputUrl.endsWith(".txt")) {
+        const extension = getListExtension(inputUrl);
+        if (extension) {
             setInstalling(true);
             try {
-                const response = await axios.get(inputUrl, {
-                    headers: {
-                        "Cache-Control": "no-cache",
-                        Pragma: "no-cache",
-                        Expires: "0",
-                    },
-                });
-                let urls: string[] = [];
-
-                if (inputUrl.endsWith(".json")) {
-                    const data = response.data;
-                    if (Array.isArray(data?.plugins)) {
-                        urls = data.plugins.map((_: any) => _?.url).filter((u: string) => u);
-                    } else if (Array.isArray(data)) {
-                        urls = data
-                            .map((_: any) => typeof _ === "string" ? _ : _?.url)
-                            .filter((u: string) => u && (u.startsWith("http://") || u.startsWith("https://")));
-                    }
-                } else if (inputUrl.endsWith(".csv")) {
-                    urls = parseCsvUrls(response.data);
-                } else {
-                    urls = parseUrls(response.data);
-                }
-
+                const urls = await fetchPluginListUrls(inputUrl, extension);
                 await installBatch(urls);
             } catch (e: any) {
                 setInstalling(false);
@@ -255,7 +267,7 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
         } else {
             await installBatch([inputUrl]);
         }
-    }, [urlText, parseUrls, parseCsvUrls, installBatch, t]);
+    }, [urlText, installBatch, t]);
 
     if (installing) {
         return (
@@ -504,7 +516,7 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
                                         />
                                         <View style={styles.fileBtnText}>
                                             <ThemeText fontSize="content" fontColor="primary" fontWeight="semibold">
-                                            {t("pluginSetting.batchInstall.selectFile")}
+                                                {t("pluginSetting.batchInstall.selectFile")}
                                             </ThemeText>
                                             <ThemeText fontSize="description" fontColor="textSecondary" style={styles.fileBtnSub}>
                                                 {t("pluginSetting.batchInstall.supportedFormats")}

@@ -5,7 +5,6 @@ import globalStyle from "@/constants/globalStyle";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import { ImgAsset } from "@/constants/assetsConst";
-import Color from "color";
 import musicHistory, { useMusicHistory } from "@/core/musicHistory";
 import AppBar from "@/components/base/appBar";
 import { ROUTE_PATH, useNavigate } from "@/core/router";
@@ -107,9 +106,19 @@ function HistoryHeader({ count }: { count: number }) {
         <View
             style={[
                 styles.headerCard,
-                { backgroundColor: colors.surfacePrimary },
+                {
+                    backgroundColor: colors.surfacePrimary,
+                    borderColor: colors.controlBorder ?? colors.divider,
+                },
             ]}>
-            <View style={[styles.headerIconWrap, { backgroundColor: Color(colors.primary).alpha(0.1).toString() }]}>
+            <View
+                style={[
+                    styles.headerIconWrap,
+                    {
+                        backgroundColor: colors.selectedBackground,
+                        borderColor: colors.selectedBorder,
+                    },
+                ]}>
                 <Icon
                     name="clock-outline"
                     size={rpx(40)}
@@ -279,7 +288,7 @@ export default function History() {
                     />
                     <ThemeText
                         fontColor="textSecondary"
-                        style={{ textAlign: "center", paddingHorizontal: spacing.xl, marginBottom: spacing.xl }}>
+                        style={styles.emptyGuide}>
                         {t("history.emptyGuide")}
                     </ThemeText>
                 </View>
@@ -300,12 +309,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.lg,
         borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
         marginBottom: spacing.lg,
     },
     headerIconWrap: {
         width: rpx(72),
         height: rpx(72),
         borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
         justifyContent: "center",
         alignItems: "center",
         marginRight: spacing.md,
@@ -362,5 +373,10 @@ const styles = StyleSheet.create({
     },
     itemMore: {
         padding: spacing.sm,
+    },
+    emptyGuide: {
+        textAlign: "center",
+        paddingHorizontal: spacing.xl,
+        marginBottom: spacing.xl,
     },
 });

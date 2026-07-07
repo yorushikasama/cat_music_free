@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import { SceneMap, TabBar, TabView } from "react-native-tab-view";
-import { fontWeightConst } from "@/constants/uiConst";
 import ResultList from "./resultList";
 import { useAtomValue } from "jotai";
 import { queryResultAtom } from "../store/atoms";
@@ -11,7 +10,7 @@ import useColors from "@/hooks/useColors";
 import { useI18N } from "@/core/i18n";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
-import Color from "color";
+import ThemeText from "@/components/base/themeText";
 
 const sceneMap: Record<string, React.FC> = {
     album: BodyContentWrapper,
@@ -35,11 +34,13 @@ export default function Body() {
     const [index, setIndex] = useState(0);
     const colors = useColors();
     const { t } = useI18N();
-    const activeBg = Color(colors.primary).alpha(0.12).rgb().string();
-    const activeBorder = Color(colors.primary).alpha(0.18).rgb().string();
     const activeLabelStyle = {
-        backgroundColor: activeBg,
-        borderColor: activeBorder,
+        backgroundColor: colors.selectedBackground,
+        borderColor: colors.selectedBorder,
+    };
+    const inactiveLabelStyle = {
+        backgroundColor: colors.controlBackground,
+        borderColor: colors.controlBorder ?? colors.divider,
     };
 
     return (
@@ -66,21 +67,15 @@ export default function Body() {
                                 style.label,
                                 focused
                                     ? activeLabelStyle
-                                    : style.inactiveLabel,
+                                    : inactiveLabelStyle,
                             ]}>
-                            <Text
+                            <ThemeText
                                 numberOfLines={1}
-                                style={[
-                                    style.labelText,
-                                    {
-                                        fontWeight: focused
-                                            ? fontWeightConst.bolder
-                                            : fontWeightConst.medium,
-                                        color,
-                                    },
-                                ]}>
+                                fontWeight={focused ? "bold" : "medium"}
+                                color={color}
+                                style={style.labelText}>
                                 {t(route.i18nKey as any) ?? route.title}
-                            </Text>
+                            </ThemeText>
                         </View>
                     )}
                 />
@@ -135,10 +130,6 @@ const style = StyleSheet.create({
         marginRight: spacing.xs,
         alignItems: "center",
         justifyContent: "center",
-    },
-    inactiveLabel: {
-        backgroundColor: "transparent",
-        borderColor: "transparent",
     },
     labelText: {
         textAlign: "center",

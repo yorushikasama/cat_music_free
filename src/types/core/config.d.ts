@@ -2,7 +2,7 @@ import type { ResumeMode, SortType } from "@/constants/commonConst.ts";
 import type { CustomizedColors } from "@/hooks/useColors";
 
 export interface IAppConfigProperties {
-    $schema: "2";
+    $schema: "3";
     // Basic
     "basic.autoPlayWhenAppStart": boolean;
     "basic.useCelluarNetworkPlay": boolean;

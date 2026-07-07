@@ -339,7 +339,7 @@ class LyricManager implements IInjectable {
      */
     private async searchSimilarLyric(musicItem: IMusic.IMusicItem) {
         const keyword = musicItem.alias || musicItem.title;
-        const plugins = this.pluginManager.getSearchablePlugins("lyric");
+        const plugins = this.pluginManager.getSortedSearchablePlugins("lyric");
 
         let distance = Infinity;
         let minDistanceMusicItem;

@@ -8,6 +8,7 @@ import { ImgAsset } from "@/constants/assetsConst";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 import useColors from "@/hooks/useColors";
+import { getSheetCover } from "@/utils/mediaUtils";
 import Color from "color";
 
 interface ISheetItemProps {
@@ -26,6 +27,8 @@ export default function SheetItem(props: ISheetItemProps) {
                 style={({ pressed }) => [
                     style.card,
                     {
+                        backgroundColor: colors.surfacePrimary,
+                        borderColor: colors.controlBorder ?? colors.divider,
                         opacity: pressed ? 0.84 : 1,
                     },
                 ]}
@@ -39,13 +42,13 @@ export default function SheetItem(props: ISheetItemProps) {
                     style={[
                         style.coverWrap,
                         {
-                            backgroundColor: colors.surfaceSecondary,
-                            shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000",
+                            backgroundColor: colors.controlBackground,
+                            borderColor: colors.controlBorder ?? colors.divider,
                         },
                     ]}>
                     <FastImage
                         style={style.cover}
-                        source={sheetInfo?.artwork ?? sheetInfo?.coverImg}
+                        source={getSheetCover(sheetInfo)}
                         placeholderSource={ImgAsset.albumDefault}
                     />
                     {sheetInfo?.platform ? (
@@ -57,6 +60,7 @@ export default function SheetItem(props: ISheetItemProps) {
                                         .alpha(0.9)
                                         .rgb()
                                         .string(),
+                                    borderColor: colors.controlBorder ?? colors.divider,
                                 },
                             ]}>
                             <ThemeText
@@ -88,16 +92,16 @@ const style = StyleSheet.create({
     },
     card: {
         width: "100%",
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: spacing.xs,
     },
     coverWrap: {
         width: "100%",
         aspectRatio: 1,
-        borderRadius: radius.lg,
+        borderRadius: radius.md,
+        borderWidth: StyleSheet.hairlineWidth,
         overflow: "hidden",
-        shadowOffset: { width: 0, height: rpx(5) },
-        shadowOpacity: 0.12,
-        shadowRadius: rpx(8),
-        elevation: 4,
     },
     cover: {
         width: "100%",
@@ -110,6 +114,7 @@ const style = StyleSheet.create({
         maxWidth: "84%",
         minHeight: rpx(30),
         borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: spacing.xs,
         alignItems: "center",
         justifyContent: "center",

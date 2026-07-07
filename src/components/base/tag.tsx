@@ -18,7 +18,10 @@ export default function Tag(props: ITagProps) {
         <View
             style={[
                 styles.tag,
-                { backgroundColor: colors.card, borderColor: colors.divider },
+                {
+                    backgroundColor: colors.controlBackground,
+                    borderColor: colors.controlBorder ?? colors.divider,
+                },
                 props.containerStyle,
             ]}>
             <ThemeText
@@ -36,14 +39,13 @@ const styles = StyleSheet.create({
         height: rpx(32),
         marginLeft: spacing.sm,
         paddingHorizontal: spacing.sm,
-        borderRadius: radius.xxl,
+        borderRadius: radius.pill,
         justifyContent: "center",
         alignItems: "center",
         alignSelf: "center",
         maxWidth: rpx(180),
         flexShrink: 0,
-        borderWidth: 1,
-        borderStyle: "solid",
+        borderWidth: StyleSheet.hairlineWidth,
     },
     tagText: {
         textAlignVertical: "center",

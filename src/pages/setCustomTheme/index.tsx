@@ -16,14 +16,14 @@ export default function SetCustomTheme() {
             appBar={(
                 <AppBar
                     actionComponent={(
-                    <Button
-                        style={styles.submit}
-                        onPress={() => {
-                            navigation.goBack();
-                        }}
-                        fontColor="appBarText">
-                        {t("common.done")}
-                    </Button>
+                        <Button
+                            style={styles.submit}
+                            onPress={() => {
+                                navigation.goBack();
+                            }}
+                            fontColor="appBarText">
+                            {t("common.done")}
+                        </Button>
                     )}>
                     {t("setCustomTheme.customizeBackground")}
                 </AppBar>

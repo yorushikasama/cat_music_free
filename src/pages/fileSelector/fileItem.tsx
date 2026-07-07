@@ -9,7 +9,6 @@ import ListItem from "@/components/base/listItem";
 import useColors from "@/hooks/useColors";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
-import Color from "color";
 
 interface IProps {
     type: "folder" | "file";
@@ -47,17 +46,8 @@ function FileItem(props: IProps) {
         <ListItem
             heightType="small"
             withHorizontalPadding
-            style={[
-                styles.container,
-                checked
-                    ? {
-                          backgroundColor: Color(colors.primary)
-                              .alpha(0.08)
-                              .rgb()
-                              .string(),
-                      }
-                    : null,
-            ]}
+            selected={checked}
+            style={styles.container}
             onPress={() => {
                 onItemPress(checked);
             }}>
@@ -68,14 +58,12 @@ function FileItem(props: IProps) {
                 containerStyle={[
                     styles.fileIcon,
                     {
-                        backgroundColor: Color(iconColor)
-                            .alpha(0.1)
-                            .rgb()
-                            .string(),
-                        borderColor: Color(iconColor)
-                            .alpha(0.16)
-                            .rgb()
-                            .string(),
+                        backgroundColor: checked
+                            ? colors.selectedBackground
+                            : colors.controlBackground,
+                        borderColor: checked
+                            ? colors.selectedBorder
+                            : colors.controlBorder ?? colors.divider,
                     },
                 ]}
             />

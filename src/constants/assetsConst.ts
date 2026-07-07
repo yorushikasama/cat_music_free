@@ -1,11 +1,23 @@
 export const ImgAsset = {
     albumDefault: require("@/assets/imgs/album-default.jpeg"),
+    favoriteDefault: require("@/assets/imgs/favorite-default.jpg"),
     addBackground: require("@/assets/imgs/add-image.png"),
     add: require("@/assets/imgs/add.png"),
     logo: require("@/assets/imgs/logo.png"),
     author: require("@/assets/imgs/author.jpg"),
     logoTransparent: require("@/assets/imgs/logo-transparent.png"),
     wechatChannel: require("@/assets/imgs/wechat_channel.jpg"),
+    fireflyThemeBackground: require("@/assets/imgs/firefly-theme-background.jpg"),
+    xilianTabIcons: {
+        fish: require("@/assets/imgs/xilian-tab-icons/xilian-fish.png"),
+        bath: require("@/assets/imgs/xilian-tab-icons/xilian-bath.png"),
+        picnic: require("@/assets/imgs/xilian-tab-icons/xilian-picnic.png"),
+        peach: require("@/assets/imgs/xilian-tab-icons/xilian-peach.png"),
+        maid: require("@/assets/imgs/xilian-tab-icons/xilian-maid.png"),
+        fox: require("@/assets/imgs/xilian-tab-icons/xilian-fox.png"),
+        sakura: require("@/assets/imgs/xilian-tab-icons/xilian-sakura.png"),
+        sunset: require("@/assets/imgs/xilian-tab-icons/xilian-sunset.png"),
+    },
     // 音质
     quality: {
         low: require("@/assets/imgs/low-quality.png"),

@@ -15,15 +15,16 @@ import { IIconName } from "@/components/base/icon.tsx";
 import { hidePanel } from "@/components/panels/usePanel.ts";
 import { iconSizeConst } from "@/constants/uiConst";
 import Config from "@/core/appConfig";
+import { useI18N } from "@/core/i18n";
 import lyricManager from "@/core/lyricManager";
 import mediaCache from "@/core/mediaCache";
 import LyricUtil from "@/native/lyricUtil";
+import { errorLog } from "@/utils/log";
 import { getDocumentAsync } from "expo-document-picker";
 import { readAsStringAsync } from "expo-file-system";
 import { FlatList } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PanelBase from "../base/panelBase";
-import { useI18N } from "@/core/i18n";
 
 interface IMusicItemLyricOptionsProps {
     /** 歌曲信息 */
@@ -46,6 +47,30 @@ export default function MusicItemLyricOptions(
 
     const safeAreaInsets = useSafeAreaInsets();
     const { t } = useI18N();
+
+    const uploadLocalLyric = async (type: "raw" | "translation" = "raw") => {
+        try {
+            const result = await getDocumentAsync({
+                copyToCacheDirectory: true,
+            });
+            if (result.canceled) {
+                return;
+            }
+
+            const pickedDoc = result.assets[0].uri;
+            const lyricContent = await readAsStringAsync(pickedDoc, {
+                encoding: "utf8",
+            });
+            await lyricManager.uploadLocalLyric(musicItem, lyricContent, type);
+            Toast.success(t("toast.settingSuccess"));
+            hidePanel();
+        } catch (e: any) {
+            errorLog("上传本地歌词失败", e?.message ?? e);
+            Toast.warn(t("panel.musicItemLyricOptions.settingFail", {
+                reason: e?.message,
+            }));
+        }
+    };
 
     const options: IOption[] = [
         {
@@ -74,7 +99,7 @@ export default function MusicItemLyricOptions(
                     Clipboard.setString(musicItem.artist.toString());
                     Toast.success(t("toast.copiedToClipboard"));
                 } catch {
-                    Toast.success(t("toast.copiedToClipboardFailed"));
+                    Toast.warn(t("toast.copiedToClipboardFailed"));
                 }
             },
         },
@@ -87,7 +112,7 @@ export default function MusicItemLyricOptions(
                     Clipboard.setString(musicItem.album.toString());
                     Toast.success(t("toast.copiedToClipboard"));
                 } catch {
-                    Toast.success(t("toast.copiedToClipboardFailed"));
+                    Toast.warn(t("toast.copiedToClipboardFailed"));
                 }
             },
         },
@@ -134,50 +159,14 @@ export default function MusicItemLyricOptions(
             icon: "arrow-up-tray",
             title: t("panel.musicItemLyricOptions.uploadLocalLyric"),
             async onPress() {
-                try {
-                    const result = await getDocumentAsync({
-                        copyToCacheDirectory: true,
-                    });
-                    if (result.canceled) {
-                        return;
-                    }
-                    const pickedDoc = result.assets[0].uri;
-                    const lyricContent = await readAsStringAsync(pickedDoc, {
-                        encoding: "utf8",
-                    });                    await lyricManager.uploadLocalLyric(musicItem, lyricContent);
-                    Toast.success(t("toast.settingSuccess"));
-                    hidePanel();
-                } catch (e: any) {
-                    console.log(e);
-                    Toast.warn(t("panel.musicItemLyricOptions.settingFail", {
-                        reason: e?.message,
-                    }));
-                }
+                await uploadLocalLyric();
             },
         },
         {
             icon: "arrow-up-tray",
             title: t("panel.musicItemLyricOptions.uploadLocalLyricTranslation"),
             async onPress() {
-                try {
-                    const result = await getDocumentAsync({
-                        copyToCacheDirectory: true,
-                    });
-                    if (result.canceled) {
-                        return;
-                    }
-                    const pickedDoc = result.assets[0].uri;
-                    const lyricContent = await readAsStringAsync(pickedDoc, {
-                        encoding: "utf8",
-                    });                    await lyricManager.uploadLocalLyric(musicItem, lyricContent, "translation");
-                    Toast.success(t("toast.settingSuccess"));
-                    hidePanel();
-                } catch (e: any) {
-                    console.log(e);
-                    Toast.warn(t("panel.musicItemLyricOptions.settingFail", {
-                        reason: e?.message,
-                    }));
-                }
+                await uploadLocalLyric("translation");
             },
         },
         {
@@ -188,7 +177,7 @@ export default function MusicItemLyricOptions(
                     lyricManager.removeLocalLyric(musicItem);
                     hidePanel();
                 } catch (e: any) {
-                    console.log(e);
+                    errorLog("删除本地歌词失败", e?.message ?? e);
                     Toast.warn(t("panel.musicItemLyricOptions.deleteFail", {
                         reason: e?.message,
                     }));

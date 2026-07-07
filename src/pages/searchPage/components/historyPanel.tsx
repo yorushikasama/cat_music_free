@@ -25,7 +25,6 @@ import { useI18N } from "@/core/i18n";
 import useColors from "@/hooks/useColors";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
-import Color from "color";
 
 export default function () {
     const [history, setHistory] = useState<string[] | null>(null);
@@ -36,8 +35,6 @@ export default function () {
     const setSearchResultsState = useSetAtom(searchResultsAtom);
     const { t } = useI18N();
     const colors = useColors();
-    const chipBackground = Color(colors.primary).alpha(0.1).rgb().string();
-    const chipBorder = Color(colors.primary).alpha(0.16).rgb().string();
 
     useEffect(() => {
         getHistory().then(setHistory);
@@ -70,8 +67,8 @@ export default function () {
                             style={[
                                 style.clearButton,
                                 {
-                                    backgroundColor: colors.surfaceSecondary,
-                                    borderColor: colors.divider,
+                                    backgroundColor: colors.controlBackground,
+                                    borderColor: colors.controlBorder ?? colors.divider,
                                 },
                             ]}
                             fontColor="textSecondary"
@@ -92,8 +89,8 @@ export default function () {
                                     containerStyle={[
                                         style.chip,
                                         {
-                                            backgroundColor: chipBackground,
-                                            borderColor: chipBorder,
+                                            backgroundColor: colors.selectedBackground,
+                                            borderColor: colors.selectedBorder,
                                         },
                                     ]}
                                     onClose={async () => {

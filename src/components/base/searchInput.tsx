@@ -48,10 +48,10 @@ export default function SearchInput(props: ISearchInputProps) {
             style={[
                 styles.container,
                 {
-                    backgroundColor: colors.surfacePrimary ?? colors.card,
+                    backgroundColor: colors.controlBackground ?? colors.surfacePrimary ?? colors.card,
                     borderColor: focused
-                        ? Color(colors.primary).alpha(0.5).rgb().string()
-                        : colors.divider ?? Color(textColor).alpha(0.12).rgb().string(),
+                        ? colors.selectedBorder
+                        : colors.controlBorder ?? colors.divider ?? Color(textColor).alpha(0.12).rgb().string(),
                 },
                 containerStyle,
             ]}>

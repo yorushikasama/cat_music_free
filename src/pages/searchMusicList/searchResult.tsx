@@ -9,7 +9,6 @@ import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import useColors from "@/hooks/useColors";
 import { useI18N } from "@/core/i18n";
-import Color from "color";
 
 interface ISearchResultProps {
     result: IMusic.IMusicItem[];
@@ -38,7 +37,7 @@ export default function SearchResult(props: ISearchResultProps) {
                             styles.header,
                             {
                                 backgroundColor: colors.surfacePrimary,
-                                borderColor: colors.divider,
+                                borderColor: colors.controlBorder ?? colors.divider,
                             },
                         ]}>
                         <View>
@@ -67,7 +66,8 @@ export default function SearchResult(props: ISearchResultProps) {
                             style={[
                                 styles.badge,
                                 {
-                                    backgroundColor: Color(colors.primary).alpha(0.12).rgb().string(),
+                                    backgroundColor: colors.selectedBackground,
+                                    borderColor: colors.selectedBorder,
                                 },
                             ]}>
                             <ThemeText
@@ -88,7 +88,6 @@ export default function SearchResult(props: ISearchResultProps) {
                     minHeight={rpx(540)}
                 />
             }
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
             data={result}
             renderItem={({ item }) => (
                 <MusicItem
@@ -97,8 +96,7 @@ export default function SearchResult(props: ISearchResultProps) {
                     containerStyle={[
                         styles.item,
                         {
-                            backgroundColor: colors.surfacePrimary,
-                            borderColor: colors.divider,
+                            borderBottomColor: colors.divider,
                         },
                     ]}
                 />
@@ -131,17 +129,13 @@ const styles = StyleSheet.create({
         minWidth: rpx(56),
         height: rpx(44),
         borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: spacing.sm,
         alignItems: "center",
         justifyContent: "center",
         marginLeft: spacing.md,
     },
     item: {
-        borderRadius: radius.lg,
-        borderWidth: StyleSheet.hairlineWidth,
-        overflow: "hidden",
-    },
-    separator: {
-        height: spacing.sm,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
 });

@@ -15,6 +15,7 @@ import {
     useWindowDimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useAtomValue } from "jotai";
 import Color from "color";
@@ -29,7 +30,11 @@ import { RequestStateCode, musicHistorySheetId } from "@/constants/commonConst";
 import { showPanel } from "@/components/panels/usePanel";
 import useColors from "@/hooks/useColors";
 import rpx from "@/utils/rpx";
-import { getMediaUniqueKey } from "@/utils/mediaUtils";
+import {
+    getMediaUniqueKey,
+    getSheetCover,
+    resetMediaItem,
+} from "@/utils/mediaUtils";
 
 import Tag from "@/components/base/tag";
 import ThemeText from "@/components/base/themeText";
@@ -41,12 +46,15 @@ import SearchInput from "@/components/base/searchInput";
 
 import { useI18N } from "@/core/i18n";
 import { ROUTE_PATH, useNavigate } from "@/core/router";
-import PluginManager, { usePlugins } from "@/core/pluginManager";
+import PluginManager, {
+    useSortedEnabledPluginsWithAbility,
+} from "@/core/pluginManager";
 import { useMusicHistory } from "@/core/musicHistory";
 import TrackPlayer, { useCurrentMusic } from "@/core/trackPlayer";
 
 import { pluginsTopListAtom } from "@/pages/topList/store/atoms";
 import useGetTopList from "@/pages/topList/hooks/useGetTopList";
+import { HOME_BOTTOM_CONTENT_SPACING } from "../bottomAreaMetrics";
 
 // ==================== 常量 ====================
 const SECTION_TITLE_SIZE = fontSizeConst.title;
@@ -56,7 +64,6 @@ const SHEET_IMAGE_SIZE = rpx(280);
 const SONG_IMAGE_SIZE = rpx(112);
 const RECENT_PLAY_COUNT = 6;
 const QUICK_GRID_GAP = spacing.md;
-const HOME_BOTTOM_OVERLAY_SPACE = rpx(286);
 const HOME_RECOMMEND_PAGE_WINDOW = 5;
 const HOME_RECOMMEND_PAGE_SIZE = 10;
 
@@ -127,7 +134,14 @@ function DiscoverSection(props: IDiscoverSectionProps) {
     const colors = useColors();
 
     return (
-        <View style={[styles.sectionContainer, { backgroundColor: colors.surfacePrimary }]}>
+        <View
+            style={[
+                styles.sectionContainer,
+                {
+                    backgroundColor: colors.surfacePrimary,
+                    borderColor: colors.divider,
+                },
+            ]}>
             <View style={styles.sectionHeader}>
                 <ThemeText
                     fontSize="title"
@@ -170,7 +184,7 @@ function SheetCard(props: ISheetCardProps) {
             }}>
             <FastImage
                 style={styles.sheetImage}
-                source={sheet.artwork ?? sheet.coverImg}
+                source={getSheetCover(sheet)}
                 placeholderSource={ImgAsset.albumDefault}
             />
             <ThemeText
@@ -374,7 +388,7 @@ function TopListSection(props: {
                         }}>
                         <FastImage
                             style={styles.topListImage}
-                            source={item.coverImg}
+                            source={getSheetCover(item)}
                             placeholderSource={ImgAsset.albumDefault}
                         />
                         <View style={styles.topListInfo}>
@@ -438,20 +452,15 @@ export default function Discover() {
     const navigate = useNavigate();
     const navigation = useNavigation<any>();
     const { width } = useWindowDimensions();
-
-    const plugins = usePlugins();
+    const safeAreaInsets = useSafeAreaInsets();
 
     // 获取支持推荐歌单的插件
-    const recommendPlugins = useMemo(
-        () => PluginManager.getSortedPluginsWithAbility("getRecommendSheetsByTag"),
-        [plugins],
+    const recommendPlugins = useSortedEnabledPluginsWithAbility(
+        "getRecommendSheetsByTag",
     );
 
     // 获取支持榜单的插件
-    const topListPlugins = useMemo(
-        () => PluginManager.getSortedPluginsWithAbility("getTopLists"),
-        [plugins],
-    );
+    const topListPlugins = useSortedEnabledPluginsWithAbility("getTopLists");
 
     // 推荐歌单数据
     const [recommendSheets, setRecommendSheets] = useState<
@@ -480,12 +489,12 @@ export default function Discover() {
             setRecommendState(RequestStateCode.PENDING_FIRST_PAGE);
         }
         try {
-            const plugins = shuffleArray(recommendPlugins).slice(0, 2);
+            const selectedPlugins = shuffleArray(recommendPlugins).slice(0, 2);
             const pageSeed = refresh
                 ? Math.floor(Math.random() * HOME_RECOMMEND_PAGE_WINDOW) + 1
                 : 1;
             const results = await Promise.allSettled(
-                plugins.map(plugin =>
+                selectedPlugins.map(plugin =>
                     Promise.resolve(
                         plugin.methods?.getRecommendSheetsByTag?.(
                             { title: t("common.default"), id: "" },
@@ -503,10 +512,13 @@ export default function Discover() {
                     if (result.status !== "fulfilled" || !result.value) {
                         return [];
                     }
-                    return result.value.data.map(item => ({
-                        ...item,
-                        platform: item.platform ?? result.value.plugin.instance.platform,
-                    }));
+                    return result.value.data.map(item =>
+                        resetMediaItem(
+                            item,
+                            result.value.plugin.instance.platform,
+                            true,
+                        ),
+                    );
                 }),
             );
 
@@ -590,11 +602,21 @@ export default function Discover() {
         rpx(138),
         (quickGridWidth - QUICK_GRID_GAP * 3) / 4,
     );
+    const scrollContentStyle = useMemo(
+        () => [
+            styles.scrollContent,
+            {
+                paddingBottom:
+                    HOME_BOTTOM_CONTENT_SPACING + safeAreaInsets.bottom,
+            },
+        ],
+        [safeAreaInsets.bottom],
+    );
 
     return (
         <ScrollView
             style={globalStyle.fwflex1}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={scrollContentStyle}
             refreshControl={
                 <RefreshControl
                     refreshing={refreshing}
@@ -785,8 +807,6 @@ export default function Discover() {
                     <TopListSkeletonSection />
                 ) : null}
 
-            {/* 底部留白 */}
-            <View style={styles.bottomSpacing} />
         </ScrollView>
     );
 }
@@ -828,7 +848,7 @@ const styles = StyleSheet.create({
     },
     quickActionItem: {
         minHeight: rpx(116),
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -844,7 +864,7 @@ const styles = StyleSheet.create({
         marginHorizontal: spacing.lg,
         marginBottom: spacing.xl,
         padding: spacing.lg,
-        borderRadius: radius.xxl,
+        borderRadius: radius.lg,
         borderWidth: StyleSheet.hairlineWidth,
     },
     emptyGuideIcon: {
@@ -887,7 +907,8 @@ const styles = StyleSheet.create({
     sectionContainer: {
         marginBottom: spacing.xl,
         marginHorizontal: spacing.lg,
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
         overflow: "hidden",
     },
     sectionHeader: {
@@ -913,7 +934,7 @@ const styles = StyleSheet.create({
     sheetImage: {
         width: SHEET_IMAGE_SIZE,
         height: SHEET_IMAGE_SIZE,
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         overflow: "hidden",
         marginBottom: spacing.sm,
     },
@@ -987,8 +1008,5 @@ const styles = StyleSheet.create({
     },
     topListDesc: {
         marginTop: rpx(4),
-    },
-    bottomSpacing: {
-        height: HOME_BOTTOM_OVERLAY_SPACE,
     },
 });

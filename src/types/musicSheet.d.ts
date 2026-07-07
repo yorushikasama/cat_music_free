@@ -3,6 +3,12 @@ declare namespace IMusic {
         /** 封面图 */
         coverImg?: string;
         artwork?: string;
+        cover?: string;
+        coverUrl?: string;
+        coverImgUrl?: string;
+        picUrl?: string;
+        img?: string;
+        image?: string;
         /** 标题 */
         title?: string;
         /** 作者 */

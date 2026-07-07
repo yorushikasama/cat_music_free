@@ -7,18 +7,15 @@ export interface IIndexMap {
 export function createMediaIndexMap(
     mediaItems: ICommon.IMediaBase[],
 ): IIndexMap {
-    const indexMap: Record<string, Record<string, number>> = {};
+    const indexMap: Record<string, Record<string, number>> = Object.create(null);
 
     mediaItems.forEach((item, index) => {
-        // 映射中不存在
-        if (!indexMap[item.platform]) {
-            indexMap[item.platform] = {
-                [item.id]: index,
-            };
-        } else {
-            // 修改映射
-            indexMap[item.platform][item.id] = index;
+        let platformMap = indexMap[item.platform];
+        if (!platformMap) {
+            platformMap = Object.create(null);
+            indexMap[item.platform] = platformMap;
         }
+        platformMap[item.id] = index;
     });
 
     function getIndexMap() {

@@ -1,6 +1,5 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import Color from "color";
 
 import ListItem from "@/components/base/listItem";
 import { ImgAsset } from "@/constants/assetsConst";
@@ -9,22 +8,12 @@ import ThemeText from "@/components/base/themeText";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import useColors from "@/hooks/useColors";
+import { getSheetCover } from "@/utils/mediaUtils";
 import rpx from "@/utils/rpx";
 
 interface ITopListResultsProps {
     pluginHash: string;
     topListItem: IMusic.IMusicSheetItemBase;
-}
-
-function alpha(color: string | undefined, value: number, fallback: string) {
-    if (!color) {
-        return fallback;
-    }
-    try {
-        return Color(color).alpha(value).rgb().string();
-    } catch {
-        return fallback;
-    }
 }
 
 export default function TopListItem(props: ITopListResultsProps) {
@@ -40,11 +29,8 @@ export default function TopListItem(props: ITopListResultsProps) {
             style={[
                 styles.row,
                 {
-                    backgroundColor: alpha(
-                        colors.surfacePrimary,
-                        0.78,
-                        colors.card,
-                    ),
+                    backgroundColor: colors.surfacePrimary,
+                    borderColor: colors.controlBorder ?? colors.divider,
                 },
             ]}
             onPress={() => {
@@ -54,7 +40,7 @@ export default function TopListItem(props: ITopListResultsProps) {
                 });
             }}>
             <ListItem.ListItemImage
-                uri={topListItem?.coverImg}
+                uri={getSheetCover(topListItem)}
                 fallbackImg={ImgAsset.albumDefault}
                 contentStyle={styles.cover}
             />
@@ -83,10 +69,8 @@ export default function TopListItem(props: ITopListResultsProps) {
                                 style={[
                                     styles.platformPill,
                                     {
-                                        backgroundColor: Color(colors.primary)
-                                            .alpha(0.1)
-                                            .rgb()
-                                            .string(),
+                                        backgroundColor: colors.selectedBackground,
+                                        borderColor: colors.selectedBorder,
                                     },
                                 ]}>
                                 <ThemeText
@@ -111,6 +95,7 @@ const styles = StyleSheet.create({
         marginHorizontal: spacing.xl,
         marginBottom: spacing.md,
         borderRadius: radius.md,
+        borderWidth: StyleSheet.hairlineWidth,
         paddingVertical: spacing.xs,
     },
     cover: {
@@ -122,6 +107,7 @@ const styles = StyleSheet.create({
         alignSelf: "flex-start",
         minHeight: rpx(30),
         borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: spacing.xs,
         justifyContent: "center",
         marginTop: spacing.xs,

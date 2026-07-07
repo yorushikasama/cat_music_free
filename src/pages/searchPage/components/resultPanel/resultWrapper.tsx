@@ -5,13 +5,11 @@ import useOrientation from "@/hooks/useOrientation";
 import rpx from "@/utils/rpx";
 import { FlashList } from "@shopify/flash-list";
 import { useAtomValue } from "jotai";
-import React, { memo, useCallback, useEffect, useState } from "react";
+import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import useSearch from "../../hooks/useSearch";
 import { ISearchResult, queryAtom } from "../../store/atoms";
 import { renderMap } from "./results";
-import useColors from "@/hooks/useColors";
-import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 import SkeletonList from "@/components/base/skeleton";
 
@@ -32,7 +30,7 @@ function ResultWrapper(props: IResultWrapperProps) {
     );
     const orientation = useOrientation();
     const query = useAtomValue(queryAtom);
-    const colors = useColors();
+    const initialSearchKeyRef = useRef<string | null>(null);
 
     const ResultComponent = renderMap[tab]!;
     const data: any = searchResult?.data ?? [];
@@ -44,10 +42,15 @@ function ResultWrapper(props: IResultWrapperProps) {
     );
 
     useEffect(() => {
-        if (searchState === RequestStateCode.IDLE) {
+        const searchKey = `${tab}:${pluginHash}:${query}`;
+        if (
+            searchState === RequestStateCode.IDLE &&
+            initialSearchKeyRef.current !== searchKey
+        ) {
+            initialSearchKeyRef.current = searchKey;
             search(query, 1, tab, pluginHash);
         }
-    }, []);
+    }, [pluginHash, query, search, searchState, tab]);
 
     useEffect(() => {
         setSearchState(searchResult?.state ?? RequestStateCode.IDLE);
@@ -63,23 +66,7 @@ function ResultWrapper(props: IResultWrapperProps) {
             />
         );
 
-        if (isSheet) {
-            return content;
-        }
-
-        return (
-            <View
-                style={[
-                    styles.resultCard,
-                    {
-                        backgroundColor: colors.surfacePrimary,
-                        borderColor: colors.divider,
-                        shadowColor: colors.shadow,
-                    },
-                ]}>
-                {content}
-            </View>
-        );
+        return content;
     };
 
     return searchState === RequestStateCode.PENDING_FIRST_PAGE ? (
@@ -132,19 +119,8 @@ const styles = StyleSheet.create({
         paddingTop: spacing.md,
         paddingBottom: rpx(180),
     },
-    resultCard: {
-        borderRadius: radius.lg,
-        borderWidth: StyleSheet.hairlineWidth,
-        overflow: "hidden",
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 1,
-    },
     separator: {
-        height: spacing.sm,
+        height: StyleSheet.hairlineWidth,
+        marginLeft: spacing.md,
     },
 });

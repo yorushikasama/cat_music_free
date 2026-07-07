@@ -33,10 +33,12 @@ export default function ThemeCard(props: IThemeCardProps) {
                 style={[
                     styles.borderContainer,
                     {
-                        backgroundColor: colors.surfaceSecondary,
+                        backgroundColor: selected
+                            ? colors.selectedBackground
+                            : colors.controlBackground,
                         borderColor: selected
-                            ? colors.primary
-                            : colors.divider,
+                            ? colors.selectedBorder
+                            : colors.controlBorder ?? colors.divider,
                     },
                 ]}>
                 <View
@@ -76,7 +78,7 @@ const styles = StyleSheet.create({
     borderContainer: {
         width: rpx(156),
         height: rpx(156),
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         borderWidth: StyleSheet.hairlineWidth,
         justifyContent: "center",
         alignItems: "center",
@@ -85,7 +87,7 @@ const styles = StyleSheet.create({
     container: {
         width: rpx(128),
         height: rpx(128),
-        borderRadius: radius.md,
+        borderRadius: radius.sm,
         overflow: "hidden",
     },
     title: {
@@ -96,6 +98,6 @@ const styles = StyleSheet.create({
     image: {
         width: "100%",
         height: "100%",
-        borderRadius: radius.md,
+        borderRadius: radius.sm,
     },
 });

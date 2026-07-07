@@ -5,7 +5,7 @@ import rpx, { vmax, vw } from "@/utils/rpx";
 import Button from "@/components/base/textButton.tsx";
 import PanelBase from "../../base/panelBase";
 import useSearchLrc from "./useSearchLrc";
-import PluginManager from "@/core/pluginManager";
+import { useSortedSearchablePlugins } from "@/core/pluginManager";
 import { SceneMap, TabView } from "react-native-tab-view";
 import LyricList from "./LyricList";
 import globalStyle from "@/constants/globalStyle";
@@ -104,13 +104,21 @@ const style = StyleSheet.create({
 function LyricResultBodyWrapper() {
     const [index, setIndex] = useState(0);
     const { t } = useI18N();
+    const plugins = useSortedSearchablePlugins("lyric");
 
-    const routes = useMemo(() => PluginManager.getSortedSearchablePlugins("lyric")?.map?.(
+    const routes = useMemo(() => plugins.map(
         _ => ({
             key: _.hash,
             title: _.name,
         }),
-    ) ?? [], []);
+    ), [plugins]);
+
+    useEffect(() => {
+        if (index >= routes.length) {
+            setIndex(Math.max(routes.length - 1, 0));
+        }
+    }, [index, routes.length]);
+    const activeIndex = routes.length ? Math.min(index, routes.length - 1) : 0;
 
     const sceneMap = useMemo(() => {
         const scene: Record<string, any> = {};
@@ -126,7 +134,7 @@ function LyricResultBodyWrapper() {
             style={globalStyle.fwflex1}
             lazy
             navigationState={{
-                index,
+                index: activeIndex,
                 routes,
             }}
             renderTabBar={_ => (

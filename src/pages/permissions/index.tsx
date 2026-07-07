@@ -1,12 +1,11 @@
 import AppBar from "@/components/base/appBar";
-import ThemeSwitch from "@/components/base/switch";
 import ThemeText from "@/components/base/themeText";
 import Icon, { IIconName } from "@/components/base/icon";
 import { useI18N } from "@/core/i18n";
 import LyricUtil from "@/native/lyricUtil";
 import NativeUtils from "@/native/utils";
 import rpx from "@/utils/rpx";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import PageShell from "@/components/base/pageShell";
 import { spacing } from "@/constants/spacing";
@@ -27,10 +26,8 @@ export default function Permissions() {
     const { t } = useI18N();
     const colors = useColors();
 
-    async function checkPermission(type?: IPermissionTypes) {
-        let newPermission = {
-            ...permissions,
-        };
+    const checkPermission = useCallback(async (type?: IPermissionTypes) => {
+        const newPermission: Partial<Record<IPermissionTypes, boolean>> = {};
         if (!type || type === "floatingWindow") {
             const hasPermission = await LyricUtil.checkSystemAlertPermission();
             newPermission.floatingWindow = hasPermission;
@@ -40,8 +37,11 @@ export default function Permissions() {
             newPermission.fileStorage = hasPermission;
         }
 
-        setPermissions(newPermission);
-    }
+        setPermissions(prev => ({
+            ...prev,
+            ...newPermission,
+        }));
+    }, []);
 
     useEffect(() => {
         checkPermission();
@@ -62,7 +62,7 @@ export default function Permissions() {
         return () => {
             subscription.remove();
         };
-    }, []);
+    }, [checkPermission]);
 
     const permissionItems: Array<{
         type: IPermissionTypes;
@@ -97,7 +97,7 @@ export default function Permissions() {
                         styles.intro,
                         {
                             backgroundColor: colors.surfacePrimary,
-                            borderColor: colors.divider,
+                            borderColor: colors.controlBorder ?? colors.divider,
                         },
                     ]}>
                     <ThemeText fontSize="title" fontWeight="semibold">
@@ -123,8 +123,8 @@ export default function Permissions() {
                                 {
                                     backgroundColor: colors.surfacePrimary,
                                     borderColor: granted
-                                        ? Color(colors.primary).alpha(0.26).rgb().string()
-                                        : colors.divider,
+                                        ? colors.selectedBorder
+                                        : colors.controlBorder ?? colors.divider,
                                     opacity: pressed ? 0.82 : 1,
                                 },
                             ]}>
@@ -153,7 +153,11 @@ export default function Permissions() {
                                         style={styles.permissionTitle}>
                                         {item.title}
                                     </ThemeText>
-                                    <ThemeSwitch value={granted} />
+                                    <Icon
+                                        name="chevron-right"
+                                        size={rpx(26)}
+                                        color={colors.textSecondary}
+                                    />
                                 </View>
                                 <ThemeText
                                     fontSize="description"
@@ -162,15 +166,30 @@ export default function Permissions() {
                                     style={styles.permissionDescription}>
                                     {item.description}
                                 </ThemeText>
-                                <ThemeText
-                                    fontSize="description"
-                                    fontWeight="semibold"
-                                    color={granted ? colors.primary : colors.textSecondary}
-                                    style={styles.permissionState}>
-                                    {granted
-                                        ? t("permissionSetting.granted")
-                                        : t("permissionSetting.goAuthorize")}
-                                </ThemeText>
+                                <View style={styles.permissionFooter}>
+                                    <View
+                                        style={[
+                                            styles.permissionBadge,
+                                            {
+                                                backgroundColor: Color(granted ? colors.primary : colors.textSecondary)
+                                                    .alpha(granted ? 0.12 : 0.08)
+                                                    .rgb()
+                                                    .string(),
+                                                borderColor: granted
+                                                    ? colors.selectedBorder
+                                                    : colors.controlBorder ?? colors.divider,
+                                            },
+                                        ]}>
+                                        <ThemeText
+                                            fontSize="description"
+                                            fontWeight="semibold"
+                                            color={granted ? colors.primary : colors.textSecondary}>
+                                            {granted
+                                                ? t("permissionSetting.granted")
+                                                : t("permissionSetting.goAuthorize")}
+                                        </ThemeText>
+                                    </View>
+                                </View>
                             </View>
                         </Pressable>
                     );
@@ -191,7 +210,7 @@ const styles = StyleSheet.create({
     },
     intro: {
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         padding: spacing.lg,
         marginBottom: spacing.md,
     },
@@ -201,7 +220,7 @@ const styles = StyleSheet.create({
     permissionCard: {
         flexDirection: "row",
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         padding: spacing.lg,
         marginBottom: spacing.md,
     },
@@ -227,7 +246,16 @@ const styles = StyleSheet.create({
     permissionDescription: {
         marginTop: spacing.xs,
     },
-    permissionState: {
+    permissionFooter: {
         marginTop: spacing.md,
+        flexDirection: "row",
+    },
+    permissionBadge: {
+        minHeight: rpx(38),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: spacing.sm,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });

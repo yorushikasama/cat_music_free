@@ -1,21 +1,30 @@
 import NoPlugin from "@/components/base/noPlugin";
 import { useI18N } from "@/core/i18n";
-import PluginManager from "@/core/pluginManager";
+import { useSortedEnabledPluginsWithAbility } from "@/core/pluginManager";
 import { vw } from "@/utils/rpx";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { TabView } from "react-native-tab-view";
 import SheetBody from "./sheetBody";
 import SourceTabBar from "@/components/base/sourceTabBar";
 
 export default function Body() {
     const [index, setIndex] = useState(0);
-    const routes = PluginManager.getSortedPluginsWithAbility("getRecommendSheetsByTag").map(
-        _ => ({
+    const plugins = useSortedEnabledPluginsWithAbility("getRecommendSheetsByTag");
+    const routes = useMemo(
+        () => plugins.map(_ => ({
             key: _.hash,
             title: _.name,
-        }),
+        })),
+        [plugins],
     );
     const { t } = useI18N();
+
+    useEffect(() => {
+        if (index >= routes.length) {
+            setIndex(Math.max(routes.length - 1, 0));
+        }
+    }, [index, routes.length]);
+    const activeIndex = routes.length ? Math.min(index, routes.length - 1) : 0;
 
     const renderTabBar = (_: any) => (
         <SourceTabBar
@@ -31,7 +40,7 @@ export default function Body() {
         <TabView
             lazy
             navigationState={{
-                index,
+                index: activeIndex,
                 routes,
             }}
             renderTabBar={renderTabBar}

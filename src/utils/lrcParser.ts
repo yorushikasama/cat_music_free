@@ -1,5 +1,7 @@
 const timeReg = /\[[\d:.]+\]/g;
 const metaReg = /\[(.+):(.+)\]/g;
+const lineBreakReg = /\r?\n/;
+const hasTimeReg = /\[[\d:.]+\]/;
 
 type LyricMeta = Record<string, any>;
 
@@ -57,9 +59,26 @@ export default class LyricParser {
         this.meta = meta;
         this.lrcItems = lrcItems;
 
-        if (translation) {
+        if (translation?.trim()) {
             this.hasTranslation = true;
+            if (!hasTimeReg.test(translation)) {
+                const translationLines = translation
+                    .trim()
+                    .split(lineBreakReg)
+                    .map(line => line.trim());
+                this.lrcItems.forEach((lrcItem, index) => {
+                    lrcItem.translation = translationLines[index] ?? "";
+                });
+                return;
+            }
+
             const transLrcItems = this.parseLyricImpl(translation).lrcItems;
+            if (transLrcItems.length === 0) {
+                this.lrcItems.forEach(lrcItem => {
+                    lrcItem.translation = "";
+                });
+                return;
+            }
 
             // 2 pointer
             let p1 = 0;

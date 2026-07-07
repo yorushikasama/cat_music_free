@@ -33,7 +33,7 @@ export default function useSearch() {
                 const tgtPlugin = PluginManager.getByHash(pluginHash);
                 tgtPlugin && (plugins = [tgtPlugin]);
             } else {
-                plugins = PluginManager.getSearchablePlugins();
+                plugins = PluginManager.getSortedSearchablePlugins();
             }
             if (plugins.length === 0) {
                 setPageStatus(PageStatus.NO_PLUGIN);
@@ -76,9 +76,8 @@ export default function useSearch() {
 
                 /** 搜索的页码 */
                 const page =
-                    queryPage ?? newSearch
-                        ? 1
-                        : (prevPluginResult?.page ?? 0) + 1;
+                    queryPage ??
+                    (newSearch ? 1 : (prevPluginResult?.page ?? 0) + 1);
 
                 trace("开始搜索", {
                     _platform,
@@ -126,7 +125,7 @@ export default function useSearch() {
                     setSearchResults(
                         produce(draft => {
                             const prevMediaResult = draft[searchType];
-                            const prevPluginResult: any = prevMediaResult[
+                            const cachedPluginResult: any = prevMediaResult[
                                 _hash
                             ] ?? {
                                 data: [],
@@ -143,7 +142,7 @@ export default function useSearch() {
                                 page,
                                 data: newSearch
                                     ? currResult
-                                    : (prevPluginResult.data ?? []).concat(
+                                    : (cachedPluginResult.data ?? []).concat(
                                         currResult,
                                     ),
                             };
@@ -167,11 +166,11 @@ export default function useSearch() {
                     setSearchResults(
                         produce(draft => {
                             const prevMediaResult = draft[searchType];
-                            const prevPluginResult = prevMediaResult[_hash] ?? {
+                            const failedPluginResult = prevMediaResult[_hash] ?? {
                                 data: [],
                             };
 
-                            prevPluginResult.state =
+                            failedPluginResult.state =
                                 RequestStateCode.ERROR;
                             return draft;
                         }),
@@ -179,7 +178,7 @@ export default function useSearch() {
                 }
             });
         },
-        [searchResults],
+        [searchResults, setPageStatus, setSearchResults],
     );
 
     return search;

@@ -5,6 +5,7 @@ import React from "react";
 import { StyleSheet } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import ActionButton from "../ActionButton";
+import { ImgAsset } from "@/constants/assetsConst";
 
 export default function Operations() {
     const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function Operations() {
     const actionButtons = [
         {
             iconName: "fire",
+            acgMascot: ImgAsset.xilianTabIcons.picnic,
             title: t("home.recommendSheet"),
             action() {
                 navigate(ROUTE_PATH.RECOMMEND_SHEETS);
@@ -21,6 +23,7 @@ export default function Operations() {
         },
         {
             iconName: "trophy",
+            acgMascot: ImgAsset.xilianTabIcons.peach,
             title: t("home.topList"),
             action() {
                 navigate(ROUTE_PATH.TOP_LIST);
@@ -28,6 +31,7 @@ export default function Operations() {
         },
         {
             iconName: "clock-outline",
+            acgMascot: ImgAsset.xilianTabIcons.sunset,
             title: t("home.playHistory"),
             action() {
                 navigate(ROUTE_PATH.HISTORY);
@@ -35,6 +39,7 @@ export default function Operations() {
         },
         {
             iconName: "folder-music-outline",
+            acgMascot: ImgAsset.xilianTabIcons.bath,
             title: t("home.localMusic"),
             action() {
                 navigate(ROUTE_PATH.LOCAL);

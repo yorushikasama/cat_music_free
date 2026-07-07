@@ -44,7 +44,7 @@ function Section(props: ISectionProps) {
                 style.section,
                 {
                     backgroundColor: colors.surfacePrimary,
-                    borderColor: colors.divider,
+                    borderColor: colors.controlBorder ?? colors.divider,
                 },
             ]}>
             <ThemeText
@@ -113,7 +113,7 @@ export default function AboutSetting() {
                     style.hero,
                     {
                         backgroundColor: colors.surfacePrimary,
-                        borderColor: colors.divider,
+                        borderColor: colors.controlBorder ?? colors.divider,
                     },
                     orientation === "horizontal" ? style.horizontalHero : null,
                 ]}>
@@ -141,6 +141,7 @@ export default function AboutSetting() {
                             style.badge,
                             {
                                 backgroundColor: primaryTint,
+                                borderColor: colors.selectedBorder,
                             },
                         ]}>
                         <ThemeText
@@ -154,7 +155,8 @@ export default function AboutSetting() {
                         style={[
                             style.badge,
                             {
-                                backgroundColor: colors.surfaceSecondary,
+                                backgroundColor: colors.controlBackground,
+                                borderColor: colors.controlBorder ?? colors.divider,
                             },
                         ]}>
                         <ThemeText
@@ -279,7 +281,7 @@ const style = StyleSheet.create({
         marginTop: spacing.lg,
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.xl,
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         borderWidth: StyleSheet.hairlineWidth,
         alignItems: "center",
     },
@@ -312,6 +314,7 @@ const style = StyleSheet.create({
     badge: {
         height: rpx(44),
         borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: spacing.md,
         alignItems: "center",
         justifyContent: "center",
@@ -332,7 +335,7 @@ const style = StyleSheet.create({
         marginTop: spacing.lg,
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.lg,
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         borderWidth: StyleSheet.hairlineWidth,
     },
     sectionTitle: {

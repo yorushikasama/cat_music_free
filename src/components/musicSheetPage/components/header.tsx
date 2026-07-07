@@ -2,6 +2,7 @@ import React from "react";
 import PlayAllBar from "@/components/base/playAllBar";
 import MediaDetailHeader from "@/components/mediaDetailHeader";
 import { useI18N } from "@/core/i18n";
+import { getSheetCover } from "@/utils/mediaUtils";
 
 interface IHeaderProps {
     musicSheet: IMusic.IMusicSheetItem | null;
@@ -15,7 +16,7 @@ export default function Header(props: IHeaderProps) {
 
     return (
         <MediaDetailHeader
-            cover={musicSheet?.artwork ?? musicSheet?.coverImg}
+            cover={getSheetCover(musicSheet)}
             title={musicSheet?.title}
             subtitle={t("sheetDetail.totalMusicCount", { count })}
             platform={musicSheet?.platform}

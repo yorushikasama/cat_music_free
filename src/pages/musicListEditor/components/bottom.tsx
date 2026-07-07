@@ -137,27 +137,32 @@ function BottomIcon(props: IBottomIconProps) {
     const { icon, title, onPress, disabled, danger } = props;
     const colors = useColors();
     const iconColor = disabled
-        ? colors.textSecondary
+        ? colors.disabledText ?? colors.textSecondary
         : danger
             ? colors.danger ?? colors.text
             : colors.text;
     const backgroundColor = disabled
-        ? colors.surfaceSecondary
+        ? colors.controlBackground
         : danger
             ? Color(colors.danger ?? colors.primary).alpha(0.1).rgb().string()
-            : Color(colors.primary).alpha(0.1).rgb().string();
+            : colors.selectedBackground;
+    const borderColor = disabled
+        ? colors.controlBorder ?? colors.divider
+        : danger
+            ? Color(colors.danger ?? colors.primary).alpha(0.22).rgb().string()
+            : colors.selectedBorder;
 
     return (
         <Pressable
             disabled={disabled}
+            accessibilityRole="button"
+            accessibilityState={{ disabled }}
             onPress={onPress}
             style={({ pressed }) => [
                 style.bottomIconWrapper,
                 {
                     backgroundColor,
-                    borderColor: disabled
-                        ? colors.divider
-                        : Color(iconColor).alpha(0.18).rgb().string(),
+                    borderColor,
                     opacity: pressed ? 0.78 : 1,
                 },
             ]}>
@@ -169,7 +174,7 @@ function BottomIcon(props: IBottomIconProps) {
             <ThemeText
                 fontSize="description"
                 color={iconColor}
-                opacity={disabled ? 0.62 : undefined}
+                opacity={disabled ? 0.7 : undefined}
                 numberOfLines={1}
                 style={style.bottomIconText}>
                 {title}

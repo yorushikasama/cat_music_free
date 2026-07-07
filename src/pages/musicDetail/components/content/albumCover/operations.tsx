@@ -1,25 +1,43 @@
-import React, { useMemo } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import React from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import rpx from "@/utils/rpx";
 
-import { ImgAsset } from "@/constants/assetsConst";
-import { iconSizeConst } from "@/constants/uiConst";
+import { fontSizeConst, iconSizeConst } from "@/constants/uiConst";
 import Icon from "@/components/base/icon.tsx";
 import { showPanel } from "@/components/panels/usePanel";
 import LocalMusicSheet from "@/core/localMusicSheet";
 import downloader from "@/core/downloader";
 import i18n from "@/core/i18n";
 import { ROUTE_PATH } from "@/core/router";
-import PluginManager from "@/core/pluginManager";
-import TrackPlayer, { useCurrentMusic, useMusicQuality } from "@/core/trackPlayer";
+import TrackPlayer, {
+    useCurrentMusic,
+    useMusicQuality,
+} from "@/core/trackPlayer";
 import useColors from "@/hooks/useColors";
 import useOrientation from "@/hooks/useOrientation";
 import Toast from "@/utils/toast";
-import toast from "@/utils/toast";
 import PersistStatus from "@/utils/persistStatus";
 import HeartIcon from "../heartIcon";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
+import { getDetailControlPalette } from "../../controlPalette";
+
+const QUALITY_LABELS = {
+    low: "低",
+    standard: "标",
+    high: "高",
+    super: "超",
+} as const;
+
+function getRateLabel(rate: number) {
+    const value = rate / 100;
+
+    if (Number.isInteger(value)) {
+        return `${value.toFixed(1)}x`;
+    }
+
+    return `${value.toFixed(2).replace(/0$/, "")}x`;
+}
 
 export default function Operations() {
     const musicItem = useCurrentMusic();
@@ -29,20 +47,12 @@ export default function Operations() {
     const rate = PersistStatus.useValue("music.rate", 100);
     const orientation = useOrientation();
     const colors = useColors();
+    const palette = getDetailControlPalette(colors);
 
-    const iconColor = colors.text;
-    const actionBgColor = colors.hasCustomBackground
-        ? colors.surfacePrimary
-        : "rgba(255,255,255,0.10)";
-    const actionBorderColor = colors.divider ?? "rgba(255,255,255,0.16)";
-
-    const supportComment = useMemo(() => {
-        return !musicItem
-            ? false
-            : !!PluginManager.getByMedia(musicItem)?.supportedMethods.has("getMusicComments");
-    }, [musicItem]);
-
-    const qualityImgStyle = styles.quality;
+    const pressedStyle = { backgroundColor: palette.pressedOverlay };
+    const mediaLabelTextStyle = { color: palette.mediaLabelTextColor };
+    const rateLabel = getRateLabel(rate ?? 100);
+    const qualityLabel = QUALITY_LABELS[currentQuality] ?? "标";
 
     return (
         <View
@@ -50,15 +60,19 @@ export default function Operations() {
                 styles.wrapper,
                 orientation === "horizontal" ? styles.horizontalWrapper : null,
                 {
-                    backgroundColor: actionBgColor,
-                    borderColor: actionBorderColor,
+                    backgroundColor: palette.capsuleSurface,
+                    borderColor: palette.borderColor,
+                    shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000",
                 },
             ]}>
             <View style={styles.actionButton}>
                 <HeartIcon />
             </View>
             <Pressable
-                style={styles.actionButton}
+                style={({ pressed }) => [
+                    styles.actionButton,
+                    pressed ? pressedStyle : null,
+                ]}
                 onPress={() => {
                     if (!musicItem) {
                         return;
@@ -69,21 +83,24 @@ export default function Operations() {
                             const changeResult =
                                 await TrackPlayer.changeQuality(quality);
                             if (!changeResult) {
-                                Toast.warn(i18n.t("toast.currentQualityNotAvailableForCurrentMusic"));
+                                Toast.warn(
+                                    i18n.t(
+                                        "toast.currentQualityNotAvailableForCurrentMusic",
+                                    ),
+                                );
                             }
                         },
                     });
                 }}>
-                <Image
-                    source={ImgAsset.quality[currentQuality]}
-                    style={qualityImgStyle}
-                />
+                <Text style={[styles.mediaLabelText, mediaLabelTextStyle]}>
+                    {qualityLabel}
+                </Text>
             </Pressable>
-            <Icon
-                style={styles.actionIcon}
-                name={isDownloaded ? "check-circle-outline" : "arrow-down-tray"}
-                size={iconSizeConst.normal}
-                color={iconColor}
+            <Pressable
+                style={({ pressed }) => [
+                    styles.actionButton,
+                    pressed ? pressedStyle : null,
+                ]}
                 onPress={() => {
                     if (musicItem && !isDownloaded) {
                         showPanel("MusicQuality", {
@@ -94,10 +111,22 @@ export default function Operations() {
                             },
                         });
                     }
-                }}
-            />
+                }}>
+                <Icon
+                    name={
+                        isDownloaded
+                            ? "check-circle-outline"
+                            : "arrow-down-tray"
+                    }
+                    size={iconSizeConst.normal}
+                    color={palette.iconColor}
+                />
+            </Pressable>
             <Pressable
-                style={styles.actionButton}
+                style={({ pressed }) => [
+                    styles.actionButton,
+                    pressed ? pressedStyle : null,
+                ]}
                 onPress={() => {
                     if (!musicItem) {
                         return;
@@ -108,36 +137,20 @@ export default function Operations() {
                                 try {
                                     await TrackPlayer.setRate(newRate / 100);
                                     PersistStatus.set("music.rate", newRate);
-                                } catch { }
+                                } catch {}
                             }
                         },
                     });
                 }}>
-                <Image source={ImgAsset.rate[rate!]} style={qualityImgStyle} />
+                <Text style={[styles.mediaLabelText, mediaLabelTextStyle]}>
+                    {rateLabel}
+                </Text>
             </Pressable>
-            <Icon
-                style={styles.actionIcon}
-                name="chat-bubble-oval-left-ellipsis"
-                size={iconSizeConst.normal}
-                color={iconColor}
-                opacity={supportComment ? 1 : 0.2}
-                onPress={() => {
-                    if (!supportComment) {
-                        toast.warn(i18n.t("toast.commmentNotAvaliableForCurrentMusic"));
-                        return;
-                    }
-                    if (musicItem) {
-                        showPanel("MusicComment", {
-                            musicItem,
-                        });
-                    }
-                }}
-            />
-            <Icon
-                style={styles.actionIcon}
-                name="ellipsis-vertical"
-                size={iconSizeConst.normal}
-                color={iconColor}
+            <Pressable
+                style={({ pressed }) => [
+                    styles.actionButton,
+                    pressed ? pressedStyle : null,
+                ]}
                 onPress={() => {
                     if (musicItem) {
                         showPanel("MusicItemOptions", {
@@ -145,8 +158,13 @@ export default function Operations() {
                             from: ROUTE_PATH.MUSIC_DETAIL,
                         });
                     }
-                }}
-            />
+                }}>
+                <Icon
+                    name="ellipsis-vertical"
+                    size={iconSizeConst.normal}
+                    color={palette.iconColor}
+                />
+            </Pressable>
         </View>
     );
 }
@@ -154,34 +172,36 @@ export default function Operations() {
 const styles = StyleSheet.create({
     wrapper: {
         alignSelf: "center",
-        minWidth: rpx(620),
-        height: rpx(88),
-        marginBottom: rpx(16),
+        minWidth: rpx(540),
+        height: rpx(76),
+        marginBottom: rpx(10),
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: spacing.xs,
         borderRadius: radius.pill,
         borderWidth: StyleSheet.hairlineWidth,
+        shadowOffset: { width: 0, height: rpx(3) },
+        shadowOpacity: 0.04,
+        shadowRadius: rpx(7),
+        elevation: 1,
     },
     horizontalWrapper: {
         marginBottom: 0,
-        minWidth: rpx(520),
+        minWidth: rpx(468),
     },
     actionButton: {
-        width: rpx(72),
-        height: rpx(72),
+        width: rpx(68),
+        height: rpx(68),
+        borderRadius: radius.pill,
         justifyContent: "center",
         alignItems: "center",
     },
-    actionIcon: {
-        width: rpx(72),
-        height: rpx(72),
+    mediaLabelText: {
+        fontSize: fontSizeConst.content,
+        fontWeight: "700",
+        includeFontPadding: false,
+        letterSpacing: 0,
         textAlign: "center",
-        textAlignVertical: "center",
-    },
-    quality: {
-        width: rpx(52),
-        height: rpx(52),
     },
 });

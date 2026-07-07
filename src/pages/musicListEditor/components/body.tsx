@@ -14,11 +14,15 @@ import globalStyle from "@/constants/globalStyle";
 import musicHistory from "@/core/musicHistory";
 import MusicSheet from "@/core/musicSheet";
 import { useI18N } from "@/core/i18n";
+import useColors from "@/hooks/useColors";
+import { spacing } from "@/constants/spacing";
+import { radius } from "@/constants/borderRadius";
 
 export default function Body() {
     const { musicSheet } = useParams<"music-list-editor">();
 
     const { t } = useI18N();
+    const colors = useColors();
     const [editingMusicList, setEditingMusicList] =
         useAtom(editingMusicListAtom);
     const [musicListChanged, setMusicListChanged] =
@@ -27,15 +31,32 @@ export default function Body() {
         () => editingMusicList.filter(_ => _.checked),
         [editingMusicList],
     );
+    const shouldSelectAll =
+        selectedItems.length !== editingMusicList.length &&
+        editingMusicList.length > 0;
+    const canSave = musicListChanged && !!musicSheet?.id;
+
     return (
         <HorizontalSafeAreaView style={globalStyle.flex1}>
-            <View style={style.header}>
+            <View
+                style={[
+                    style.header,
+                    {
+                        backgroundColor: colors.surfacePrimary,
+                        borderBottomColor: colors.controlBorder ?? colors.divider,
+                    },
+                ]}>
                 <Button
+                    withHorizontalPadding
+                    style={[
+                        style.headerButton,
+                        {
+                            backgroundColor: colors.controlBackground,
+                            borderColor: colors.controlBorder ?? colors.divider,
+                        },
+                    ]}
                     onPress={() => {
-                        if (
-                            selectedItems.length !== editingMusicList.length &&
-                            editingMusicList.length
-                        ) {
+                        if (shouldSelectAll) {
                             setEditingMusicList(
                                 editingMusicList.map(_ => ({
                                     musicItem: _.musicItem,
@@ -51,20 +72,32 @@ export default function Body() {
                             );
                         }
                     }}>
-                    {`${selectedItems.length !== editingMusicList.length &&
-                        editingMusicList.length
+                    {`${shouldSelectAll
                         ? t("common.selectAll")
                         : t("common.unselectAll")
                     } (${t("musicListEditor.selectMusicCount", { count: selectedItems.length })})`}
                 </Button>
                 <Button
+                    withHorizontalPadding
                     fontColor={
-                        musicListChanged && musicSheet?.id
+                        canSave
                             ? "primary"
                             : "textSecondary"
                     }
+                    style={[
+                        style.headerButton,
+                        canSave ? null : style.headerButtonDisabled,
+                        {
+                            backgroundColor: canSave
+                                ? colors.selectedBackground
+                                : colors.controlBackground,
+                            borderColor: canSave
+                                ? colors.selectedBorder
+                                : colors.controlBorder ?? colors.divider,
+                        },
+                    ]}
                     onPress={async () => {
-                        if (musicListChanged && musicSheet?.id) {
+                        if (canSave && musicSheet?.id) {
                             if (musicSheet.id === localMusicSheetId) {
                                 await LocalMusicSheet.updateMusicList(
                                     editingMusicList.map(_ => _.musicItem),
@@ -95,9 +128,22 @@ export default function Body() {
 const style = StyleSheet.create({
     header: {
         flexDirection: "row",
-        height: rpx(88),
-        paddingHorizontal: rpx(24),
+        minHeight: rpx(88),
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
         alignItems: "center",
         justifyContent: "space-between",
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        gap: spacing.sm,
+    },
+    headerButton: {
+        minHeight: rpx(56),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    headerButtonDisabled: {
+        opacity: 0.68,
     },
 });

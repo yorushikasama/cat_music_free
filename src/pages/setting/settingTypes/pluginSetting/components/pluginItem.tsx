@@ -207,14 +207,15 @@ function _PluginItem(props: IPluginItemProps) {
                 styles.container,
                 {
                     backgroundColor: colors.surfacePrimary,
-                    borderColor: colors.divider,
+                    borderColor: colors.controlBorder ?? colors.divider,
                 },
             ]}>
             <View style={styles.header}>
                 <View style={styles.headerPluginContainer}>
                     <ThemeText
                         numberOfLines={1}
-                        fontSize="title">
+                        fontSize="subTitle"
+                        fontWeight="semibold">
                         {plugin.name}
                     </ThemeText>
                     {
@@ -268,8 +269,8 @@ function _PluginItem(props: IPluginItemProps) {
                             containerStyle={[
                                 styles.optionButton,
                                 {
-                                    backgroundColor: colors.surfaceSecondary,
-                                    borderColor: colors.divider,
+                                    backgroundColor: colors.controlBackground,
+                                    borderColor: colors.controlBorder ?? colors.divider,
                                 },
                             ]}
                             onPress={it.onPress}>

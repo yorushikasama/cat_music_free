@@ -300,11 +300,11 @@ export default function PluginMarket() {
                                         styles.filterChip,
                                         {
                                             backgroundColor: active
-                                                ? Color(colors.primary).alpha(0.14).rgb().string()
-                                                : colors.surfaceSecondary,
+                                                ? colors.selectedBackground
+                                                : colors.controlBackground,
                                             borderColor: active
-                                                ? Color(colors.primary).alpha(0.32).rgb().string()
-                                                : colors.divider,
+                                                ? colors.selectedBorder
+                                                : colors.controlBorder ?? colors.divider,
                                             opacity: pressed ? 0.82 : 1,
                                         },
                                     ]}>
@@ -323,7 +323,7 @@ export default function PluginMarket() {
                             styles.notice,
                             {
                                 backgroundColor: colors.surfacePrimary,
-                                borderColor: colors.divider,
+                                borderColor: colors.controlBorder ?? colors.divider,
                             },
                         ]}>
                         <Icon
@@ -397,8 +397,8 @@ export default function PluginMarket() {
                             styles.bottomBar,
                             {
                                 backgroundColor: colors.surfacePrimary,
-                                borderColor: colors.divider,
-                                shadowColor: colors.shadow,
+                                borderColor: colors.controlBorder ?? colors.divider,
+                                shadowColor: colors.shadowMedium ?? colors.shadow,
                             },
                         ]}>
                         <View style={styles.bottomInfo}>
@@ -470,7 +470,7 @@ function MarketPluginItem(props: IMarketPluginItemProps) {
     const colors = useColors();
     const { t } = useI18N();
     const host = getHost(item.url);
-    const selectedColor = Color(colors.primary).alpha(0.12).rgb().string();
+    const selectedColor = colors.selectedBackground;
 
     return (
         <Pressable
@@ -483,8 +483,8 @@ function MarketPluginItem(props: IMarketPluginItemProps) {
                         ? selectedColor
                         : colors.surfacePrimary,
                     borderColor: selected
-                        ? Color(colors.primary).alpha(0.34).rgb().string()
-                        : colors.divider,
+                        ? colors.selectedBorder
+                        : colors.controlBorder ?? colors.divider,
                     opacity: pressed ? 0.82 : 1,
                 },
             ]}>
@@ -494,10 +494,10 @@ function MarketPluginItem(props: IMarketPluginItemProps) {
                     {
                         backgroundColor: selected || installed
                             ? colors.primary
-                            : colors.surfaceSecondary,
+                            : colors.controlBackground,
                         borderColor: selected || installed
                             ? colors.primary
-                            : colors.divider,
+                            : colors.controlBorder ?? colors.divider,
                     },
                 ]}>
                 <Icon
@@ -683,13 +683,13 @@ const styles = StyleSheet.create({
         left: spacing.md,
         right: spacing.md,
         bottom: spacing.md,
-        borderRadius: radius.xl,
+        borderRadius: radius.lg,
         borderWidth: StyleSheet.hairlineWidth,
         padding: spacing.md,
-        shadowOffset: { width: 0, height: rpx(4) },
-        shadowOpacity: 0.14,
+        shadowOffset: { width: 0, height: rpx(3) },
+        shadowOpacity: 0.12,
         shadowRadius: rpx(8),
-        elevation: 8,
+        elevation: 5,
     },
     bottomInfo: {
         flexDirection: "row",

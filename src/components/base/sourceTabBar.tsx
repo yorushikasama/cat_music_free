@@ -25,8 +25,8 @@ export default function SourceTabBar(props: ISourceTabBarProps) {
         .alpha(colors.hasCustomBackground ? 0.58 : 0.92)
         .rgb()
         .string();
-    const activeBg = Color(colors.primary).alpha(0.09).rgb().string();
-    const activeBorder = Color(colors.primary).alpha(0.18).rgb().string();
+    const activeBg = colors.selectedBackground ?? Color(colors.primary).alpha(0.09).rgb().string();
+    const activeBorder = colors.selectedBorder ?? Color(colors.primary).alpha(0.18).rgb().string();
     const quietDivider = Color(colors.divider ?? colors.text)
         .alpha(colors.hasCustomBackground ? 0.12 : 0.22)
         .rgb()
@@ -47,6 +47,19 @@ export default function SourceTabBar(props: ISourceTabBarProps) {
                 contentContainerStyle={styles.scrollContent}>
                 {navigationState.routes.map((route, routeIndex) => {
                     const focused = routeIndex === navigationState.index;
+                    const tabStateStyle = {
+                        backgroundColor: focused
+                            ? activeBg
+                            : "transparent",
+                        borderColor: focused
+                            ? activeBorder
+                            : "transparent",
+                    };
+                    const indicatorStyle = {
+                        backgroundColor: focused
+                            ? colors.primary
+                            : "transparent",
+                    };
                     return (
                         <Pressable
                             key={route.key}
@@ -55,15 +68,8 @@ export default function SourceTabBar(props: ISourceTabBarProps) {
                             onPress={() => jumpTo(route.key)}
                             style={({ pressed }) => [
                                 styles.tab,
-                                {
-                                    backgroundColor: focused
-                                        ? activeBg
-                                        : "transparent",
-                                    borderColor: focused
-                                        ? activeBorder
-                                        : "transparent",
-                                    opacity: pressed ? 0.82 : 1,
-                                },
+                                tabStateStyle,
+                                pressed ? styles.pressed : null,
                             ]}>
                             <ThemeText
                                 numberOfLines={1}
@@ -75,11 +81,7 @@ export default function SourceTabBar(props: ISourceTabBarProps) {
                             <View
                                 style={[
                                     styles.indicator,
-                                    {
-                                        backgroundColor: focused
-                                            ? colors.primary
-                                            : "transparent",
-                                    },
+                                    indicatorStyle,
                                 ]}
                             />
                         </Pressable>
@@ -114,6 +116,9 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         marginRight: spacing.sm,
+    },
+    pressed: {
+        opacity: 0.82,
     },
     indicator: {
         position: "absolute",

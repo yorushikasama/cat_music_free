@@ -8,12 +8,17 @@ import { showPanel } from "../panels/usePanel";
 import useColors from "@/hooks/useColors";
 import IconButton from "../base/iconButton";
 import Theme from "@/core/theme";
-import TrackPlayer, { useCurrentMusic, useMusicState, useProgress } from "@/core/trackPlayer";
+import TrackPlayer, {
+    useCurrentMusic,
+    useMusicState,
+    useProgress,
+} from "@/core/trackPlayer";
 import { musicIsPaused } from "@/utils/trackUtils";
 import MusicInfo from "./musicInfo";
 import Icon from "@/components/base/icon.tsx";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
+import ThemedBackgroundLayer from "@/components/base/themedBackground";
 
 type IMusicBarVariant = "default" | "floating";
 
@@ -79,12 +84,12 @@ function MusicBar(props: IMusicBarProps) {
     const isFloating = variant === "floating";
     const barBgColor = colors.musicBar ?? colors.surfacePrimary;
     const playlistIconColor = colors.playlistIconColor;
+    const hasSyncedBackground = colors.hasBackgroundImage;
 
-    const wrapperBorderRadius = isFloating
-        ? radius.xxl
-        : theme.dark
-            ? radius.md
-            : radius.xl;
+    let wrapperBorderRadius = theme.dark ? radius.md : radius.xl;
+    if (isFloating) {
+        wrapperBorderRadius = radius.xxl;
+    }
     const horizontalInset = isFloating ? spacing.md : 0;
     const musicInfoPaddingLeft = isFloating ? spacing.md : undefined;
     const wrapperVariantStyle = isFloating
@@ -113,17 +118,29 @@ function MusicBar(props: IMusicBarProps) {
                 },
             ]}
             accessible
-            accessibilityLabel={`歌曲: ${musicItem?.title} 歌手: ${musicItem?.artist}`}
-        >
+            accessibilityLabel={`歌曲: ${musicItem?.title} 歌手: ${musicItem?.artist}`}>
+            {hasSyncedBackground ? (
+                <>
+                    <ThemedBackgroundLayer
+                        withBase={false}
+                        style={styles.backgroundLayer}
+                    />
+                    <View
+                        pointerEvents="none"
+                        style={[
+                            styles.backgroundTint,
+                            {
+                                backgroundColor: barBgColor,
+                            },
+                        ]}
+                    />
+                </>
+            ) : null}
             <MusicInfo
                 musicItem={musicItem}
                 paddingLeft={musicInfoPaddingLeft}
             />
-            <View
-                style={[
-                    styles.actionGroup,
-                    actionGroupVariantStyle,
-                ]}>
+            <View style={[styles.actionGroup, actionGroupVariantStyle]}>
                 <CircularPlayBtn />
                 <Icon
                     accessible
@@ -157,6 +174,12 @@ const styles = StyleSheet.create({
     },
     floatingWrapper: {
         height: rpx(112),
+    },
+    backgroundLayer: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    backgroundTint: {
+        ...StyleSheet.absoluteFillObject,
     },
     dockedShadow: {
         shadowOffset: { width: 0, height: -2 },

@@ -12,6 +12,7 @@ import { ROUTE_PATH, useNavigate } from "@/core/router";
 import useColors from "@/hooks/useColors";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
+import { getSheetCover } from "@/utils/mediaUtils";
 import Toast from "@/utils/toast";
 import rpx from "@/utils/rpx";
 import { FlashList } from "@shopify/flash-list";
@@ -102,6 +103,8 @@ export default function Sheets() {
                 data={(index === 0 ? allSheets : staredSheets) ?? []}
                 estimatedItemSize={ListItem.Size.big}
                 renderItem={({ item: sheet }) => {
+                    const isDefaultSheet =
+                        sheet.id === MusicSheet.defaultSheet.id;
                     const isLocalSheet = !(
                         sheet.platform &&
                         sheet.platform !== localPluginPlatform
@@ -125,13 +128,13 @@ export default function Sheets() {
                                 }
                             }}>
                             <ListItem.ListItemImage
-                                uri={sheet.coverImg ?? sheet.artwork}
-                                fallbackImg={ImgAsset.albumDefault}
-                                maskIcon={
-                                    sheet.id === MusicSheet.defaultSheet.id
-                                        ? "heart"
-                                        : null
+                                uri={getSheetCover(sheet)}
+                                fallbackImg={
+                                    isDefaultSheet
+                                        ? ImgAsset.favoriteDefault
+                                        : ImgAsset.albumDefault
                                 }
+                                maskIcon={null}
                                 contentStyle={styles.coverImage}
                             />
                             <ListItem.Content
@@ -144,7 +147,7 @@ export default function Sheets() {
                                         : `${sheet.artist ?? ""}`
                                 }
                             />
-                            {sheet.id !== MusicSheet.defaultSheet.id ? (
+                            {!isDefaultSheet ? (
                                 <ListItem.ListItemIcon
                                     position="right"
                                     icon="trash-outline"

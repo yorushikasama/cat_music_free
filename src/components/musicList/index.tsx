@@ -154,13 +154,20 @@ export default function MusicList(props: IMusicListProps) {
             {showBadge && (
                 <View style={styles.badge} pointerEvents="box-none">
                     <Pressable
-                        style={[styles.badgeButton, { backgroundColor: colors.notification }]}
+                        style={[
+                            styles.badgeButton,
+                            {
+                                backgroundColor: colors.controlBackground ?? colors.surfacePrimary,
+                                borderColor: colors.selectedBorder ?? colors.primary,
+                                shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000",
+                            },
+                        ]}
                         onPress={scrollToHighlight}
                     >
                         <Icon
                             name="crosshair"
                             size={iconSizeConst.normal}
-                            color={colors.text}
+                            color={colors.primary}
                         />
                     </Pressable>
                 </View>
@@ -183,15 +190,15 @@ const styles = StyleSheet.create({
         width: rpx(64),
         height: rpx(64),
         borderRadius: rpx(32),
+        borderWidth: StyleSheet.hairlineWidth,
         justifyContent: "center",
         alignItems: "center",
-        shadowColor: "#000",
         shadowOffset: {
             width: 0,
             height: 2,
         },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+        elevation: 3,
     },
 });

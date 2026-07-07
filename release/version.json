@@ -1,15 +1,13 @@
 {
-  "version": "0.6.10",
+  "version": "0.6.11",
   "changeLog": [
-    "重新设计发现新版本弹窗，更新内容会实时读取远端版本配置",
-    "优化更新弹窗的信息层级、版本标识、下载入口和跳过版本操作",
-    "修复定时关闭面板内容无法下滑的问题",
-    "优化批量安装插件面板，改为分段入口、内容滚动和底部固定操作栏",
-    "提升插件安装输入区、文件导入区和安装进度的视觉一致性"
+    "更换 Android 应用图标为新版 custom_icon",
+    "优化应用界面主题、首页、播放页及设置页细节",
+    "清理旧设计稿和临时资源"
   ],
   "download": [
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v0.6.10/app-arm64-v8a-release.apk",
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v0.6.11/app-arm64-v8a-release.apk",
     "https://fcn294wj6t7e.feishu.cn/drive/folder/OPBTfWOgylTFrndwg4dcVSg6nTc?from=from_copylink",
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v0.6.10/app-universal-release.apk"
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v0.6.11/app-universal-release.apk"
   ]
 }
