@@ -165,7 +165,9 @@ FEISHU_BOT_RECEIVE_ID=replace_with_target_chat_or_user_id
 - 不超过 20MB：走 `/drive/v1/files/upload_all` 普通上传。
 - 超过 20MB：走 `/drive/v1/files/upload_prepare`、`/drive/v1/files/upload_part`、`/drive/v1/files/upload_finish` 分片上传。
 
-APK 变大后不需要手动改命令。
+分片上传会使用飞书返回的 `block_size` 和 `block_num` 逐块上传，分片序号从 `0` 开始，并为每块附带 Adler-32 checksum。飞书文档说明分片事务 24 小时内有效，接口遇到 `1061045 can retry` 或临时 HTTP 错误时脚本会自动重试。
+
+如果超过 20MB 后仍返回 `1061043 file size beyond limit`，说明当前飞书租户、版本或目标空间仍有更低的文件大小限制；这时脚本已经走到分片上传的预上传接口，但服务端拒绝了该大小。需要升级/调整飞书空间限制，或改用 GitHub/Gitee Releases 等备用下载源。
 
 ## 常见错误
 

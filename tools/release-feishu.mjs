@@ -7,6 +7,9 @@ const MAX_SIMPLE_UPLOAD_SIZE = 20 * 1024 * 1024;
 const DEFAULT_APK_PATH = "android/app/build/outputs/apk/release/app-arm64-v8a-release.apk";
 const DEFAULT_VERSION_JSON = "release/version.json";
 const ADLER_MOD = 65521;
+const FEISHU_MAX_RETRIES = 3;
+const FEISHU_RETRY_BASE_DELAY_MS = 1000;
+const FEISHU_RETRYABLE_CODES = new Set([1061045]);
 
 function parseArgs(argv) {
     const args = {};
@@ -89,21 +92,78 @@ async function writeJson(filePath, data) {
     await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
 }
 
-async function feishuRequest(pathname, options = {}) {
-    const response = await fetch(`${FEISHU_API}${pathname}`, options);
-    const text = await response.text();
-    let json;
-    try {
-        json = text ? JSON.parse(text) : {};
-    } catch {
-        json = { raw: text };
+function formatMB(size) {
+    return (size / 1024 / 1024).toFixed(2);
+}
+
+function sleep(ms) {
+    return new Promise(resolve => {
+        setTimeout(resolve, ms);
+    });
+}
+
+function getRetryDelayMs(response, attempt) {
+    const retryAfter = response.headers.get("retry-after");
+    if (retryAfter) {
+        const seconds = Number(retryAfter);
+        if (Number.isFinite(seconds) && seconds >= 0) {
+            return seconds * 1000;
+        }
+
+        const retryAt = Date.parse(retryAfter);
+        if (!Number.isNaN(retryAt)) {
+            return Math.max(0, retryAt - Date.now());
+        }
     }
 
-    if (!response.ok || (typeof json.code === "number" && json.code !== 0)) {
-        const msg = json.msg || json.message || response.statusText;
-        throw new Error(`Feishu API failed: ${pathname} (${response.status}) ${msg}`);
+    return FEISHU_RETRY_BASE_DELAY_MS * (2 ** attempt);
+}
+
+function createFeishuError(pathname, response, json) {
+    const msg = json.msg || json.message || response.statusText;
+    const code = typeof json.code === "number" ? ` code ${json.code}` : "";
+    const error = new Error(`Feishu API failed: ${pathname} (${response.status}${code}) ${msg}`);
+    error.status = response.status;
+    error.feishuCode = json.code;
+    error.feishuMessage = msg;
+    return error;
+}
+
+function shouldRetryFeishuRequest(response, json) {
+    if (response.status === 429 || response.status >= 500) {
+        return true;
     }
-    return json;
+    return FEISHU_RETRYABLE_CODES.has(json.code);
+}
+
+async function feishuRequest(pathname, options = {}) {
+    const { retries = FEISHU_MAX_RETRIES, ...fetchOptions } = options;
+
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+        const response = await fetch(`${FEISHU_API}${pathname}`, fetchOptions);
+        const text = await response.text();
+        let json;
+        try {
+            json = text ? JSON.parse(text) : {};
+        } catch {
+            json = { raw: text };
+        }
+
+        if (response.ok && (typeof json.code !== "number" || json.code === 0)) {
+            return json;
+        }
+
+        if (attempt < retries && shouldRetryFeishuRequest(response, json)) {
+            const delayMs = getRetryDelayMs(response, attempt);
+            console.warn(`Feishu API can retry: ${pathname}; retrying in ${Math.round(delayMs)}ms.`);
+            await sleep(delayMs);
+            continue;
+        }
+
+        throw createFeishuError(pathname, response, json);
+    }
+
+    throw new Error(`Feishu API failed: ${pathname}`);
 }
 
 async function getTenantAccessToken(appId, appSecret) {
@@ -209,27 +269,49 @@ async function uploadSmallApk(token, folderToken, apkPath, fileName, stat) {
 }
 
 async function prepareMultipartUpload(token, folderToken, fileName, fileSize) {
-    const json = await feishuRequest("/drive/v1/files/upload_prepare", {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json; charset=utf-8",
-        },
-        body: JSON.stringify({
-            file_name: fileName,
-            parent_type: "explorer",
-            parent_node: folderToken,
-            size: fileSize,
-        }),
-    });
+    let json;
+    try {
+        json = await feishuRequest("/drive/v1/files/upload_prepare", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json; charset=utf-8",
+            },
+            body: JSON.stringify({
+                file_name: fileName,
+                parent_type: "explorer",
+                parent_node: folderToken,
+                size: fileSize,
+            }),
+        });
+    } catch (error) {
+        if (error?.feishuCode === 1061043) {
+            throw new Error(
+                `Feishu rejected multipart upload_prepare for ${formatMB(fileSize)}MB. ` +
+                "The script selected multipart upload because the file is above 20MB, " +
+                "but Feishu still applies tenant/version-specific file size limits. " +
+                `Original error: ${error.message}`,
+            );
+        }
+        throw error;
+    }
+
     const data = json.data || {};
-    if (!data.upload_id || !data.block_size || !data.block_num) {
+    const blockSize = Number(data.block_size);
+    const blockNum = Number(data.block_num);
+    if (
+        !data.upload_id ||
+        !Number.isSafeInteger(blockSize) ||
+        !Number.isSafeInteger(blockNum) ||
+        blockSize <= 0 ||
+        blockNum <= 0
+    ) {
         throw new Error("Feishu multipart upload_prepare did not return upload_id, block_size, or block_num");
     }
     return {
         uploadId: data.upload_id,
-        blockSize: data.block_size,
-        blockNum: data.block_num,
+        blockSize,
+        blockNum,
     };
 }
 
@@ -272,17 +354,25 @@ async function uploadMultipartApk(token, folderToken, apkPath, fileName, stat) {
         fileName,
         stat.size,
     );
-    console.log(`Multipart upload prepared: ${blockNum} blocks, ${(blockSize / 1024 / 1024).toFixed(2)}MB each`);
+    console.log(`Multipart upload prepared: ${blockNum} blocks, ${formatMB(blockSize)}MB each`);
 
     const fileHandle = await fs.open(apkPath, "r");
     try {
         for (let seq = 0; seq < blockNum; seq += 1) {
             const offset = seq * blockSize;
             const size = Math.min(blockSize, stat.size - offset);
+            if (size <= 0) {
+                throw new Error(`Feishu multipart upload returned too many blocks: block ${seq + 1}/${blockNum}`);
+            }
             const buffer = Buffer.allocUnsafe(size);
             const { bytesRead } = await fileHandle.read(buffer, 0, size, offset);
-            const chunk = bytesRead === buffer.length ? buffer : buffer.subarray(0, bytesRead);
-            await uploadMultipartPart(token, uploadId, seq, chunk);
+            if (bytesRead !== size) {
+                throw new Error(
+                    `Failed to read full multipart block ${seq + 1}/${blockNum}: ` +
+                    `expected ${size}, got ${bytesRead}`,
+                );
+            }
+            await uploadMultipartPart(token, uploadId, seq, buffer);
             console.log(`Uploaded multipart block ${seq + 1}/${blockNum}`);
         }
     } finally {
@@ -299,11 +389,11 @@ async function uploadApk(token, folderToken, apkPath, fileName) {
     }
 
     if (stat.size <= MAX_SIMPLE_UPLOAD_SIZE) {
-        console.log(`Using Feishu simple upload for ${(stat.size / 1024 / 1024).toFixed(2)}MB APK.`);
+        console.log(`Using Feishu simple upload for ${formatMB(stat.size)}MB APK.`);
         return uploadSmallApk(token, folderToken, apkPath, fileName, stat);
     }
 
-    console.log(`Using Feishu multipart upload for ${(stat.size / 1024 / 1024).toFixed(2)}MB APK.`);
+    console.log(`Using Feishu multipart upload for ${formatMB(stat.size)}MB APK.`);
     return uploadMultipartApk(token, folderToken, apkPath, fileName, stat);
 }
 

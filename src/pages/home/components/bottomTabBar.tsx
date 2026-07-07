@@ -30,7 +30,10 @@ interface ITabItem {
     name: string;
     icon: IIconName;
     activeIcon: IIconName;
-    mascot: ImageSourcePropType;
+    mascots: {
+        acg: ImageSourcePropType;
+        firefly: ImageSourcePropType;
+    };
     labelKey: string;
 }
 
@@ -39,21 +42,30 @@ const tabs: ITabItem[] = [
         name: "Discover",
         icon: "play-circle-outline",
         activeIcon: "play-circle",
-        mascot: ImgAsset.xilianTabIcons.catDiscover,
+        mascots: {
+            acg: ImgAsset.xilianTabIcons.catDiscover,
+            firefly: ImgAsset.xilianTabIcons.sakura,
+        },
         labelKey: "home.discover",
     },
     {
         name: "Sheets",
         icon: "heart-outline",
         activeIcon: "heart",
-        mascot: ImgAsset.xilianTabIcons.catSheets,
+        mascots: {
+            acg: ImgAsset.xilianTabIcons.catSheets,
+            firefly: ImgAsset.xilianTabIcons.fish,
+        },
         labelKey: "home.sheets",
     },
     {
         name: "Profile",
         icon: "user",
         activeIcon: "user",
-        mascot: ImgAsset.xilianTabIcons.catProfile,
+        mascots: {
+            acg: ImgAsset.xilianTabIcons.catProfile,
+            firefly: ImgAsset.xilianTabIcons.sunset,
+        },
         labelKey: "home.profile",
     },
 ];
@@ -86,7 +98,7 @@ function TabItem({
     inactiveColor,
     activeBackgroundColor,
     activeLabelColor,
-    isAcgTheme,
+    mascot,
 }: {
     tab: ITabItem;
     isFocused: boolean;
@@ -95,12 +107,13 @@ function TabItem({
     inactiveColor: string;
     activeBackgroundColor: string;
     activeLabelColor: string;
-    isAcgTheme: boolean;
+    mascot?: ImageSourcePropType;
 }) {
     const { t } = useI18N();
+    const hasMascot = mascot != null;
 
     const progress = useSharedValue(isFocused ? 1 : 0);
-    const activeItemOffset = isAcgTheme
+    const activeItemOffset = hasMascot
         ? ACG_ACTIVE_ITEM_OFFSET
         : ACTIVE_ITEM_OFFSET;
 
@@ -153,7 +166,7 @@ function TabItem({
                     ]}
                 />
                 <Animated.View style={styles.tabInner}>
-                    {isAcgTheme ? (
+                    {hasMascot ? (
                         <View style={styles.iconStage}>
                             <Animated.View
                                 pointerEvents="none"
@@ -169,7 +182,7 @@ function TabItem({
                             <Animated.View
                                 style={[styles.mascotWrap, mascotStyle]}>
                                 <Image
-                                    source={tab.mascot}
+                                    source={mascot}
                                     style={styles.mascotIcon}
                                     resizeMode="contain"
                                 />
@@ -189,7 +202,7 @@ function TabItem({
                         numberOfLines={1}
                         style={[
                             styles.tabLabel,
-                            isAcgTheme
+                            hasMascot
                                 ? styles.acgTabLabel
                                 : styles.defaultTabLabel,
                         ]}>
@@ -206,7 +219,12 @@ export default function BottomTabBar(props: BottomTabBarProps) {
     const colors = useColors();
     const theme = Theme.useTheme();
 
-    const isAcgTheme = theme.id === "p-acg-firefly";
+    const mascotTheme =
+        theme.id === "p-acg"
+            ? "acg"
+            : theme.id === "p-acg-firefly"
+            ? "firefly"
+            : undefined;
     const primaryColor = colors.primary;
     const inactiveColor = colors.textSecondary ?? "#999999";
     const activeBackgroundColor = alpha(
@@ -229,7 +247,11 @@ export default function BottomTabBar(props: BottomTabBarProps) {
                             inactiveColor={inactiveColor}
                             activeBackgroundColor={activeBackgroundColor}
                             activeLabelColor={colors.text}
-                            isAcgTheme={isAcgTheme}
+                            mascot={
+                                mascotTheme
+                                    ? tab.mascots[mascotTheme]
+                                    : undefined
+                            }
                             onPress={() => {
                                 try {
                                     Vibration.vibrate(10);
