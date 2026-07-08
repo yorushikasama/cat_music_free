@@ -21,11 +21,16 @@ export const checkUpdateAndShowResult = (
             ) {
                 return;
             }
+            const downloadUrls = data.download.filter(Boolean);
+            if (!downloadUrls.length) {
+                throw new Error("更新配置缺少下载链接");
+            }
             showDialog("DownloadDialog", {
                 version: data.version,
                 content: data.changeLog,
-                fromUrl: data.download[0],
-                backUrl: data.download[1],
+                fromUrl: downloadUrls[0],
+                backUrl: downloadUrls[1],
+                downloadUrls,
             });
         } else {
             if (showToast) {

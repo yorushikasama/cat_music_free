@@ -23,15 +23,16 @@ interface IDownloadDialogProps {
     content: string[];
     fromUrl: string;
     backUrl?: string;
+    downloadUrls?: string[];
 }
 
 export default function DownloadDialog(props: IDownloadDialogProps) {
-    const { content, fromUrl, backUrl, version } = props;
+    const { content, fromUrl, backUrl, version, downloadUrls } = props;
     const [skipState, setSkipState] = useState(false);
 
     const { t } = useI18N();
     const colors = useColors();
-    const browserDownloadUrl = backUrl ?? fromUrl;
+    const browserDownloadUrls = getBrowserDownloadUrls(downloadUrls, fromUrl, backUrl);
     const backgroundDownloadUrl = fromUrl;
     const changelog = content?.filter(Boolean) ?? [];
     const primarySoft = Color(colors.primary).alpha(0.12).rgb().string();
@@ -170,17 +171,24 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                     },
                 ]}>
                 <View style={style.downloadActions}>
-                    <DownloadAction
-                        icon="arrow-right-end-on-rectangle"
-                        title={t("dialog.downloadDialog.downloadUsingBrowser")}
-                        description={t("dialog.downloadDialog.browserDownloadDesc")}
-                        primary
-                        onPress={() => {
-                            PersistStatus.set("app.skipVersion", undefined);
-                            openUrl(browserDownloadUrl);
-                            Clipboard.setString(browserDownloadUrl);
-                        }}
-                    />
+                    {browserDownloadUrls.map((item, index) => (
+                        <DownloadAction
+                            key={`${item.label}-${item.url}`}
+                            icon="arrow-right-end-on-rectangle"
+                            title={t("dialog.downloadDialog.downloadUsingBrowser", {
+                                source: item.label,
+                            })}
+                            description={t("dialog.downloadDialog.browserDownloadDesc", {
+                                source: item.label,
+                            })}
+                            primary={index === 0}
+                            onPress={() => {
+                                PersistStatus.set("app.skipVersion", undefined);
+                                openUrl(item.url);
+                                Clipboard.setString(item.url);
+                            }}
+                        />
+                    ))}
                     <DownloadAction
                         icon="inbox-arrow-down"
                         title={t("dialog.downloadDialog.backgroundDownload")}
@@ -224,6 +232,32 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
             </View>
         </Dialog>
     );
+}
+
+function getBrowserDownloadUrls(
+    downloadUrls: string[] | undefined,
+    fromUrl: string,
+    backUrl?: string,
+) {
+    const urls = (downloadUrls?.length ? downloadUrls : [fromUrl, backUrl])
+        .filter((url): url is string => !!url);
+    return Array.from(new Set(urls)).map(url => ({
+        url,
+        label: getDownloadSourceLabel(url),
+    }));
+}
+
+function getDownloadSourceLabel(url: string) {
+    if (url.includes("gitee.com")) {
+        return "Gitee";
+    }
+    if (url.includes("github.com")) {
+        return "GitHub";
+    }
+    if (url.includes("gitea.com")) {
+        return "Gitea";
+    }
+    return "Browser";
 }
 
 function DownloadAction(props: {
