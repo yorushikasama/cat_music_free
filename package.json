@@ -18,9 +18,6 @@
     "connect-mumu": "adb kill-server & adb connect localhost:7555",
     "build-android": "cd .\\android\\ && .\\gradlew assembleRelease",
     "release:app": "node tools/release-app.mjs",
-    "release:feishu": "node tools/release-feishu.mjs",
-    "feishu:chats": "node tools/feishu-list-chats.mjs",
-    "feishu:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/setup-feishu-release.ps1",
     "generate-assets": "node ./generator/generate-assets.mjs",
     "prepare": "husky"
   },
