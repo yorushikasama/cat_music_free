@@ -12,7 +12,7 @@ import Animated, {
     withDelay,
     cancelAnimation,
 } from "react-native-reanimated";
-import Svg, { Path, Circle, Defs, RadialGradient, Stop, Ellipse } from "react-native-svg";
+import Svg, { Path, Circle, Defs, RadialGradient, Stop } from "react-native-svg";
 import { toSvgColor } from "@/utils/svgColor";
 
 export type ParticleEffectType = "none" | "sakura" | "snow" | "star" | "firefly";
@@ -151,16 +151,10 @@ function FireflyGlow({
     const glowSize = size * glowScale;
     const center = glowSize / 2;
     const haloId = `${glowId}-halo`;
-    const lanternId = `${glowId}-lantern`;
-    const abdomenX = center + size * 1.2;
-    const thoraxX = center - size * 0.45;
-    const headX = center - size * 1.42;
-    const bodyColor = layer === 0 ? "#21170f" : layer === 1 ? "#2d2114" : "#3b321f";
-    const thoraxColor = layer === 0 ? "#704122" : "#815326";
-    const wingOpacity = layer === 0 ? 0.38 : layer === 1 ? 0.28 : 0.18;
+    const coreId = `${glowId}-core`;
     const haloOpacity = layer === 0 ? 0.3 : layer === 1 ? 0.22 : 0.15;
-    const lanternOpacity = layer === 0 ? 0.96 : layer === 1 ? 0.82 : 0.64;
-    const antennaOpacity = layer === 0 ? 0.55 : 0.36;
+    const coreOpacity = layer === 0 ? 0.96 : layer === 1 ? 0.82 : 0.64;
+    const moteOpacity = layer === 0 ? 0.42 : layer === 1 ? 0.32 : 0.24;
 
     return (
         <View style={{ width: glowSize, height: glowSize, marginLeft: -center, marginTop: -center }}>
@@ -171,69 +165,27 @@ function FireflyGlow({
                         <Stop offset="0.24" stopColor={svgColor} stopOpacity={haloOpacity} />
                         <Stop offset="1" stopColor={svgColor} stopOpacity={0} />
                     </RadialGradient>
-                    <RadialGradient id={lanternId} cx="50%" cy="50%" r="50%">
+                    <RadialGradient id={coreId} cx="50%" cy="50%" r="50%">
                         <Stop offset="0" stopColor="#fff9b7" stopOpacity={1} />
-                        <Stop offset="0.38" stopColor={svgColor} stopOpacity={lanternOpacity} />
-                        <Stop offset="0.52" stopColor={svgColor} stopOpacity={haloOpacity} />
+                        <Stop offset="0.4" stopColor={svgColor} stopOpacity={coreOpacity} />
+                        <Stop offset="1" stopColor={svgColor} stopOpacity={0} />
+                    </RadialGradient>
+                    <RadialGradient id={`${glowId}-mote`} cx="50%" cy="50%" r="50%">
+                        <Stop offset="0" stopColor="#fffef2" stopOpacity={0.92} />
+                        <Stop offset="0.48" stopColor={svgColor} stopOpacity={moteOpacity} />
                         <Stop offset="1" stopColor={svgColor} stopOpacity={0} />
                     </RadialGradient>
                 </Defs>
-                <Circle cx={abdomenX} cy={center} r={size * (layer === 0 ? 3.05 : 2.55)} fill={`url(#${haloId})`} />
-                <Path
-                    d={`M ${thoraxX - size * 0.2} ${center - size * 0.14}
-                        C ${thoraxX + size * 0.4} ${center - size * 2.25}
-                          ${abdomenX + size * 2.5} ${center - size * 2.08}
-                          ${abdomenX + size * 1.25} ${center - size * 0.2}
-                        C ${abdomenX + size * 0.55} ${center - size * 0.36}
-                          ${thoraxX + size * 0.42} ${center - size * 0.28}
-                          ${thoraxX - size * 0.2} ${center - size * 0.14} Z`}
-                    fill="#f7f0c8"
-                    opacity={wingOpacity}
-                />
-                <Path
-                    d={`M ${thoraxX - size * 0.08} ${center + size * 0.18}
-                        C ${thoraxX + size * 0.55} ${center + size * 2}
-                          ${abdomenX + size * 2.15} ${center + size * 1.55}
-                          ${abdomenX + size * 1.02} ${center + size * 0.26}
-                        C ${abdomenX + size * 0.42} ${center + size * 0.36}
-                          ${thoraxX + size * 0.42} ${center + size * 0.3}
-                          ${thoraxX - size * 0.08} ${center + size * 0.18} Z`}
-                    fill="#e7f7d4"
-                    opacity={wingOpacity * 0.78}
-                />
-                <Path
-                    d={`M ${headX - size * 0.22} ${center - size * 0.06}
-                        C ${headX + size * 0.85} ${center - size * 0.78}
-                          ${abdomenX + size * 0.26} ${center - size * 0.66}
-                          ${abdomenX + size * 0.92} ${center - size * 0.02}
-                        C ${abdomenX + size * 0.22} ${center + size * 0.72}
-                          ${headX + size * 0.68} ${center + size * 0.66}
-                          ${headX - size * 0.22} ${center + size * 0.06} Z`}
-                    fill={bodyColor}
-                    opacity={layer === 2 ? 0.62 : 0.82}
-                />
-                <Ellipse
-                    cx={abdomenX}
+                <Circle cx={center} cy={center} r={size * (layer === 0 ? 3.2 : 2.7)} fill={`url(#${haloId})`} />
+                <Circle
+                    cx={center}
                     cy={center}
-                    rx={size * 1.2}
-                    ry={size * 0.76}
-                    fill={`url(#${lanternId})`}
+                    r={size * (layer === 0 ? 1.2 : 1)}
+                    fill={`url(#${coreId})`}
                 />
-                <Circle cx={thoraxX} cy={center} r={size * 0.68} fill={thoraxColor} opacity={layer === 2 ? 0.62 : 0.88} />
-                <Circle cx={headX} cy={center} r={size * 0.42} fill="#17130f" opacity={layer === 2 ? 0.58 : 0.82} />
-                <Path
-                    d={`M ${headX - size * 0.24} ${center - size * 0.18}
-                        Q ${headX - size * 0.94} ${center - size * 0.84}
-                          ${headX - size * 1.48} ${center - size * 0.5}
-                        M ${headX - size * 0.24} ${center + size * 0.18}
-                        Q ${headX - size * 0.94} ${center + size * 0.84}
-                          ${headX - size * 1.48} ${center + size * 0.5}`}
-                    stroke={bodyColor}
-                    strokeWidth={Math.max(0.45, size * 0.08)}
-                    strokeLinecap="round"
-                    fill="none"
-                    opacity={antennaOpacity}
-                />
+                <Circle cx={center - size * 1.45} cy={center + size * 0.74} r={size * 0.42} fill={`url(#${glowId}-mote)`} />
+                <Circle cx={center + size * 1.32} cy={center - size * 0.58} r={size * 0.34} fill={`url(#${glowId}-mote)`} />
+                <Circle cx={center + size * 0.35} cy={center + size * 1.38} r={size * 0.24} fill={`url(#${glowId}-mote)`} />
             </Svg>
         </View>
     );

@@ -11,6 +11,7 @@ import { grayRate } from "@/utils/colorUtil";
 import rpx from "@/utils/rpx";
 import Slider from "@react-native-community/slider";
 import Color from "color";
+import { ResizeMode, Video } from "expo-av";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { copyFile } from "react-native-fs";
@@ -21,6 +22,7 @@ import Icon from "@/components/base/icon";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import { errorLog } from "@/utils/log";
+import { getMediaExtension, isVideoBackgroundUrl } from "@/utils/backgroundMedia";
 
 export default function Body() {
     const theme = Theme.useTheme();
@@ -28,65 +30,77 @@ export default function Body() {
     const { t } = useI18N();
     const colors = useColors();
     const hasBackground = !!backgroundInfo?.url;
+    const hasVideoBackground = isVideoBackgroundUrl(backgroundInfo?.url);
     const primaryTextColor = readableOn(theme.colors.primary);
 
     async function onImageClick() {
         try {
             const result = await launchImageLibrary({
-                mediaType: "photo",
+                mediaType: "mixed",
             });
-            const uri = result.assets?.[0].uri;
+            const asset = result.assets?.[0];
+            const uri = asset?.uri;
             if (!uri) {
                 return;
             }
 
-            const bgPath = `${pathConst.dataPath}background${uri.substring(
-                uri.lastIndexOf("."),
-            )}`;
+            const isVideo = asset.type?.startsWith("video/") ||
+                isVideoBackgroundUrl(asset.fileName) ||
+                isVideoBackgroundUrl(uri);
+            const extension = getPickedAssetExtension({
+                fileName: asset.fileName,
+                uri,
+                type: asset.type,
+                isVideo,
+            });
+            const bgPath = `${pathConst.dataPath}background${extension}`;
             await copyFile(uri, bgPath);
 
-            const colorsResult = await ImageColors.getColors(uri, {
-                fallback: "#ffffff",
-            });
-            const extractedColors = {
-                primary: (colorsResult as any).dominant,
-                average: (colorsResult as any).average,
-                vibrant: (colorsResult as any).vibrant,
-            };
-
-            const primaryGrayRate = grayRate(extractedColors.primary!);
-
             let themeColors: Partial<CustomizedColors>;
-            if (primaryGrayRate < -0.4) {
-                const primaryColor = Color(extractedColors.primary!);
-
-                themeColors = {
-                    appBar: extractedColors.primary,
-                    primary: primaryColor
-                        .darken(primaryGrayRate * 5)
-                        .toString(),
-                    musicBar: extractedColors.primary,
-                    card: "#1e1e1e",
-                    tabBar: primaryColor.alpha(0.2).toString(),
-                };
-            } else if (primaryGrayRate > 0.4) {
-                themeColors = {
-                    appBar: extractedColors.primary,
-                    primary: Color(extractedColors.primary)
-                        .darken(primaryGrayRate * 5)
-                        .toString(),
-                    musicBar: extractedColors.primary,
-                    card: "#1e1e1e",
-                };
+            if (isVideo) {
+                themeColors = theme.colors;
             } else {
-                themeColors = {
-                    appBar: extractedColors.primary,
-                    primary: Color(extractedColors.primary)
-                        .saturate(Math.abs(primaryGrayRate) * 2 + 2)
-                        .toString(),
-                    musicBar: extractedColors.primary,
-                    card: "#1e1e1e",
+                const colorsResult = await ImageColors.getColors(uri, {
+                    fallback: "#ffffff",
+                });
+                const extractedColors = {
+                    primary: (colorsResult as any).dominant,
+                    average: (colorsResult as any).average,
+                    vibrant: (colorsResult as any).vibrant,
                 };
+
+                const primaryGrayRate = grayRate(extractedColors.primary!);
+                if (primaryGrayRate < -0.4) {
+                    const primaryColor = Color(extractedColors.primary!);
+
+                    themeColors = {
+                        appBar: extractedColors.primary,
+                        primary: primaryColor
+                            .darken(primaryGrayRate * 5)
+                            .toString(),
+                        musicBar: extractedColors.primary,
+                        card: "#1e1e1e",
+                        tabBar: primaryColor.alpha(0.2).toString(),
+                    };
+                } else if (primaryGrayRate > 0.4) {
+                    themeColors = {
+                        appBar: extractedColors.primary,
+                        primary: Color(extractedColors.primary)
+                            .darken(primaryGrayRate * 5)
+                            .toString(),
+                        musicBar: extractedColors.primary,
+                        card: "#1e1e1e",
+                    };
+                } else {
+                    themeColors = {
+                        appBar: extractedColors.primary,
+                        primary: Color(extractedColors.primary)
+                            .saturate(Math.abs(primaryGrayRate) * 2 + 2)
+                            .toString(),
+                        musicBar: extractedColors.primary,
+                        card: "#1e1e1e",
+                    };
+                }
             }
 
             Theme.setTheme("custom", {
@@ -118,11 +132,24 @@ export default function Body() {
                     },
                 ]}>
                 <TouchableOpacity onPress={onImageClick}>
-                    <Image
-                        style={styles.image}
-                        uri={backgroundInfo?.url}
-                        emptySrc={ImgAsset.addBackground}
-                    />
+                    {hasVideoBackground && backgroundInfo?.url ? (
+                        <Video
+                            source={{ uri: backgroundInfo.url }}
+                            style={styles.image}
+                            resizeMode={ResizeMode.COVER}
+                            shouldPlay
+                            isLooping
+                            isMuted
+                            useNativeControls={false}
+                            volume={0}
+                        />
+                    ) : (
+                        <Image
+                            style={styles.image}
+                            uri={backgroundInfo?.url}
+                            emptySrc={ImgAsset.addBackground}
+                        />
+                    )}
                 </TouchableOpacity>
 
                 <View style={styles.backgroundActions}>
@@ -294,6 +321,30 @@ function readableOn(color: string) {
     } catch {
         return "#ffffff";
     }
+}
+
+function getPickedAssetExtension(asset: {
+    fileName?: string;
+    uri: string;
+    type?: string;
+    isVideo: boolean;
+}) {
+    const fromFileName = getMediaExtension(asset.fileName);
+    if (fromFileName) {
+        return `.${fromFileName}`;
+    }
+
+    const fromUri = getMediaExtension(asset.uri);
+    if (fromUri) {
+        return `.${fromUri}`;
+    }
+
+    const fromMime = asset.type?.split("/")[1]?.toLowerCase();
+    if (fromMime) {
+        return `.${fromMime === "jpeg" ? "jpg" : fromMime}`;
+    }
+
+    return asset.isVideo ? ".mp4" : ".jpg";
 }
 
 const styles = StyleSheet.create({
