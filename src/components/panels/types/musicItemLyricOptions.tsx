@@ -18,7 +18,7 @@ import Config from "@/core/appConfig";
 import { useI18N } from "@/core/i18n";
 import lyricManager from "@/core/lyricManager";
 import mediaCache from "@/core/mediaCache";
-import LyricUtil from "@/native/lyricUtil";
+import LyricUtil, { getStatusBarLyricConfig } from "@/native/lyricUtil";
 import { errorLog } from "@/utils/log";
 import { getDocumentAsync } from "expo-document-picker";
 import { readAsStringAsync } from "expo-file-system";
@@ -129,18 +129,9 @@ export default function MusicItemLyricOptions(
                         await LyricUtil.checkSystemAlertPermission();
 
                     if (hasPermission) {
-                        const statusBarLyricConfig = {
-                            topPercent: Config.getConfig("lyric.topPercent"),
-                            leftPercent: Config.getConfig("lyric.leftPercent"),
-                            align: Config.getConfig("lyric.align"),
-                            color: Config.getConfig("lyric.color"),
-                            backgroundColor: Config.getConfig("lyric.backgroundColor"),
-                            widthPercent: Config.getConfig("lyric.widthPercent"),
-                            fontSize: Config.getConfig("lyric.fontSize"),
-                        };
                         LyricUtil.showStatusBarLyric(
                             "CatMusicFree",
-                            statusBarLyricConfig ?? {}
+                            getStatusBarLyricConfig(),
                         );
                         Config.setConfig("lyric.showStatusBarLyric", true);
                     } else {

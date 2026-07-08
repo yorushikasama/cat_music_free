@@ -14,7 +14,10 @@ import Config, { useAppConfig } from "@/core/appConfig";
 import { useI18N } from "@/core/i18n";
 import { ROUTE_PATH, useNavigate } from "@/core/router";
 import useColors from "@/hooks/useColors";
-import LyricUtil, { NativeTextAlignment } from "@/native/lyricUtil";
+import LyricUtil, {
+    getStatusBarLyricConfig,
+    NativeTextAlignment,
+} from "@/native/lyricUtil";
 import { AppConfigPropertyKey } from "@/types/core/config";
 import { clearCache, getCacheSize, sizeFormatter } from "@/utils/fileUtils";
 import { clearLog, getErrorLogContent } from "@/utils/log";
@@ -25,7 +28,7 @@ import Clipboard from "@react-native-clipboard/clipboard";
 import Slider from "@react-native-community/slider";
 import Color from "color";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { SectionList, StyleSheet, TouchableOpacity, View } from "react-native";
+import { AppState, SectionList, StyleSheet, TouchableOpacity, View } from "react-native";
 import type { ViewToken } from "react-native";
 import { readdir } from "react-native-fs";
 import { FlatList, ScrollView } from "react-native-gesture-handler";
@@ -817,11 +820,40 @@ function LyricSetting() {
     const backgroundColor = useAppConfig("lyric.backgroundColor");
     const widthPercent = useAppConfig("lyric.widthPercent");
     const fontSize = useAppConfig("lyric.fontSize");
+    const locked = useAppConfig("lyric.locked");
+    const lyricMode = useAppConfig("lyric.mode");
+    const lyricStyle = useAppConfig("lyric.style");
+    const keepAlive = useAppConfig("lyric.keepAlive");
+    const emptyBehavior = useAppConfig("lyric.emptyBehavior");
     const enableAutoSearchLyric = useAppConfig("lyric.autoSearchLyric");
 
     const colors = useColors();
 
     const { t } = useI18N();
+    const pendingOpenStatusBarLyricRef = useRef(false);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener("change", async state => {
+            if (
+                state !== "active" ||
+                !pendingOpenStatusBarLyricRef.current
+            ) {
+                return;
+            }
+
+            pendingOpenStatusBarLyricRef.current = false;
+            const hasPermission = await LyricUtil.checkSystemAlertPermission();
+            if (hasPermission) {
+                await LyricUtil.showStatusBarLyric(
+                    "CatMusicFree",
+                    getStatusBarLyricConfig(),
+                );
+                Config.setConfig("lyric.showStatusBarLyric", true);
+            }
+        });
+
+        return () => subscription.remove();
+    }, []);
 
     const autoSearchLyric = createSwitch(
         t("basicSettings.lyric.autoSearchLyric"),
@@ -840,21 +872,13 @@ function LyricSetting() {
                         await LyricUtil.checkSystemAlertPermission();
 
                     if (hasPermission) {
-                        const statusBarLyricConfig = {
-                            topPercent: Config.getConfig("lyric.topPercent"),
-                            leftPercent: Config.getConfig("lyric.leftPercent"),
-                            align: Config.getConfig("lyric.align"),
-                            color: Config.getConfig("lyric.color"),
-                            backgroundColor: Config.getConfig("lyric.backgroundColor"),
-                            widthPercent: Config.getConfig("lyric.widthPercent"),
-                            fontSize: Config.getConfig("lyric.fontSize"),
-                        };
                         LyricUtil.showStatusBarLyric(
                             "CatMusicFree",
-                            statusBarLyricConfig ?? {}
+                            getStatusBarLyricConfig(),
                         );
                         Config.setConfig("lyric.showStatusBarLyric", true);
                     } else {
+                        pendingOpenStatusBarLyricRef.current = true;
                         LyricUtil.requestSystemAlertPermission().finally(() => {
                             Toast.warn(t("toast.noFloatWindowPermission"));
                         });
@@ -864,6 +888,81 @@ function LyricSetting() {
                     Config.setConfig("lyric.showStatusBarLyric", false);
                 }
             } catch { }
+        },
+    );
+
+    const lockStatusBarLyric = createSwitch(
+        t("basicSettings.lyric.locked"),
+        "lyric.locked",
+        locked ?? true,
+        newVal => {
+            Config.setConfig("lyric.locked", newVal);
+            if (showStatusBarLyric) {
+                LyricUtil.setStatusBarLyricLocked(newVal);
+            }
+        },
+    );
+
+    const keepAliveStatusBarLyric = createSwitch(
+        t("basicSettings.lyric.keepAlive"),
+        "lyric.keepAlive",
+        keepAlive ?? true,
+        newVal => {
+            Config.setConfig("lyric.keepAlive", newVal);
+            if (showStatusBarLyric) {
+                LyricUtil.setStatusBarLyricKeepAlive(newVal);
+            }
+        },
+    );
+
+    const emptyBehaviorStatusBarLyric = createRadio(
+        t("basicSettings.lyric.emptyBehavior"),
+        "lyric.emptyBehavior",
+        ["track", "hide", "app"],
+        emptyBehavior ?? "track",
+        {
+            track: t("basicSettings.lyric.emptyBehavior.track"),
+            hide: t("basicSettings.lyric.emptyBehavior.hide"),
+            app: t("basicSettings.lyric.emptyBehavior.app"),
+        },
+        value => {
+            if (showStatusBarLyric) {
+                LyricUtil.setStatusBarLyricEmptyBehavior(value as any, "CatMusicFree");
+            }
+        },
+    );
+
+    const modeStatusBarLyric = createRadio(
+        t("basicSettings.lyric.mode"),
+        "lyric.mode",
+        ["single", "double"],
+        lyricMode ?? "double",
+        {
+            single: t("basicSettings.lyric.mode.single"),
+            double: t("basicSettings.lyric.mode.double"),
+        },
+        value => {
+            if (showStatusBarLyric) {
+                LyricUtil.setStatusBarLyricMode(value as any);
+            }
+        },
+    );
+
+    const styleStatusBarLyric = createRadio(
+        t("basicSettings.lyric.style"),
+        "lyric.style",
+        ["glass", "neon", "plain", "dark"],
+        lyricStyle ?? "glass",
+        {
+            glass: t("basicSettings.lyric.style.glass"),
+            neon: t("basicSettings.lyric.style.neon"),
+            plain: t("basicSettings.lyric.style.plain"),
+            dark: t("basicSettings.lyric.style.dark"),
+        },
+        value => {
+            if (showStatusBarLyric) {
+                LyricUtil.setStatusBarLyricStyle(value as any);
+            }
         },
     );
 
@@ -909,6 +1008,70 @@ function LyricSetting() {
                 onPress={openStatusBarLyric.onPress}>
                 <ListItem.Content title={openStatusBarLyric.title} />
                 {openStatusBarLyric.right}
+            </ListItem>
+            <ListItem
+                withHorizontalPadding
+                heightType="small"
+                onPress={lockStatusBarLyric.onPress}>
+                <ListItem.Content title={lockStatusBarLyric.title} />
+                {lockStatusBarLyric.right}
+            </ListItem>
+            <ListItem
+                withHorizontalPadding
+                heightType="small"
+                onPress={keepAliveStatusBarLyric.onPress}>
+                <ListItem.Content title={keepAliveStatusBarLyric.title} />
+                {keepAliveStatusBarLyric.right}
+            </ListItem>
+            <ListItem
+                withHorizontalPadding
+                heightType="small"
+                onPress={modeStatusBarLyric.onPress}>
+                <ListItem.Content title={modeStatusBarLyric.title} />
+                {modeStatusBarLyric.right}
+            </ListItem>
+            <ListItem
+                withHorizontalPadding
+                heightType="small"
+                onPress={emptyBehaviorStatusBarLyric.onPress}>
+                <ListItem.Content title={emptyBehaviorStatusBarLyric.title} />
+                {emptyBehaviorStatusBarLyric.right}
+            </ListItem>
+            <ListItem
+                withHorizontalPadding
+                heightType="small"
+                onPress={styleStatusBarLyric.onPress}>
+                <ListItem.Content title={styleStatusBarLyric.title} />
+                {styleStatusBarLyric.right}
+            </ListItem>
+            <ListItem
+                withHorizontalPadding
+                heightType="small"
+                onPress={() => {
+                    const nextLeft = 0.1;
+                    const nextTop = 0.08;
+                    Config.setConfig("lyric.leftPercent", nextLeft);
+                    Config.setConfig("lyric.topPercent", nextTop);
+                    if (showStatusBarLyric) {
+                        LyricUtil.setStatusBarLyricLeft(nextLeft);
+                        LyricUtil.setStatusBarLyricTop(nextTop);
+                    }
+                }}>
+                <ListItem.Content title={t("basicSettings.lyric.resetPosition")} />
+            </ListItem>
+            <ListItem
+                withHorizontalPadding
+                heightType="small"
+                onPress={() => {
+                    if (showStatusBarLyric) {
+                        LyricUtil.setStatusBarLyricText(
+                            "桌面歌词预览\nDesktop lyric preview",
+                        );
+                    } else {
+                        Toast.warn(t("basicSettings.lyric.previewToast"));
+                    }
+                }}>
+                <ListItem.Content title={t("basicSettings.lyric.previewText")} />
             </ListItem>
             <View style={lyricStyles.sliderContainer}>
                 <ThemeText>{t("basicSettings.lyric.leftRightDistance")}</ThemeText>

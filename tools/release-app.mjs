@@ -495,6 +495,7 @@ async function main() {
     const shouldPush = args.push !== "false";
     const shouldRelease = args.release !== "false";
     const shouldBuild = args.build !== "false";
+    const shouldClean = args.clean !== "false";
     const shouldCheck = args.check !== "false";
     const apkPath = path.resolve(args.apk || getEnv("APK_PATH", DEFAULT_APK_PATH));
     const assetName = args.assetName || getEnv("APK_ASSET_NAME", DEFAULT_ASSET_NAME);
@@ -524,6 +525,9 @@ async function main() {
         }
 
         if (shouldBuild) {
+            if (shouldClean) {
+                await run(path.join(".", "android", "gradlew.bat"), ["-p", "android", "clean"]);
+            }
             await run(path.join(".", "android", "gradlew.bat"), ["-p", "android", "assembleRelease"]);
         }
 

@@ -1,6 +1,5 @@
 import React from "react";
 import {
-    Image,
     ScrollView,
     StyleSheet,
     View,
@@ -11,7 +10,6 @@ import Color from "color";
 import { Button } from "@/components/base/button";
 import LinkText from "@/components/base/linkText";
 import ThemeText from "@/components/base/themeText";
-import { ImgAsset } from "@/constants/assetsConst";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 import useColors from "@/hooks/useColors";
@@ -84,16 +82,6 @@ function InfoRow(props: IInfoRowProps) {
     );
 }
 
-function BrandMark() {
-    return (
-        <Image
-            source={ImgAsset.logo}
-            style={style.brandMark}
-            resizeMode="cover"
-        />
-    );
-}
-
 export default function AboutSetting() {
     const checkAndShowResult = useCheckUpdate(false);
     const orientation = useOrientation();
@@ -117,7 +105,6 @@ export default function AboutSetting() {
                     },
                     orientation === "horizontal" ? style.horizontalHero : null,
                 ]}>
-                <BrandMark />
                 <ThemeText
                     fontSize="title"
                     fontWeight="bold"
@@ -209,25 +196,18 @@ export default function AboutSetting() {
 
                 <Section title="开源与致谢">
                     <View style={style.authorBlock}>
-                        <Image
-                            source={ImgAsset.author}
-                            style={style.authorImage}
-                            resizeMode="cover"
-                        />
-                        <View style={style.authorText}>
-                            <ThemeText
-                                fontSize="content"
-                                fontWeight="bold">
-                                原作者：猫头猫
-                            </ThemeText>
-                            <ThemeText
-                                fontSize="description"
-                                fontColor="textSecondary"
-                                lineHeight
-                                style={style.authorDescription}>
-                                感谢原作者和上游项目提供的开源基础。本应用延续其插件化音乐播放器思路，并在此基础上持续优化 Android 使用体验。
-                            </ThemeText>
-                        </View>
+                        <ThemeText
+                            fontSize="content"
+                            fontWeight="bold">
+                            原作者：猫头猫
+                        </ThemeText>
+                        <ThemeText
+                            fontSize="description"
+                            fontColor="textSecondary"
+                            lineHeight
+                            style={style.authorDescription}>
+                            感谢原作者和上游项目提供的开源基础。本应用延续其插件化音乐播放器思路，并在此基础上持续优化 Android 使用体验。
+                        </ThemeText>
                     </View>
                     <InfoRow label="MusicFree">
                         <LinkText linkTo={UPSTREAM_MUSICFREE}>
@@ -290,14 +270,7 @@ const style = StyleSheet.create({
         marginBottom: spacing.lg,
         justifyContent: "center",
     },
-    brandMark: {
-        width: rpx(132),
-        height: rpx(132),
-        borderRadius: radius.lg,
-        overflow: "hidden",
-    },
     appName: {
-        marginTop: spacing.md,
         marginBottom: spacing.xs,
         textAlign: "center",
     },
@@ -358,19 +331,8 @@ const style = StyleSheet.create({
         flexShrink: 1,
     },
     authorBlock: {
-        flexDirection: "row",
-        alignItems: "center",
         marginTop: spacing.sm,
         marginBottom: spacing.xs,
-    },
-    authorImage: {
-        width: rpx(92),
-        height: rpx(92),
-        borderRadius: radius.lg,
-        marginRight: spacing.md,
-    },
-    authorText: {
-        flex: 1,
     },
     authorDescription: {
         marginTop: spacing.xs,

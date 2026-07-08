@@ -9,7 +9,11 @@ import { atom, getDefaultStore, useAtomValue } from "jotai";
 import { Plugin } from "./pluginManager";
 
 import pathConst from "@/constants/pathConst";
-import LyricUtil from "@/native/lyricUtil";
+import LyricUtil, {
+    addStatusBarLyricLockedListener,
+    addStatusBarLyricPositionListener,
+    getStatusBarLyricConfig,
+} from "@/native/lyricUtil";
 import { checkAndCreateDir } from "@/utils/fileUtils";
 import PersistStatus from "@/utils/persistStatus";
 import CryptoJs from "crypto-js";
@@ -17,6 +21,7 @@ import { unlink, writeFile } from "react-native-fs";
 import RNTrackPlayer, { Event } from "react-native-track-player";
 import { TrackPlayerEvents } from "@/core.defination/trackPlayer";
 import { IPluginManager } from "@/types/core/pluginManager";
+import { musicIsPaused } from "@/utils/trackUtils";
 
 
 interface ILyricState {
@@ -60,6 +65,14 @@ class LyricManager implements IInjectable {
     }
 
     setup() {
+        addStatusBarLyricPositionListener(position => {
+            this.appConfig.setConfig("lyric.leftPercent", position.leftPercent);
+            this.appConfig.setConfig("lyric.topPercent", position.topPercent);
+        });
+        addStatusBarLyricLockedListener(({ locked }) => {
+            this.appConfig.setConfig("lyric.locked", locked);
+        });
+
         // 更新歌词
         this.trackPlayer.on(TrackPlayerEvents.CurrentMusicChanged, (musicItem) => {
             this.refreshLyric(true, true);
@@ -68,8 +81,16 @@ class LyricManager implements IInjectable {
                 if (musicItem) {
                     LyricUtil.setStatusBarLyricText(
                         `${musicItem.title} - ${musicItem.artist}`,);
+                    LyricUtil.setStatusBarLyricEmptyBehavior(
+                        this.appConfig.getConfig("lyric.emptyBehavior") ?? "track",
+                        `${musicItem.title} - ${musicItem.artist}`,
+                    );
                 } else {
                     LyricUtil.setStatusBarLyricText("CatMusicFree");
+                    LyricUtil.setStatusBarLyricEmptyBehavior(
+                        this.appConfig.getConfig("lyric.emptyBehavior") ?? "track",
+                        "CatMusicFree",
+                    );
                 }
             }
         });
@@ -82,6 +103,7 @@ class LyricManager implements IInjectable {
 
             const currentLyricItem = getDefaultStore().get(currentLyricItemAtom);
             const newLyricItem = parser.getPosition(evt.position);
+            LyricUtil.setStatusBarLyricPaused(false);
 
 
             if (currentLyricItem?.index !== newLyricItem?.index) {
@@ -102,20 +124,17 @@ class LyricManager implements IInjectable {
             }
         });
 
+        RNTrackPlayer.addEventListener(Event.PlaybackState, evt => {
+            if (this.appConfig.getConfig("lyric.showStatusBarLyric")) {
+                LyricUtil.setStatusBarLyricPaused(musicIsPaused(evt.state));
+            }
+        });
+
 
         if (this.appConfig.getConfig("lyric.showStatusBarLyric")) {
-            const statusBarLyricConfig = {
-                topPercent: this.appConfig.getConfig("lyric.topPercent"),
-                leftPercent: this.appConfig.getConfig("lyric.leftPercent"),
-                align: this.appConfig.getConfig("lyric.align"),
-                color: this.appConfig.getConfig("lyric.color"),
-                backgroundColor: this.appConfig.getConfig("lyric.backgroundColor"),
-                widthPercent: this.appConfig.getConfig("lyric.widthPercent"),
-                fontSize: this.appConfig.getConfig("lyric.fontSize"),
-            };
             LyricUtil.showStatusBarLyric(
                 "CatMusicFree",
-                statusBarLyricConfig ?? {}
+                getStatusBarLyricConfig(),
             );
         }
 
@@ -242,7 +261,12 @@ class LyricManager implements IInjectable {
         getDefaultStore().set(currentLyricItemAtom, null);
         if (this.appConfig.getConfig("lyric.showStatusBarLyric")) {
             const musicItem = this.trackPlayer.currentMusic;
-            LyricUtil.setStatusBarLyricText(musicItem ? `${musicItem.title} - ${musicItem.artist}` : "CatMusicFree");
+            const fallbackText = musicItem ? `${musicItem.title} - ${musicItem.artist}` : "CatMusicFree";
+            LyricUtil.setStatusBarLyricEmptyBehavior(
+                this.appConfig.getConfig("lyric.emptyBehavior") ?? "track",
+                fallbackText,
+            );
+            LyricUtil.setStatusBarLyricText("");
         }
     }
 
@@ -312,6 +336,11 @@ class LyricManager implements IInjectable {
             getDefaultStore().set(currentLyricItemAtom, currentLyric || null);
 
             if (this.appConfig.getConfig("lyric.showStatusBarLyric")) {
+                const fallbackText = `${currentMusicItem.title} - ${currentMusicItem.artist}`;
+                LyricUtil.setStatusBarLyricEmptyBehavior(
+                    this.appConfig.getConfig("lyric.emptyBehavior") ?? "track",
+                    fallbackText,
+                );
                 if (currentLyric) {
                     LyricUtil.setStatusBarLyricText(
                         (currentLyric?.lrc ?? "") +

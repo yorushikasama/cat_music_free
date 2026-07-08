@@ -2,7 +2,7 @@ import type { ResumeMode, SortType } from "@/constants/commonConst.ts";
 import type { CustomizedColors } from "@/hooks/useColors";
 
 export interface IAppConfigProperties {
-    $schema: "3";
+    $schema: "3" | "4" | "5";
     // Basic
     "basic.autoPlayWhenAppStart": boolean;
     "basic.useCelluarNetworkPlay": boolean;
@@ -41,6 +41,11 @@ export interface IAppConfigProperties {
     "lyric.backgroundColor": string;
     "lyric.widthPercent": number;
     "lyric.fontSize": number;
+    "lyric.locked": boolean;
+    "lyric.mode": "single" | "double";
+    "lyric.style": "glass" | "neon" | "plain" | "dark";
+    "lyric.keepAlive": boolean;
+    "lyric.emptyBehavior": "hide" | "track" | "app";
     "lyric.detailFontSize": number;
     "lyric.autoSearchLyric": boolean;
 

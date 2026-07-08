@@ -94,6 +94,11 @@ class AppConfig implements IAppConfig {
                 ["setting.lyric.fontSize", "lyric.fontSize"],
                 ["setting.lyric.detailFontSize", "lyric.detailFontSize"],
                 ["setting.lyric.autoSearchLyric", "lyric.autoSearchLyric"],
+                ["setting.lyric.locked", "lyric.locked"],
+                ["setting.lyric.mode", "lyric.mode"],
+                ["setting.lyric.style", "lyric.style"],
+                ["setting.lyric.keepAlive", "lyric.keepAlive"],
+                ["setting.lyric.emptyBehavior", "lyric.emptyBehavior"],
 
                 // Theme
                 ["setting.theme.background", "theme.background"],
@@ -179,6 +184,30 @@ class AppConfig implements IAppConfig {
             configStore.set("$schema", "3");
         }
 
+        if (schemaVersion < 4) {
+            if (!configStore.contains("lyric.locked")) {
+                this.setConfig("lyric.locked", true);
+            }
+            if (!configStore.contains("lyric.mode")) {
+                this.setConfig("lyric.mode", "double");
+            }
+            if (!configStore.contains("lyric.style")) {
+                this.setConfig("lyric.style", "glass");
+            }
+
+            configStore.set("$schema", "4");
+        }
+
+        if (schemaVersion < 5) {
+            if (!configStore.contains("lyric.keepAlive")) {
+                this.setConfig("lyric.keepAlive", true);
+            }
+            if (!configStore.contains("lyric.emptyBehavior")) {
+                this.setConfig("lyric.emptyBehavior", "track");
+            }
+
+            configStore.set("$schema", "5");
+        }
 
     }
 
@@ -195,6 +224,21 @@ class AppConfig implements IAppConfig {
         }
         if (!configStore.contains("basic.tryChangeSourceWhenPlayFail")) {
             this.setConfig("basic.tryChangeSourceWhenPlayFail", true);
+        }
+        if (!configStore.contains("lyric.locked")) {
+            this.setConfig("lyric.locked", true);
+        }
+        if (!configStore.contains("lyric.mode")) {
+            this.setConfig("lyric.mode", "double");
+        }
+        if (!configStore.contains("lyric.style")) {
+            this.setConfig("lyric.style", "glass");
+        }
+        if (!configStore.contains("lyric.keepAlive")) {
+            this.setConfig("lyric.keepAlive", true);
+        }
+        if (!configStore.contains("lyric.emptyBehavior")) {
+            this.setConfig("lyric.emptyBehavior", "track");
         }
     }
 

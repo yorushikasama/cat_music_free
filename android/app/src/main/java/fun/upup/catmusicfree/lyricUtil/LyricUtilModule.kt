@@ -1,14 +1,9 @@
 package `fun`.upup.catmusicfree.lyricUtil
 
-import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.provider.Settings
-import android.util.Log
-import androidx.annotation.RequiresApi
 import com.facebook.react.bridge.*
-import java.util.*
 
 class LyricUtilModule(private val reactContext: ReactApplicationContext): ReactContextBaseJavaModule(reactContext) {
     override fun getName() = "LyricUtil"
@@ -69,10 +64,35 @@ class LyricUtilModule(private val reactContext: ReactApplicationContext): ReactC
                     if (options.hasKey("fontSize")) {
                         put("fontSize", options.getDouble("fontSize"))
                     }
+                    if (options.hasKey("locked")) {
+                        put("locked", options.getBoolean("locked"))
+                    }
+                    if (options.hasKey("mode")) {
+                        options.getString("mode")?.let { put("mode", it) }
+                    }
+                    if (options.hasKey("style")) {
+                        options.getString("style")?.let { put("style", it) }
+                    }
+                    if (options.hasKey("emptyBehavior")) {
+                        options.getString("emptyBehavior")?.let { put("emptyBehavior", it) }
+                    }
+                    if (options.hasKey("fallbackText")) {
+                        options.getString("fallbackText")?.let { put("fallbackText", it) }
+                    }
                 }
 
                 try {
                     lyricView?.showLyricWindow(initLyric, mapOptions)
+                    val keepAlive = if (options?.hasKey("keepAlive") == true) {
+                        options.getBoolean("keepAlive")
+                    } else {
+                        true
+                    }
+                    if (keepAlive) {
+                        StatusBarLyricService.start(reactContext)
+                    } else {
+                        StatusBarLyricService.stop(reactContext)
+                    }
                     promise.resolve(true)
                 } catch (e: Exception) {
                     promise.reject("Exception", e.message)
@@ -89,6 +109,7 @@ class LyricUtilModule(private val reactContext: ReactApplicationContext): ReactC
             UiThreadUtil.runOnUiThread {
                 lyricView?.hideLyricWindow()
             }
+            StatusBarLyricService.stop(reactContext)
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("Exception", e.message)
@@ -172,6 +193,90 @@ class LyricUtilModule(private val reactContext: ReactApplicationContext): ReactC
         try {
             UiThreadUtil.runOnUiThread {
                 lyricView?.setColors(textColor, backgroundColor)
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("Exception", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun addListener(eventName: String) {
+        // Required by React Native NativeEventEmitter.
+    }
+
+    @ReactMethod
+    fun removeListeners(count: Int) {
+        // Required by React Native NativeEventEmitter.
+    }
+
+    @ReactMethod
+    fun setStatusBarLyricLocked(locked: Boolean, promise: Promise) {
+        try {
+            UiThreadUtil.runOnUiThread {
+                lyricView?.setLocked(locked)
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("Exception", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun setStatusBarLyricMode(mode: String, promise: Promise) {
+        try {
+            UiThreadUtil.runOnUiThread {
+                lyricView?.setMode(mode)
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("Exception", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun setStatusBarLyricStyle(style: String, promise: Promise) {
+        try {
+            UiThreadUtil.runOnUiThread {
+                lyricView?.setStyle(style)
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("Exception", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun setStatusBarLyricEmptyBehavior(behavior: String, fallbackText: String?, promise: Promise) {
+        try {
+            UiThreadUtil.runOnUiThread {
+                lyricView?.setEmptyBehavior(behavior, fallbackText)
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("Exception", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun setStatusBarLyricPaused(paused: Boolean, promise: Promise) {
+        try {
+            UiThreadUtil.runOnUiThread {
+                lyricView?.setPaused(paused)
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("Exception", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun setStatusBarLyricKeepAlive(enabled: Boolean, promise: Promise) {
+        try {
+            if (enabled) {
+                StatusBarLyricService.start(reactContext)
+            } else {
+                StatusBarLyricService.stop(reactContext)
             }
             promise.resolve(true)
         } catch (e: Exception) {

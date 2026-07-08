@@ -427,6 +427,23 @@ export interface ILanguageData {
     "basicSettings.lyric.topBottomDistance": string; // 上下距离
     "basicSettings.lyric.width": string; // 歌词宽度
     "basicSettings.lyric.fontSize": string; // 字体大小
+    "basicSettings.lyric.locked": string; // 锁定桌面歌词
+    "basicSettings.lyric.keepAlive": string; // 桌面歌词保活
+    "basicSettings.lyric.mode": string; // 显示行数
+    "basicSettings.lyric.mode.single": string; // 单行
+    "basicSettings.lyric.mode.double": string; // 双行
+    "basicSettings.lyric.emptyBehavior": string; // 无歌词时显示
+    "basicSettings.lyric.emptyBehavior.track": string; // 歌名和歌手
+    "basicSettings.lyric.emptyBehavior.hide": string; // 自动隐藏
+    "basicSettings.lyric.emptyBehavior.app": string; // 应用名
+    "basicSettings.lyric.style": string; // 桌面歌词样式
+    "basicSettings.lyric.style.glass": string; // 玻璃
+    "basicSettings.lyric.style.neon": string; // 流光
+    "basicSettings.lyric.style.plain": string; // 纯文字
+    "basicSettings.lyric.style.dark": string; // 深色
+    "basicSettings.lyric.resetPosition": string; // 重置桌面歌词位置
+    "basicSettings.lyric.previewText": string; // 预览桌面歌词
+    "basicSettings.lyric.previewToast": string; // 桌面歌词预览提示
     "basicSettings.lyric.textColor": string; // 文本颜色
     "basicSettings.lyric.backgroundColor": string; // 文本背景色
     
