@@ -10,6 +10,11 @@ const ADLER_MOD = 65521;
 const FEISHU_MAX_RETRIES = 3;
 const FEISHU_RETRY_BASE_DELAY_MS = 1000;
 const FEISHU_RETRYABLE_CODES = new Set([1061045]);
+const FEISHU_SIZE_LIMIT_HELP =
+    "Feishu accepted multipart upload only up to the current tenant/version file size limit. " +
+    "To upload files above 20MiB, upgrade or verify the Feishu tenant to a version whose " +
+    "original-file upload limit is above the APK size, use a user_access_token from a user " +
+    "with access to such a tenant/folder, or reduce/host the APK elsewhere.";
 
 function parseArgs(argv) {
     const args = {};
@@ -183,6 +188,17 @@ async function getTenantAccessToken(appId, appSecret) {
     return json.tenant_access_token;
 }
 
+async function getAccessToken(appId, appSecret) {
+    const userAccessToken = getEnv("FEISHU_USER_ACCESS_TOKEN");
+    if (userAccessToken) {
+        console.log("Using FEISHU_USER_ACCESS_TOKEN for Drive upload.");
+        return userAccessToken;
+    }
+
+    console.log("Using tenant_access_token for Drive upload.");
+    return getTenantAccessToken(appId, appSecret);
+}
+
 async function listFolderFiles(token, folderToken) {
     const files = [];
     let pageToken = "";
@@ -290,6 +306,7 @@ async function prepareMultipartUpload(token, folderToken, fileName, fileSize) {
                 `Feishu rejected multipart upload_prepare for ${formatMB(fileSize)}MB. ` +
                 "The script selected multipart upload because the file is above 20MB, " +
                 "but Feishu still applies tenant/version-specific file size limits. " +
+                `${FEISHU_SIZE_LIMIT_HELP} ` +
                 `Original error: ${error.message}`,
             );
         }
@@ -430,7 +447,7 @@ async function main() {
         console.log("Dry run enabled: no files will be deleted, uploaded, or written.");
     }
 
-    const token = await getTenantAccessToken(appId, appSecret);
+    const token = await getAccessToken(appId, appSecret);
 
     if (dryRun) {
         const files = await listFolderFiles(token, folderToken);
@@ -444,13 +461,13 @@ async function main() {
         return;
     }
 
+    const uploadResult = await uploadApk(token, folderToken, apkPath, fileName);
+    console.log(`Uploaded APK token: ${uploadResult.file_token || uploadResult.token || "unknown"}`);
+
     if (deleteOld) {
         const deleted = await deleteOldApks(token, folderToken, fileName);
         console.log(`Deleted old APK files: ${deleted}`);
     }
-
-    const uploadResult = await uploadApk(token, folderToken, apkPath, fileName);
-    console.log(`Uploaded APK token: ${uploadResult.file_token || uploadResult.token || "unknown"}`);
 
     const versionJson = await readJson(versionJsonPath);
     const fallbackUrls = Array.isArray(versionJson.download)
