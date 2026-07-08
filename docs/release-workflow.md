@@ -15,13 +15,26 @@ npm run release:app -- --version 0.6.11 --changelog "第一条更新|第二条�
 5. 运行 `git diff --check`。
 6. 构建 Android release 包。
 7. `git add -A`，提交 `chore: release <version>`，并推送到 `cat-music-free` 的 `main` 分支。
+8. 创建或更新 GitHub、Gitee、Gitea 的 Release 附件。
 
-当前 `cat-music-free` remote 配了两个 push URL：
+当前 `cat-music-free` remote 配了三个 push URL：
 
 - `https://github.com/yorushikasama/cat_music_free.git`
 - `https://gitee.com/qianmeng_a/cat_music_free.git`
+- `https://gitea.com/yorushikasama/cat_music_free.git`
 
-所以默认发布会同时推送 GitHub 和 Gitee。
+所以默认发布会同时推送 GitHub、Gitee 和 Gitea。
+
+Gitea Release 上传需要本机配置 `.env.gitea.local`：
+
+```bash
+GITEA_BASE_URL=https://gitea.com
+GITEA_OWNER=yorushikasama
+GITEA_REPO=cat_music_free
+GITEA_TOKEN=你的 Gitea access token
+```
+
+`.env.gitea.local` 不要提交。仓库只保留 `.env.gitea.example` 作为模板。
 
 如果不传 `--version`，脚本会自动把补丁版本号加 1，并把 `versionCode` 加 1。
 
@@ -35,4 +48,10 @@ npm run release:app -- --version 0.6.11 --commit=false
 
 ```bash
 npm run release:app -- --version 0.6.11 --push=false
+```
+
+如果只想构建和提交，暂时不上传 Release 附件：
+
+```bash
+npm run release:app -- --version 0.6.11 --release=false
 ```
