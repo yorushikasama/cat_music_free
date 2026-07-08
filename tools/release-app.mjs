@@ -16,6 +16,13 @@ const DEFAULT_GITEE_REPO = "cat_music_free";
 const DEFAULT_GITEA_BASE_URL = "https://gitea.com";
 const DEFAULT_GITEA_OWNER = "yorushikasama";
 const DEFAULT_GITEA_REPO = "cat_music_free";
+const BUNDLE_CACHE_PATHS = [
+    "android/app/src/main/assets/index.android.bundle",
+    "android/app/build/generated/assets/createBundleReleaseJsAndAssets",
+    "android/app/build/generated/res/createBundleReleaseJsAndAssets",
+    "android/app/build/intermediates/assets/release",
+    "android/app/build/intermediates/res/merged/release",
+];
 
 function parseArgs(argv) {
     const args = {};
@@ -169,8 +176,25 @@ async function getGiteaToken(baseUrl) {
 }
 
 async function requestJson(url, options = {}) {
-    const response = await fetch(url, options);
-    const text = await response.text();
+    const retries = options.retries ?? 2;
+    const requestOptions = { ...options };
+    delete requestOptions.retries;
+    let response;
+    let text = "";
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+        try {
+            response = await fetch(url, requestOptions);
+            text = await response.text();
+            if (response.ok || response.status < 500 || attempt === retries) {
+                break;
+            }
+        } catch (error) {
+            if (attempt === retries) {
+                throw error;
+            }
+        }
+        await delay(1000 * (attempt + 1));
+    }
     let json;
     try {
         json = text ? JSON.parse(text) : {};
@@ -182,6 +206,12 @@ async function requestJson(url, options = {}) {
         throw new Error(`${response.status} ${message}`);
     }
     return json;
+}
+
+function delay(ms) {
+    return new Promise(resolve => {
+        setTimeout(resolve, ms);
+    });
 }
 
 async function ensureGithubRelease({ version, tagName, body }) {
@@ -244,18 +274,26 @@ async function uploadGithubAsset(release, apkPath, assetName) {
             headers,
         });
     }
-    const bytes = await fs.readFile(apkPath);
-    const asset = await requestJson(
-        `https://uploads.github.com/repos/${owner}/${repo}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`,
-        {
-            method: "POST",
-            headers: {
-                ...headers,
-                "Content-Type": "application/vnd.android.package-archive",
-            },
-            body: new Blob([bytes]),
-        },
-    );
+    const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
+    const uploadHeaders = {
+        ...headers,
+        "Content-Type": "application/vnd.android.package-archive",
+    };
+    const asset = await uploadBinaryWithFallback({
+        url: uploadUrl,
+        headers: uploadHeaders,
+        filePath: apkPath,
+        curlArgs: [
+            "-X", "POST",
+            "-H", `Authorization: Bearer ${token}`,
+            "-H", "Accept: application/vnd.github+json",
+            "-H", "X-GitHub-Api-Version: 2022-11-28",
+            "-H", "User-Agent: CatMusicFree-release",
+            "-H", "Content-Type: application/vnd.android.package-archive",
+            "--data-binary", `@${apkPath}`,
+            uploadUrl,
+        ],
+    });
     console.log(`Uploaded GitHub Release asset: ${asset.browser_download_url}`);
     return asset.browser_download_url;
 }
@@ -270,9 +308,15 @@ async function ensureGiteeRelease({ version, tagName, body }) {
     const repo = getEnv("GITEE_REPO", DEFAULT_GITEE_REPO);
     const api = `https://gitee.com/api/v5/repos/${owner}/${repo}`;
     const tokenParam = `access_token=${encodeURIComponent(token)}`;
-    const existing = await requestJson(`${api}/releases/tags/${tagName}?${tokenParam}`);
-    if (existing) {
-        return existing;
+    try {
+        const existing = await requestJson(`${api}/releases/tags/${tagName}?${tokenParam}`);
+        if (existing) {
+            return existing;
+        }
+    } catch (error) {
+        if (!String(error.message).startsWith("404 ")) {
+            throw error;
+        }
     }
     const params = new URLSearchParams({
         access_token: token,
@@ -368,16 +412,80 @@ async function uploadGiteaAsset(release, apkPath, assetName) {
             headers,
         });
     }
-    const file = await fs.readFile(apkPath);
-    const form = new FormData();
-    form.append("attachment", new Blob([file]), assetName);
-    const asset = await requestJson(`${api}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`, {
-        method: "POST",
+    const uploadUrl = `${api}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
+    const asset = await uploadMultipartWithFallback({
+        url: uploadUrl,
         headers,
-        body: form,
+        fieldName: "attachment",
+        filePath: apkPath,
+        fileName: assetName,
+        curlArgs: [
+            "-X", "POST",
+            "-H", `Authorization: token ${token}`,
+            "-H", "Accept: application/json",
+            "-F", `attachment=@${apkPath};filename=${assetName}`,
+            uploadUrl,
+        ],
     });
     console.log(`Uploaded Gitea Release asset: ${asset.browser_download_url}`);
     return asset.browser_download_url;
+}
+
+async function uploadBinaryWithFallback({ url, headers, filePath, curlArgs }) {
+    try {
+        const bytes = await fs.readFile(filePath);
+        return await requestJson(url, {
+            method: "POST",
+            headers,
+            body: new Blob([bytes]),
+        });
+    } catch (error) {
+        console.warn(`Node upload failed, retry with curl: ${error?.message || error}`);
+        return runCurlJson(curlArgs);
+    }
+}
+
+async function uploadMultipartWithFallback({ url, headers, fieldName, filePath, fileName, curlArgs }) {
+    try {
+        const file = await fs.readFile(filePath);
+        const form = new FormData();
+        form.append(fieldName, new Blob([file]), fileName);
+        return await requestJson(url, {
+            method: "POST",
+            headers,
+            body: form,
+        });
+    } catch (error) {
+        console.warn(`Node upload failed, retry with curl: ${error?.message || error}`);
+        return runCurlJson(curlArgs);
+    }
+}
+
+async function runCurlJson(args) {
+    const output = await new Promise((resolve, reject) => {
+        const child = spawn("curl.exe", ["--fail-with-body", "--silent", "--show-error", ...args], {
+            cwd: process.cwd(),
+            shell: false,
+            stdio: ["ignore", "pipe", "pipe"],
+        });
+        let stdout = "";
+        let stderr = "";
+        child.stdout.on("data", chunk => {
+            stdout += chunk.toString();
+        });
+        child.stderr.on("data", chunk => {
+            stderr += chunk.toString();
+        });
+        child.on("error", reject);
+        child.on("exit", code => {
+            if (code === 0) {
+                resolve(stdout);
+            } else {
+                reject(new Error(stderr || stdout || `curl failed with code ${code}`));
+            }
+        });
+    });
+    return JSON.parse(output || "{}");
 }
 
 async function ensureGitTag(tagName, version) {
@@ -404,14 +512,67 @@ async function publishReleaseAssets(version, changeLog, apkPath, assetName) {
     const body = getReleaseBody(version, changeLog);
     await ensureGitTag(tagName, version);
 
-    const giteeRelease = await ensureGiteeRelease({ version, tagName, body });
-    await uploadGiteeAsset(giteeRelease, apkPath, assetName);
+    const results = [];
+    const targets = [
+        {
+            name: "Gitee",
+            ensure: ensureGiteeRelease,
+            upload: uploadGiteeAsset,
+        },
+        {
+            name: "GitHub",
+            ensure: ensureGithubRelease,
+            upload: uploadGithubAsset,
+        },
+        {
+            name: "Gitea",
+            ensure: ensureGiteaRelease,
+            upload: uploadGiteaAsset,
+        },
+    ];
 
-    const githubRelease = await ensureGithubRelease({ version, tagName, body });
-    await uploadGithubAsset(githubRelease, apkPath, assetName);
+    for (const target of targets) {
+        results.push(await publishReleaseTarget(target, {
+            version,
+            tagName,
+            body,
+            apkPath,
+            assetName,
+        }));
+    }
 
-    const giteaRelease = await ensureGiteaRelease({ version, tagName, body });
-    await uploadGiteaAsset(giteaRelease, apkPath, assetName);
+    console.log("\nRelease asset summary:");
+    for (const result of results) {
+        const status = result.ok ? "ok" : "failed";
+        console.log(`- ${result.name}: ${status}${result.url ? ` ${result.url}` : ""}${result.error ? ` (${result.error})` : ""}`);
+    }
+
+    const failed = results.filter(result => !result.ok);
+    if (failed.length) {
+        throw new Error(`Release asset upload failed: ${failed.map(result => result.name).join(", ")}`);
+    }
+}
+
+async function publishReleaseTarget(target, context) {
+    try {
+        const release = await target.ensure({
+            version: context.version,
+            tagName: context.tagName,
+            body: context.body,
+        });
+        const url = await target.upload(release, context.apkPath, context.assetName);
+        return {
+            name: target.name,
+            ok: true,
+            url,
+        };
+    } catch (error) {
+        return {
+            name: target.name,
+            ok: false,
+            error: error?.message || String(error),
+        };
+    }
 }
 
 async function run(command, args, options = {}) {
@@ -473,6 +634,16 @@ async function updateVersionJson(version, changeLog, downloadUrls) {
     });
 }
 
+async function cleanBundleOutputs() {
+    for (const relativePath of BUNDLE_CACHE_PATHS) {
+        await fs.rm(path.resolve(relativePath), {
+            force: true,
+            recursive: true,
+        });
+    }
+    console.log("Cleaned React Native bundle outputs.");
+}
+
 async function getCurrentVersionCode() {
     const content = await fs.readFile(path.resolve(BUILD_GRADLE), "utf8");
     const match = content.match(/def appVersionCode = (\d+)/);
@@ -525,6 +696,7 @@ async function main() {
         }
 
         if (shouldBuild) {
+            await cleanBundleOutputs();
             if (shouldClean) {
                 await run(path.join(".", "android", "gradlew.bat"), ["-p", "android", "clean"]);
             }
@@ -545,10 +717,12 @@ async function main() {
         }
 
         if (shouldRelease) {
-            await publishReleaseAssets(version, changeLog, apkPath, assetName);
+            const tagName = `v${version}`;
+            await ensureGitTag(tagName, version);
             if (shouldPush) {
-                await run("git", ["push", pushRemote, `v${version}`], { shell: false });
+                await run("git", ["push", pushRemote, tagName], { shell: false });
             }
+            await publishReleaseAssets(version, changeLog, apkPath, assetName);
         }
 
         console.log(`\nRelease ${version} workflow completed.`);
