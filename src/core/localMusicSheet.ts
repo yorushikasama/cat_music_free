@@ -11,8 +11,9 @@ import {
 } from "@/utils/mediaUtils";
 import StateMapper from "@/utils/stateMapper";
 import { getStorage, setStorage } from "@/utils/storage";
+import asyncFilterInBatches from "@/utils/asyncFilterInBatches";
 import CryptoJs from "crypto-js";
-import { nanoid } from "nanoid";
+import { nanoid } from "nanoid/non-secure";
 import { useEffect, useState } from "react";
 import { ReadDirItem, exists, readDir, unlink } from "react-native-fs";
 
@@ -29,14 +30,15 @@ export async function setup() {
     localMeta = meta && typeof meta === "object" ? meta : {};
     const sheet = await getStorage(StorageKeys.LocalMusicSheet);
     if (sheet) {
-        let validSheet: IMusic.IMusicItem[] = [];
-        for (let musicItem of sheet) {
-            const localPath = getLocalPath(musicItem);
-            if (localPath && (await exists(localPath))) {
-                validSheet.push(musicItem);
-            }
-        }
-        if (validSheet.length !== sheet.length) {
+        const musicSheet = sheet as IMusic.IMusicItem[];
+        const validSheet = await asyncFilterInBatches<IMusic.IMusicItem>(
+            musicSheet,
+            async musicItem => {
+                const localPath = getLocalPath(musicItem);
+                return !!localPath && await exists(localPath);
+            },
+        );
+        if (validSheet.length !== musicSheet.length) {
             await setStorage(StorageKeys.LocalMusicSheet, validSheet);
         }
         localSheet = validSheet;

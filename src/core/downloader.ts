@@ -10,7 +10,7 @@ import network from "@/utils/network";
 import { getQualityOrder } from "@/utils/qualities";
 import EventEmitter from "eventemitter3";
 import { atom, getDefaultStore, useAtomValue } from "jotai";
-import { nanoid } from "nanoid";
+import { nanoid } from "nanoid/non-secure";
 import path from "path-browserify";
 import { useEffect, useState } from "react";
 import { copyFile, downloadFile, exists, unlink } from "react-native-fs";
@@ -304,6 +304,7 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
             toFile: cacheDownloadPath,
             headers: headers,
             background: true,
+            progressInterval: 300,
             begin: (res) => {
                 this.updateDownloadTask(musicItem, {
                     status: DownloadStatus.Downloading,

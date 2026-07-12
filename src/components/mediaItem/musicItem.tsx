@@ -18,7 +18,7 @@ interface IMusicItemProps {
     onItemPress?: (musicItem: IMusic.IMusicItem) => void;
     onItemLongPress?: () => void;
     itemPaddingRight?: number;
-    left?: () => JSX.Element;
+    left?: () => React.ReactElement;
     containerStyle?: StyleProp<ViewStyle>;
     highlight?: boolean
 }

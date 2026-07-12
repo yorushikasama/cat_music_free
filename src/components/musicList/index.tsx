@@ -53,7 +53,7 @@ export default function MusicList(props: IMusicListProps) {
     const colors = useColors();
     const flashListRef = useRef<FlashList<IMusic.IMusicItem>>(null);
     const [showBadge, setShowBadge] = useState(false);
-    const hideTimeoutRef = useRef<NodeJS.Timeout>();
+    const hideTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     // 查找高亮项的索引
     const highlightIndex = useMemo(() => {

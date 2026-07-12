@@ -9,7 +9,7 @@ export default function (pluginHash: string, tag: ICommon.IUnique) {
     const [sheets, setSheets] = useState<IMusic.IMusicSheetItemBase[]>([]);
     const [requestState, setRequestState] = useState(RequestStateCode.IDLE);
     const [refreshing, setRefreshing] = useState(false);
-    const currentTagRef = useRef<string>();
+    const currentTagRef = useRef<string | undefined>(undefined);
     const pageRef = useRef(0);
 
     const query = useCallback(async (refresh = false) => {

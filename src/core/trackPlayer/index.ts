@@ -86,6 +86,7 @@ class TrackPlayer extends EventEmitter<{
     private sourceFallbackInFlightKeys = new Set<string>();
     private sourceFallbackTestingKeys = new Set<string>();
     private sourceFallbackWatchToken = 0;
+    private playRequestToken = 0;
 
 
     private static maxMusicQueueLength = 10000;
@@ -438,10 +439,182 @@ class TrackPlayer extends EventEmitter<{
         return isSameMediaItem(musicItem, this.currentMusic);
     }
 
+    private isPlayRequestActive(
+        requestToken: number,
+        musicItem: IMusic.IMusicItem,
+    ) {
+        return requestToken === this.playRequestToken &&
+            this.isCurrentMusic(musicItem);
+    }
+
+    private async resumeCurrentTrack(
+        musicItem: IMusic.IMusicItem,
+        forcePlay: boolean | undefined,
+        requestToken: number,
+    ) {
+        if (!this.isCurrentMusic(musicItem)) {
+            return false;
+        }
+        const currentTrack = await ReactNativeTrackPlayer.getTrack(0);
+        if (!this.isPlayRequestActive(requestToken, musicItem)) {
+            return true;
+        }
+        if (
+            !currentTrack?.url ||
+            !isSameMediaItem(musicItem, currentTrack as IMusic.IMusicItem)
+        ) {
+            return false;
+        }
+        const currentActiveIndex =
+            await ReactNativeTrackPlayer.getActiveTrackIndex();
+        if (!this.isPlayRequestActive(requestToken, musicItem)) {
+            return true;
+        }
+        if (currentActiveIndex !== 0) {
+            await ReactNativeTrackPlayer.skip(0);
+        }
+        if (forcePlay) {
+            await this.seekTo(0);
+        }
+        const currentState = (
+            await ReactNativeTrackPlayer.getPlaybackState()
+        ).state;
+        if (!this.isPlayRequestActive(requestToken, musicItem)) {
+            return true;
+        }
+        if (currentState === State.Stopped) {
+            await this.setTrackSource(currentTrack);
+        }
+        if (currentState !== State.Playing) {
+            await ReactNativeTrackPlayer.play();
+        }
+        return true;
+    }
+
+    private async resolveTrackSourceForPlay(
+        musicItem: IMusic.IMusicItem,
+        requestToken: number,
+    ) {
+        let sourceMusicItem = musicItem;
+        const plugin = this.pluginManagerService.getByName(musicItem.platform);
+        const qualityOrder = getQualityOrder(
+            this.configService.getConfig("basic.defaultPlayQuality") ?? "standard",
+            this.configService.getConfig("basic.playQualityOrder") ?? "asc",
+        );
+        let source: IPlugin.IMediaSourceResult | null = null;
+
+        for (const quality of qualityOrder) {
+            if (!this.isPlayRequestActive(requestToken, musicItem)) {
+                return null;
+            }
+            try {
+                source =
+                    (await plugin?.methods?.getMediaSource(
+                        musicItem,
+                        quality,
+                    )) ?? null;
+            } catch (e: any) {
+                trace("获取音源失败", e?.message ?? e);
+                source = null;
+            }
+            if (source?.url) {
+                this.setQuality(quality);
+                break;
+            }
+        }
+
+        if (!this.isPlayRequestActive(requestToken, musicItem)) {
+            return null;
+        }
+        if (!source?.url && musicItem.source) {
+            for (const quality of qualityOrder) {
+                if (musicItem.source[quality]?.url) {
+                    source = musicItem.source[quality]!;
+                    this.setQuality(quality);
+                    break;
+                }
+            }
+        }
+        if (!source?.url && !musicItem.url) {
+            if (!this.configService.getConfig("basic.tryChangeSourceWhenPlayFail")) {
+                throw new Error(PlayFailReason.INVALID_SOURCE);
+            }
+            const fallback = await this.getPlayableSourceFallback(
+                musicItem,
+                qualityOrder,
+                () => !this.isPlayRequestActive(requestToken, musicItem),
+            );
+            if (!this.isPlayRequestActive(requestToken, musicItem)) {
+                return null;
+            }
+            if (fallback) {
+                source = fallback.source;
+                sourceMusicItem = fallback.musicItem;
+                this.setQuality(fallback.quality);
+            }
+            if (!source?.url) {
+                throw new Error(PlayFailReason.INVALID_SOURCE);
+            }
+        } else if (!source?.url) {
+            source = { url: musicItem.url };
+            this.setQuality("standard");
+        }
+
+        if (getUrlExt(source.url || "") === ".m3u8") {
+            const hlsSource = source as IPlugin.IMediaSourceResult & {
+                type?: string;
+            };
+            hlsSource.type = "hls";
+        }
+        let track = this.mergeTrackSource(
+            sourceMusicItem,
+            source,
+        ) as IMusic.IMusicItem;
+        const changedSource = !isSameMediaItem(sourceMusicItem, musicItem);
+        if (changedSource) {
+            track = this.withPlayListOrder(musicItem, track);
+        }
+        return { track, changedSource };
+    }
+
+    private async enrichCurrentTrackMetadata(
+        track: IMusic.IMusicItem,
+        requestToken: number,
+    ) {
+        let info: Partial<IMusic.IMusicItem> | null = null;
+        try {
+            const sourcePlugin =
+                this.pluginManagerService.getByMedia(track) ??
+                this.pluginManagerService.getByName(track.platform);
+            info = (await sourcePlugin?.methods?.getMusicInfo?.(track)) ?? null;
+            if (
+                (typeof info?.url === "string" && info.url.trim() === "") ||
+                (info?.url && typeof info.url !== "string")
+            ) {
+                delete info.url;
+            }
+        } catch {}
+        if (
+            info &&
+            this.isPlayRequestActive(requestToken, track)
+        ) {
+            const mergedTrack = this.mergeTrackSource(track, info);
+            getDefaultStore().set(
+                currentMusicAtom,
+                mergedTrack as IMusic.IMusicItem,
+            );
+            await ReactNativeTrackPlayer.updateMetadataForTrack(
+                0,
+                mergedTrack as TrackMetadataBase,
+            );
+        }
+    }
+
     async play(
         musicItem?: IMusic.IMusicItem | null,
         forcePlay?: boolean,
     ): Promise<void> {
+        const requestToken = ++this.playRequestToken;
         try {
             // 如果不传参，默认是播放当前音乐
             if (!musicItem) {
@@ -465,41 +638,14 @@ class TrackPlayer extends EventEmitter<{
                 throw new Error(PlayFailReason.FORBID_CELLUAR_NETWORK_PLAY);
             }
 
-            // 2. 如果是当前正在播放的音频
-            if (this.isCurrentMusic(musicItem)) {
-                // 获取底层播放器中的track
-                const currentTrack = await ReactNativeTrackPlayer.getTrack(0);
-                // 2.1 如果当前有源
-                if (
-                    currentTrack?.url &&
-                    isSameMediaItem(
-                        musicItem,
-                        currentTrack as IMusic.IMusicItem,
-                    )
-                ) {
-                    const currentActiveIndex =
-                        await ReactNativeTrackPlayer.getActiveTrackIndex();
-                    if (currentActiveIndex !== 0) {
-                        await ReactNativeTrackPlayer.skip(0);
-                    }
-                    if (forcePlay) {
-                        // 2.1.1 强制重新开始
-                        await this.seekTo(0);
-                    }
-                    const currentState = (
-                        await ReactNativeTrackPlayer.getPlaybackState()
-                    ).state;
-                    if (currentState === State.Stopped) {
-                        await this.setTrackSource(currentTrack);
-                    }
-                    if (currentState !== State.Playing) {
-                        // 2.1.2 恢复播放
-                        await ReactNativeTrackPlayer.play();
-                    }
-                    // 这种情况下，播放队列和当前歌曲都不需要变化
-                    return;
-                }
-                // 2.2 其他情况：重新获取源
+            if (
+                await this.resumeCurrentTrack(
+                    musicItem,
+                    forcePlay,
+                    requestToken,
+                )
+            ) {
+                return;
             }
 
             // 3. 如果没有在播放列表中，添加到队尾；同时更新列表状态
@@ -515,99 +661,18 @@ class TrackPlayer extends EventEmitter<{
                 url: TrackPlayer.proposedAudioUrl,
                 artwork: resolveImportedAssetOrPath(musicItem.artwork?.trim?.()?.length ? musicItem.artwork : ImgAsset.albumDefault) as unknown as any,
             }, this.getFakeNextTrack()]);
-
-            // 5. 获取音源
-            let track: IMusic.IMusicItem;
-            let sourceMusicItem = musicItem;
-
-            // 5.1 通过插件获取音源
-            const plugin = this.pluginManagerService.getByName(musicItem.platform);
-            // 5.2 获取音质排序
-            const qualityOrder = getQualityOrder(
-                this.configService.getConfig("basic.defaultPlayQuality") ?? "standard",
-                this.configService.getConfig("basic.playQualityOrder") ?? "asc",
-            );
-            // 5.3 插件返回音源
-            let source: IPlugin.IMediaSourceResult | null = null;
-            for (let quality of qualityOrder) {
-                if (this.isCurrentMusic(musicItem)) {
-                    try {
-                        source =
-                            (await plugin?.methods?.getMediaSource(
-                                musicItem,
-                                quality,
-                            )) ?? null;
-                    } catch (e: any) {
-                        trace("获取音源失败", e?.message ?? e);
-                        source = null;
-                    }
-                    // 5.3.1 获取到真实源
-                    if (source?.url) {
-                        this.setQuality(quality);
-                        break;
-                    }
-                } else {
-                    // 5.3.2 已经切换到其他歌曲了，
-                    return;
-                }
-            }
-
-            if (!this.isCurrentMusic(musicItem)) {
+            if (!this.isPlayRequestActive(requestToken, musicItem)) {
                 return;
             }
-            if (!source?.url) {
-                // 如果有source
-                if (musicItem.source) {
-                    for (let quality of qualityOrder) {
-                        if (musicItem.source[quality]?.url) {
-                            source = musicItem.source[quality]!;
-                            this.setQuality(quality);
 
-                            break;
-                        }
-                    }
-                }
-                // 5.4 没有返回源
-                if (!source?.url && !musicItem.url) {
-                    // 插件失效的情况
-                    if (this.configService.getConfig("basic.tryChangeSourceWhenPlayFail")) {
-                        const fallback = await this.getPlayableSourceFallback(
-                            musicItem,
-                            qualityOrder,
-                            () => !this.isCurrentMusic(musicItem),
-                        );
-
-                        if (fallback) {
-                            source = fallback.source;
-                            sourceMusicItem = fallback.musicItem;
-                            this.setQuality(fallback.quality);
-                        }
-
-                        if (!source?.url) {
-                            throw new Error(PlayFailReason.INVALID_SOURCE);
-                        }
-                    } else {
-                        throw new Error(PlayFailReason.INVALID_SOURCE);
-                    }
-                } else {
-                    source = {
-                        url: musicItem.url,
-                    };
-                    this.setQuality("standard");
-                }
+            const resolved = await this.resolveTrackSourceForPlay(
+                musicItem,
+                requestToken,
+            );
+            if (!resolved) {
+                return;
             }
-
-            // 6. 特殊类型源
-            if (getUrlExt(source.url || "") === ".m3u8") {
-                // @ts-ignore
-                source.type = "hls";
-            }
-            // 7. 合并结果
-            track = this.mergeTrackSource(sourceMusicItem, source) as IMusic.IMusicItem;
-            const changedSource = !isSameMediaItem(sourceMusicItem, musicItem);
-            if (changedSource) {
-                track = this.withPlayListOrder(musicItem, track);
-            }
+            const { track, changedSource } = resolved;
 
             trace("获取音源成功", track);
             // 8. 设置音源
@@ -617,6 +682,10 @@ class TrackPlayer extends EventEmitter<{
             if (!changedSource) {
                 await this.setTrackSource(track as Track);
                 this.watchCurrentTrackForSourceFallback(track);
+            }
+
+            if (!this.isPlayRequestActive(requestToken, musicItem)) {
+                return;
             }
 
             if (changedSource && canPersistChangedSource) {
@@ -631,31 +700,11 @@ class TrackPlayer extends EventEmitter<{
 
             // 9. 新增历史记录
             await this.musicHistoryService.addMusic(track);
-
-            // 10. 获取补充信息
-            let info: Partial<IMusic.IMusicItem> | null = null;
-            try {
-                const sourcePlugin = this.pluginManagerService.getByMedia(track) ?? plugin;
-                info =
-                    (await sourcePlugin?.methods?.getMusicInfo?.(track)) ?? null;
-                if (
-                    (typeof info?.url === "string" && info.url.trim() === "") ||
-                    (info?.url && typeof info.url !== "string")
-                ) {
-                    delete info.url;
-                }
-            } catch { }
-
-            // 11. 设置补充信息
-            if (info && this.isCurrentMusic(track)) {
-                const mergedTrack = this.mergeTrackSource(track, info);
-                getDefaultStore().set(currentMusicAtom, mergedTrack as IMusic.IMusicItem);
-                await ReactNativeTrackPlayer.updateMetadataForTrack(
-                    0,
-                    mergedTrack as TrackMetadataBase,
-                );
-            }
+            await this.enrichCurrentTrackMetadata(track, requestToken);
         } catch (e: any) {
+            if (requestToken !== this.playRequestToken) {
+                return;
+            }
             const message = e?.message;
             if (
                 message ===

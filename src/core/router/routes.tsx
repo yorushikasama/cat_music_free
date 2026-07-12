@@ -1,4 +1,5 @@
 import Home from "@/pages/home";
+import type { ReactElement } from "react";
 import MusicDetail from "@/pages/musicDetail";
 import TopList from "@/pages/topList";
 import TopListDetail from "@/pages/topListDetail";
@@ -24,7 +25,7 @@ export type RoutePaths = ValueOf<typeof ROUTE_PATH>;
 
 type IRoutes = {
   path: RoutePaths;
-  component: (...args: any[]) => JSX.Element;
+  component: (...args: any[]) => ReactElement;
 };
 
 

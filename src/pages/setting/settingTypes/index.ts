@@ -1,4 +1,5 @@
 import deviceInfoModule from "react-native-device-info";
+import type { ReactElement } from "react";
 import AboutSetting from "./aboutSetting";
 import BackupSetting from "./backupSetting";
 import BasicSetting from "./basicSetting";
@@ -9,7 +10,7 @@ const settingTypes: Record<
     string,
     {
         title: string;
-        component: (...args: any) => JSX.Element;
+        component: (...args: any) => ReactElement;
         showNav?: boolean;
         i18nKey: string;
     }

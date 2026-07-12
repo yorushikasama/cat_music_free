@@ -2,6 +2,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
+import { cleanBundleOutputs, verifyApkVersion } from "./release/apk.mjs";
+import {
+    run,
+    runCapture,
+    runCaptureAllowFailure,
+    runCurlJson,
+} from "./release/process.mjs";
 
 const VERSION_JSON = "release/version.json";
 const BUILD_GRADLE = "android/app/build.gradle";
@@ -16,13 +23,6 @@ const DEFAULT_GITEE_REPO = "cat_music_free";
 const DEFAULT_GITEA_BASE_URL = "https://gitea.com";
 const DEFAULT_GITEA_OWNER = "yorushikasama";
 const DEFAULT_GITEA_REPO = "cat_music_free";
-const BUNDLE_CACHE_PATHS = [
-    "android/app/src/main/assets/index.android.bundle",
-    "android/app/build/generated/assets/createBundleReleaseJsAndAssets",
-    "android/app/build/generated/res/createBundleReleaseJsAndAssets",
-    "android/app/build/intermediates/assets/release",
-    "android/app/build/intermediates/res/merged/release",
-];
 
 function parseArgs(argv) {
     const args = {};
@@ -175,8 +175,25 @@ async function getGiteaToken(baseUrl) {
     }
 }
 
+async function validateReleaseCredentials() {
+    const giteaBaseUrl = getEnv("GITEA_BASE_URL", DEFAULT_GITEA_BASE_URL).replace(/\/$/, "");
+    const credentials = await Promise.all([
+        getGiteeToken(),
+        getGithubToken(),
+        getGiteaToken(giteaBaseUrl),
+    ]);
+    const names = ["Gitee", "GitHub", "Gitea"];
+    const missing = names.filter((_, index) => !credentials[index]);
+    if (missing.length) {
+        throw new Error(`Missing release credentials: ${missing.join(", ")}`);
+    }
+    console.log("Validated release credentials for Gitee, GitHub, and Gitea.");
+}
+
 async function requestJson(url, options = {}) {
-    const retries = options.retries ?? 2;
+    const method = String(options.method || "GET").toUpperCase();
+    const canRetry = method === "GET" || method === "HEAD";
+    const retries = canRetry ? options.retries ?? 2 : 0;
     const requestOptions = { ...options };
     delete requestOptions.retries;
     let response;
@@ -185,7 +202,8 @@ async function requestJson(url, options = {}) {
         try {
             response = await fetch(url, requestOptions);
             text = await response.text();
-            if (response.ok || response.status < 500 || attempt === retries) {
+            const retryableStatus = response.status === 429 || response.status >= 500;
+            if (response.ok || !retryableStatus || attempt === retries) {
                 break;
             }
         } catch (error) {
@@ -208,6 +226,26 @@ async function requestJson(url, options = {}) {
     return json;
 }
 
+async function verifyDownloadUrl(url) {
+    let lastError;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+        try {
+            const response = await fetch(url, {
+                method: "HEAD",
+                redirect: "follow",
+            });
+            if (response.ok) {
+                return;
+            }
+            lastError = new Error(`${response.status} ${response.statusText}`);
+        } catch (error) {
+            lastError = error;
+        }
+        await delay(1000 * (attempt + 1));
+    }
+    throw new Error(`Download URL is not available: ${url} (${lastError?.message || lastError})`);
+}
+
 function delay(ms) {
     return new Promise(resolve => {
         setTimeout(resolve, ms);
@@ -217,8 +255,7 @@ function delay(ms) {
 async function ensureGithubRelease({ version, tagName, body }) {
     const token = await getGithubToken();
     if (!token) {
-        console.warn("Skip GitHub Release upload: no GITHUB_TOKEN/GH_TOKEN or git credential token.");
-        return undefined;
+        throw new Error("Missing GitHub release credential.");
     }
     const owner = getEnv("GITHUB_OWNER", DEFAULT_GITHUB_OWNER);
     const repo = getEnv("GITHUB_REPO", DEFAULT_GITHUB_REPO);
@@ -254,8 +291,11 @@ async function ensureGithubRelease({ version, tagName, body }) {
 
 async function uploadGithubAsset(release, apkPath, assetName) {
     const token = await getGithubToken();
-    if (!token || !release) {
-        return "";
+    if (!token) {
+        throw new Error("Missing GitHub release credential.");
+    }
+    if (!release) {
+        throw new Error("GitHub release was not created.");
     }
     const owner = getEnv("GITHUB_OWNER", DEFAULT_GITHUB_OWNER);
     const repo = getEnv("GITHUB_REPO", DEFAULT_GITHUB_REPO);
@@ -269,31 +309,24 @@ async function uploadGithubAsset(release, apkPath, assetName) {
     const assets = await requestJson(`${api}/releases/${release.id}/assets?per_page=100`, { headers });
     const existing = assets.find(asset => asset.name === assetName);
     if (existing) {
-        await requestJson(`${api}/releases/assets/${existing.id}`, {
-            method: "DELETE",
-            headers,
-        });
+        console.log(`Reuse existing GitHub Release asset: ${existing.browser_download_url}`);
+        return existing.browser_download_url;
     }
     const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
-    const uploadHeaders = {
-        ...headers,
-        "Content-Type": "application/vnd.android.package-archive",
-    };
-    const asset = await uploadBinaryWithFallback({
-        url: uploadUrl,
-        headers: uploadHeaders,
-        filePath: apkPath,
-        curlArgs: [
+    const asset = await runCurlJson(
+        [
             "-X", "POST",
-            "-H", `Authorization: Bearer ${token}`,
-            "-H", "Accept: application/vnd.github+json",
-            "-H", "X-GitHub-Api-Version: 2022-11-28",
-            "-H", "User-Agent: CatMusicFree-release",
-            "-H", "Content-Type: application/vnd.android.package-archive",
             "--data-binary", `@${apkPath}`,
             uploadUrl,
         ],
-    });
+        [
+            `Authorization: Bearer ${token}`,
+            "Accept: application/vnd.github+json",
+            "X-GitHub-Api-Version: 2022-11-28",
+            "User-Agent: CatMusicFree-release",
+            "Content-Type: application/vnd.android.package-archive",
+        ],
+    );
     console.log(`Uploaded GitHub Release asset: ${asset.browser_download_url}`);
     return asset.browser_download_url;
 }
@@ -301,8 +334,7 @@ async function uploadGithubAsset(release, apkPath, assetName) {
 async function ensureGiteeRelease({ version, tagName, body }) {
     const token = await getGiteeToken();
     if (!token) {
-        console.warn("Skip Gitee Release upload: no GITEE_TOKEN/GITEE_ACCESS_TOKEN or git credential token.");
-        return undefined;
+        throw new Error("Missing Gitee release credential.");
     }
     const owner = getEnv("GITEE_OWNER", DEFAULT_GITEE_OWNER);
     const repo = getEnv("GITEE_REPO", DEFAULT_GITEE_REPO);
@@ -334,11 +366,19 @@ async function ensureGiteeRelease({ version, tagName, body }) {
 
 async function uploadGiteeAsset(release, apkPath, assetName) {
     const token = await getGiteeToken();
-    if (!token || !release) {
-        return "";
+    if (!token) {
+        throw new Error("Missing Gitee release credential.");
+    }
+    if (!release) {
+        throw new Error("Gitee release was not created.");
     }
     const owner = getEnv("GITEE_OWNER", DEFAULT_GITEE_OWNER);
     const repo = getEnv("GITEE_REPO", DEFAULT_GITEE_REPO);
+    const existing = release.assets?.find(asset => asset.name === assetName);
+    if (existing?.browser_download_url) {
+        console.log(`Reuse existing Gitee Release asset: ${existing.browser_download_url}`);
+        return existing.browser_download_url;
+    }
     const file = await fs.readFile(apkPath);
     const form = new FormData();
     form.append("file", new Blob([file]), assetName);
@@ -357,8 +397,7 @@ async function ensureGiteaRelease({ version, tagName, body }) {
     const baseUrl = getEnv("GITEA_BASE_URL", DEFAULT_GITEA_BASE_URL).replace(/\/$/, "");
     const token = await getGiteaToken(baseUrl);
     if (!token) {
-        console.warn("Skip Gitea Release upload: no GITEA_TOKEN or git credential token.");
-        return undefined;
+        throw new Error("Missing Gitea release credential.");
     }
     const owner = getEnv("GITEA_OWNER", DEFAULT_GITEA_OWNER);
     const repo = getEnv("GITEA_REPO", DEFAULT_GITEA_REPO);
@@ -394,8 +433,11 @@ async function ensureGiteaRelease({ version, tagName, body }) {
 async function uploadGiteaAsset(release, apkPath, assetName) {
     const baseUrl = getEnv("GITEA_BASE_URL", DEFAULT_GITEA_BASE_URL).replace(/\/$/, "");
     const token = await getGiteaToken(baseUrl);
-    if (!token || !release) {
-        return "";
+    if (!token) {
+        throw new Error("Missing Gitea release credential.");
+    }
+    if (!release) {
+        throw new Error("Gitea release was not created.");
     }
     const owner = getEnv("GITEA_OWNER", DEFAULT_GITEA_OWNER);
     const repo = getEnv("GITEA_REPO", DEFAULT_GITEA_REPO);
@@ -407,109 +449,84 @@ async function uploadGiteaAsset(release, apkPath, assetName) {
     const assets = await requestJson(`${api}/releases/${release.id}/assets`, { headers });
     const existing = assets.find(asset => asset.name === assetName);
     if (existing) {
-        await requestJson(`${api}/releases/${release.id}/assets/${existing.id}`, {
-            method: "DELETE",
-            headers,
-        });
+        console.log(`Reuse existing Gitea Release asset: ${existing.browser_download_url}`);
+        return existing.browser_download_url;
     }
     const uploadUrl = `${api}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
-    const asset = await uploadMultipartWithFallback({
-        url: uploadUrl,
-        headers,
-        fieldName: "attachment",
-        filePath: apkPath,
-        fileName: assetName,
-        curlArgs: [
+    const asset = await runCurlJson(
+        [
             "-X", "POST",
-            "-H", `Authorization: token ${token}`,
-            "-H", "Accept: application/json",
             "-F", `attachment=@${apkPath};filename=${assetName}`,
             uploadUrl,
         ],
-    });
+        [
+            `Authorization: token ${token}`,
+            "Accept: application/json",
+        ],
+    );
     console.log(`Uploaded Gitea Release asset: ${asset.browser_download_url}`);
     return asset.browser_download_url;
 }
 
-async function uploadBinaryWithFallback({ url, headers, filePath, curlArgs }) {
-    try {
-        const bytes = await fs.readFile(filePath);
-        return await requestJson(url, {
-            method: "POST",
-            headers,
-            body: new Blob([bytes]),
-        });
-    } catch (error) {
-        console.warn(`Node upload failed, retry with curl: ${error?.message || error}`);
-        return runCurlJson(curlArgs);
-    }
-}
-
-async function uploadMultipartWithFallback({ url, headers, fieldName, filePath, fileName, curlArgs }) {
-    try {
-        const file = await fs.readFile(filePath);
-        const form = new FormData();
-        form.append(fieldName, new Blob([file]), fileName);
-        return await requestJson(url, {
-            method: "POST",
-            headers,
-            body: form,
-        });
-    } catch (error) {
-        console.warn(`Node upload failed, retry with curl: ${error?.message || error}`);
-        return runCurlJson(curlArgs);
-    }
-}
-
-async function runCurlJson(args) {
-    const output = await new Promise((resolve, reject) => {
-        const child = spawn("curl.exe", ["--fail-with-body", "--silent", "--show-error", ...args], {
-            cwd: process.cwd(),
-            shell: false,
-            stdio: ["ignore", "pipe", "pipe"],
-        });
-        let stdout = "";
-        let stderr = "";
-        child.stdout.on("data", chunk => {
-            stdout += chunk.toString();
-        });
-        child.stderr.on("data", chunk => {
-            stderr += chunk.toString();
-        });
-        child.on("error", reject);
-        child.on("exit", code => {
-            if (code === 0) {
-                resolve(stdout);
-            } else {
-                reject(new Error(stderr || stdout || `curl failed with code ${code}`));
-            }
-        });
-    });
-    return JSON.parse(output || "{}");
-}
-
 async function ensureGitTag(tagName, version) {
-    const exists = await new Promise(resolve => {
-        const child = spawn("git", ["rev-parse", "--verify", "--quiet", `refs/tags/${tagName}`], {
-            cwd: process.cwd(),
-            shell: false,
-            stdio: "ignore",
-        });
-        child.on("exit", code => {
-            resolve(code === 0);
-        });
-        child.on("error", () => {
-            resolve(false);
-        });
-    });
-    if (!exists) {
+    const tagCommit = await resolveGitRevision(`${tagName}^{commit}`);
+    if (!tagCommit) {
         await run("git", ["tag", "-a", tagName, "-m", `CatMusicFree ${version}`], { shell: false });
+        return;
     }
+    const headCommit = await resolveGitRevision("HEAD");
+    if (tagCommit !== headCommit) {
+        throw new Error(`Tag ${tagName} points to ${tagCommit}, but HEAD is ${headCommit}.`);
+    }
+}
+
+async function resolveGitRevision(revision) {
+    try {
+        return (await runCapture("git", ["rev-parse", "--verify", revision])).trim();
+    } catch {
+        return "";
+    }
+}
+
+async function commitRelease(version) {
+    const untracked = await getUntrackedFiles();
+    if (untracked.length) {
+        throw new Error(
+            `Untracked files must be staged or removed before release:\n${untracked.map(file => `- ${file}`).join("\n")}`,
+        );
+    }
+    await run("git", ["add", "-u"]);
+    const staged = await runCaptureAllowFailure("git", ["diff", "--cached", "--quiet"]);
+    if (staged.code === 0) {
+        const currentVersion = (await readJson(path.resolve("package.json"))).version;
+        if (currentVersion !== version) {
+            throw new Error(`Nothing to commit and current version is ${currentVersion}, expected ${version}.`);
+        }
+        console.log(`No release changes to commit for ${version}; reusing HEAD.`);
+        return;
+    }
+    if (staged.code !== 1) {
+        throw new Error(staged.stderr || "Cannot inspect staged release changes.");
+    }
+    await run("git", ["commit", "-m", `chore: release ${version}`], { shell: false });
+}
+
+async function getUntrackedFiles() {
+    const output = await runCapture("git", [
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+    ]);
+    return output
+        .split(/\r?\n/)
+        .map(file => file.trim())
+        .filter(Boolean);
 }
 
 async function publishReleaseAssets(version, changeLog, apkPath, assetName) {
     const tagName = `v${version}`;
     const body = getReleaseBody(version, changeLog);
+    const downloadUrls = getReleaseDownloadUrls(version, assetName);
     await ensureGitTag(tagName, version);
 
     const results = [];
@@ -518,16 +535,19 @@ async function publishReleaseAssets(version, changeLog, apkPath, assetName) {
             name: "Gitee",
             ensure: ensureGiteeRelease,
             upload: uploadGiteeAsset,
+            downloadUrl: downloadUrls[0],
         },
         {
             name: "GitHub",
             ensure: ensureGithubRelease,
             upload: uploadGithubAsset,
+            downloadUrl: downloadUrls[1],
         },
         {
             name: "Gitea",
             ensure: ensureGiteaRelease,
             upload: uploadGiteaAsset,
+            downloadUrl: downloadUrls[2],
         },
     ];
 
@@ -561,10 +581,14 @@ async function publishReleaseTarget(target, context) {
             body: context.body,
         });
         const url = await target.upload(release, context.apkPath, context.assetName);
+        if (!url) {
+            throw new Error(`${target.name} asset upload returned no download URL.`);
+        }
+        await verifyDownloadUrl(target.downloadUrl);
         return {
             name: target.name,
             ok: true,
-            url,
+            url: target.downloadUrl,
         };
     } catch (error) {
         return {
@@ -573,31 +597,6 @@ async function publishReleaseTarget(target, context) {
             error: error?.message || String(error),
         };
     }
-}
-
-async function run(command, args, options = {}) {
-    const display = [command, ...args].join(" ");
-    console.log(`\n> ${display}`);
-    await new Promise((resolve, reject) => {
-        const child = spawn(command, args, {
-            cwd: process.cwd(),
-            env: process.env,
-            shell: process.platform === "win32",
-            stdio: "inherit",
-            ...options,
-        });
-        child.on("error", reject);
-        child.on("exit", code => {
-            if (code === 0) {
-                resolve();
-            } else if (options.allowFailure) {
-                console.warn(`Command failed (${code}) but continuing: ${display}`);
-                resolve();
-            } else {
-                reject(new Error(`Command failed (${code}): ${display}`));
-            }
-        });
-    });
 }
 
 async function updatePackageVersion(version) {
@@ -632,16 +631,6 @@ async function updateVersionJson(version, changeLog, downloadUrls) {
         changeLog: changeLog?.length ? changeLog : versionJson.changeLog,
         download: nextDownload,
     });
-}
-
-async function cleanBundleOutputs() {
-    for (const relativePath of BUNDLE_CACHE_PATHS) {
-        await fs.rm(path.resolve(relativePath), {
-            force: true,
-            recursive: true,
-        });
-    }
-    console.log("Cleaned React Native bundle outputs.");
 }
 
 async function getCurrentVersionCode() {
@@ -686,12 +675,22 @@ async function main() {
             console.log(`ChangeLog: keep existing ${VERSION_JSON} content`);
         }
 
+        if (shouldRelease) {
+            await validateReleaseCredentials();
+        }
+        if (shouldRelease && !shouldBuild) {
+            await verifyApkVersion(apkPath, version, versionCode);
+        }
+
         await updatePackageVersion(version);
         await updateAndroidVersion(version, versionCode);
         await updateVersionJson(version, changeLog, getReleaseDownloadUrls(version, assetName));
 
         if (shouldCheck) {
-            await run("npx", ["tsc", "--noEmit"]);
+            await run(process.execPath, [
+                path.resolve("node_modules/typescript/bin/tsc"),
+                "--noEmit",
+            ], { shell: false });
             await run("git", ["diff", "--check"]);
         }
 
@@ -700,20 +699,21 @@ async function main() {
             if (shouldClean) {
                 await run(path.join(".", "android", "gradlew.bat"), ["-p", "android", "clean"]);
             }
-            await run(path.join(".", "android", "gradlew.bat"), ["-p", "android", "assembleRelease"]);
+            await run(path.join(".", "android", "gradlew.bat"), [
+                "-p", "android",
+                "assembleRelease",
+                "-PreactNativeArchitectures=arm64-v8a",
+                "-PreleaseArchitectures=arm64-v8a",
+                "-PuniversalApk=false",
+            ]);
+        }
+
+        if (shouldBuild) {
+            await verifyApkVersion(apkPath, version, versionCode);
         }
 
         if (shouldCommit) {
-            await run("git", ["add", "-A"]);
-            await run("git", ["commit", "-m", `chore: release ${version}`], { shell: false });
-        }
-
-        if (shouldPush) {
-            if (!shouldCommit) {
-                console.log("Skip git push because --commit=false was set.");
-            } else {
-                await run("git", ["push", pushRemote, `HEAD:${pushBranch}`], { shell: false });
-            }
+            await commitRelease(version);
         }
 
         if (shouldRelease) {
@@ -723,6 +723,14 @@ async function main() {
                 await run("git", ["push", pushRemote, tagName], { shell: false });
             }
             await publishReleaseAssets(version, changeLog, apkPath, assetName);
+        }
+
+        if (shouldPush) {
+            if (!shouldCommit) {
+                console.log("Skip git branch push because --commit=false was set.");
+            } else {
+                await run("git", ["push", pushRemote, `HEAD:${pushBranch}`], { shell: false });
+            }
         }
 
         console.log(`\nRelease ${version} workflow completed.`);

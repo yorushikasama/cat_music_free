@@ -70,17 +70,9 @@ const tabs: ITabItem[] = [
     },
 ];
 
-const TAB_PILL_HEIGHT = rpx(112);
-const ACTIVE_ITEM_WIDTH = rpx(108);
-const ICON_SIZE = rpx(34);
-const ACTIVE_ICON_SIZE = rpx(38);
-const ICON_STAGE_SIZE = rpx(60);
-const ICON_IMAGE_SIZE = rpx(58);
-const ICON_LABEL_GAP = rpx(6);
-const ACG_ICON_LABEL_GAP = rpx(2);
-const ACTIVE_ITEM_OFFSET = rpx(2);
-const ACG_ACTIVE_ITEM_OFFSET = rpx(4);
-const ACTIVE_ICON_LIFT = rpx(3);
+const TAB_PILL_HEIGHT = rpx(104);
+const ICON_SIZE = rpx(28);
+const ACTIVE_ITEM_WIDTH = rpx(98);
 
 function alpha(color: string, value: number) {
     try {
@@ -110,12 +102,8 @@ function TabItem({
     mascot?: ImageSourcePropType;
 }) {
     const { t } = useI18N();
-    const hasMascot = mascot != null;
 
     const progress = useSharedValue(isFocused ? 1 : 0);
-    const activeItemOffset = hasMascot
-        ? ACG_ACTIVE_ITEM_OFFSET
-        : ACTIVE_ITEM_OFFSET;
 
     useEffect(() => {
         progress.value = withTiming(
@@ -124,25 +112,17 @@ function TabItem({
         );
     }, [isFocused, progress]);
 
-    const activeBackgroundStyle = useAnimatedStyle(() => ({
-        opacity: progress.value,
-        transform: [
-            { translateY: -progress.value * activeItemOffset },
-            { scale: 0.94 + progress.value * 0.06 },
-        ],
+    const itemStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: 0.98 + progress.value * 0.02 }],
     }));
 
-    const mascotStyle = useAnimatedStyle(() => ({
-        opacity: 0.68 + progress.value * 0.32,
-        transform: [
-            { translateY: -progress.value * ACTIVE_ICON_LIFT },
-            { scale: 0.92 + progress.value * 0.1 },
-        ],
+    const activeSurfaceStyle = useAnimatedStyle(() => ({
+        opacity: progress.value,
     }));
 
-    const iconHaloStyle = useAnimatedStyle(() => ({
+    const indicatorStyle = useAnimatedStyle(() => ({
         opacity: progress.value,
-        transform: [{ scale: 0.75 + progress.value * 0.25 }],
+        transform: [{ scaleX: 0.4 + progress.value * 0.6 }],
     }));
 
     const iconName = isFocused ? tab.activeIcon : tab.icon;
@@ -156,60 +136,44 @@ function TabItem({
             accessibilityRole="tab"
             accessibilityLabel={label}
             accessibilityState={{ selected: isFocused }}>
-            <View style={styles.tabContent}>
+            <Animated.View style={[styles.tabInner, itemStyle]}>
                 <Animated.View
                     pointerEvents="none"
                     style={[
                         styles.activeBackground,
                         { backgroundColor: activeBackgroundColor },
-                        activeBackgroundStyle,
+                        activeSurfaceStyle,
                     ]}
                 />
-                <Animated.View style={styles.tabInner}>
-                    {hasMascot ? (
-                        <View style={styles.iconStage}>
-                            <Animated.View
-                                pointerEvents="none"
-                                style={[
-                                    styles.iconHalo,
-                                    {
-                                        backgroundColor: activeBackgroundColor,
-                                        borderColor: alpha(primaryColor, 0.38),
-                                    },
-                                    iconHaloStyle,
-                                ]}
-                            />
-                            <Animated.View
-                                style={[styles.mascotWrap, mascotStyle]}>
-                                <Image
-                                    source={mascot}
-                                    style={styles.mascotIcon}
-                                    resizeMode="contain"
-                                />
-                            </Animated.View>
-                        </View>
-                    ) : (
-                        <Icon
-                            name={iconName}
-                            size={isFocused ? ACTIVE_ICON_SIZE : ICON_SIZE}
-                            color={isFocused ? primaryColor : inactiveColor}
-                        />
-                    )}
-                    <ThemeText
-                        fontSize="description"
-                        fontWeight={isFocused ? "semibold" : "medium"}
-                        color={isFocused ? activeLabelColor : inactiveColor}
-                        numberOfLines={1}
-                        style={[
-                            styles.tabLabel,
-                            hasMascot
-                                ? styles.acgTabLabel
-                                : styles.defaultTabLabel,
-                        ]}>
-                        {label}
-                    </ThemeText>
-                </Animated.View>
-            </View>
+                {mascot ? (
+                    <Image
+                        source={mascot}
+                        style={styles.mascotIcon}
+                        resizeMode="contain"
+                    />
+                ) : (
+                    <Icon
+                        name={iconName}
+                        size={ICON_SIZE}
+                        color={isFocused ? primaryColor : inactiveColor}
+                    />
+                )}
+                <ThemeText
+                    fontSize="description"
+                    fontWeight={isFocused ? "semibold" : "medium"}
+                    color={isFocused ? activeLabelColor : inactiveColor}
+                    numberOfLines={1}
+                    style={styles.tabLabel}>
+                    {label}
+                </ThemeText>
+                <Animated.View
+                    style={[
+                        styles.activeIndicator,
+                        { backgroundColor: primaryColor },
+                        indicatorStyle,
+                    ]}
+                />
+            </Animated.View>
         </TouchableOpacity>
     );
 }
@@ -218,23 +182,33 @@ export default function BottomTabBar(props: BottomTabBarProps) {
     const { state, navigation } = props;
     const colors = useColors();
     const theme = Theme.useTheme();
-
     const mascotTheme =
         theme.id === "p-acg"
             ? "acg"
             : theme.id === "p-acg-firefly"
-            ? "firefly"
-            : undefined;
+                ? "firefly"
+                : undefined;
     const primaryColor = colors.primary;
     const inactiveColor = colors.textSecondary ?? "#999999";
+    const dockBackgroundColor = alpha(
+        colors.surfacePrimary ?? colors.card ?? colors.background,
+        colors.hasBackgroundImage ? 0.88 : 0.96,
+    );
     const activeBackgroundColor = alpha(
-        colors.primary,
-        colors.hasCustomBackground ? 0.16 : 0.12,
+        colors.text,
+        colors.hasBackgroundImage ? 0.11 : 0.06,
     );
 
     return (
         <View style={styles.container}>
-            <View style={styles.pill}>
+            <View
+                style={[
+                    styles.pill,
+                    {
+                        backgroundColor: dockBackgroundColor,
+                        shadowColor: colors.shadow ?? "#000000",
+                    },
+                ]}>
                 {tabs.map((tab, index) => {
                     const isFocused = state.index === index;
 
@@ -277,8 +251,8 @@ export default function BottomTabBar(props: BottomTabBarProps) {
 const styles = StyleSheet.create({
     container: {
         height: HOME_TAB_BAR_HEIGHT,
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.sm,
+        paddingHorizontal: spacing.sm,
+        paddingTop: rpx(4),
         backgroundColor: "transparent",
     },
     pill: {
@@ -286,6 +260,13 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-around",
+        borderRadius: radius.pill,
+        overflow: "hidden",
+        paddingHorizontal: rpx(6),
+        shadowOffset: { width: 0, height: rpx(2) },
+        shadowOpacity: 0.1,
+        shadowRadius: rpx(4),
+        elevation: 3,
     },
     tabItem: {
         flex: 1,
@@ -293,57 +274,30 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    tabContent: {
-        height: TAB_PILL_HEIGHT,
+    tabInner: {
         width: ACTIVE_ITEM_WIDTH,
+        height: rpx(94),
         alignItems: "center",
         justifyContent: "center",
     },
     activeBackground: {
         position: "absolute",
-        width: rpx(92),
-        height: rpx(86),
+        width: ACTIVE_ITEM_WIDTH,
+        height: rpx(92),
         borderRadius: radius.pill,
     },
-    tabInner: {
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    iconStage: {
-        width: ICON_STAGE_SIZE,
-        height: ICON_STAGE_SIZE,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    iconHalo: {
-        position: "absolute",
-        width: rpx(54),
-        height: rpx(48),
-        borderRadius: rpx(16),
-        borderWidth: StyleSheet.hairlineWidth,
-    },
-    mascotWrap: {
-        width: ICON_STAGE_SIZE,
-        height: ICON_STAGE_SIZE,
-        alignItems: "center",
-        justifyContent: "center",
-        shadowColor: "#000000",
-        shadowOffset: { width: 0, height: rpx(2) },
-        shadowOpacity: 0.1,
-        shadowRadius: rpx(4),
-        elevation: 3,
-    },
     mascotIcon: {
-        width: ICON_IMAGE_SIZE,
-        height: ICON_IMAGE_SIZE,
+        width: rpx(34),
+        height: rpx(34),
     },
     tabLabel: {
-        maxWidth: ACTIVE_ITEM_WIDTH - rpx(18),
+        marginTop: rpx(3),
+        maxWidth: rpx(112),
     },
-    defaultTabLabel: {
-        marginTop: ICON_LABEL_GAP,
-    },
-    acgTabLabel: {
-        marginTop: ACG_ICON_LABEL_GAP,
+    activeIndicator: {
+        width: rpx(10),
+        height: rpx(3),
+        borderRadius: radius.pill,
+        marginTop: rpx(2),
     },
 });

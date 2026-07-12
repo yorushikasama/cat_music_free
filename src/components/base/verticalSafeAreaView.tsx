@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 interface IVerticalSafeAreaViewProps {
     mode?: "margin" | "padding";
-    children: JSX.Element | JSX.Element[];
+    children: React.ReactElement | React.ReactElement[];
     style?: StyleProp<ViewStyle>;
 }
 export default function VerticalSafeAreaView(

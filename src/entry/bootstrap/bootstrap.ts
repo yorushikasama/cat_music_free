@@ -96,10 +96,19 @@ async function bootstrapImpl() {
     trace("配置初始化完成");
     logger.mark("配置初始化完成");
 
-    // 加载插件
-    await PluginManager.setup();
+    Theme.setup();
+    i18n.setup();
+    logger.mark("主题与语言初始化完成");
+
+    // 插件与本地音乐互不依赖，并行完成后再恢复播放器。
+    await Promise.all([
+        PluginManager.setup(),
+        LocalMusicSheet.setup(),
+    ]);
     logger.mark("插件初始化完成");
     trace("插件初始化完成");
+    logger.mark("本地音乐初始化完成");
+    trace("本地音乐初始化完成");
 
     await initTrackPlayer(logger).catch(err => {
         // 初始化播放器出错，延迟初始化
@@ -113,18 +122,7 @@ async function bootstrapImpl() {
         }
     });
 
-    await LocalMusicSheet.setup();
-    trace("本地音乐初始化完成");
-    logger.mark("本地音乐初始化完成");
-
-    Theme.setup();
-    trace("主题初始化完成");
-    logger.mark("主题初始化完成");
-
     extraMakeup();
-
-    i18n.setup();
-    logger.mark("语言模块初始化完成");
     
     ErrorUtils.setGlobalHandler(error => {
         errorLog("未捕获的错误", error);

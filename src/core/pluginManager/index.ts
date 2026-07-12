@@ -15,7 +15,7 @@ import { compare } from "compare-versions";
 import EventEmitter from "eventemitter3";
 import { readAsStringAsync } from "expo-file-system";
 import { atom, getDefaultStore, useAtomValue } from "jotai";
-import { nanoid } from "nanoid";
+import { nanoid } from "nanoid/non-secure";
 import { useEffect, useMemo, useState } from "react";
 import { ToastAndroid } from "react-native";
 import { copyFile, readDir, readFile, unlink, writeFile } from "react-native-fs";
@@ -173,13 +173,15 @@ class PluginManager implements IPluginManager, IInjectable {
 
             // 2. 去重与过滤
             const allPlugins: Array<Plugin> = [];
+            const pluginHashes = new Set<string>();
             for (const entry of pluginEntries) {
                 if (!entry) continue;
                 const { plugin, isLazy } = entry;
-                if (allPlugins.findIndex(p => p.hash === plugin.hash) !== -1) {
+                if (pluginHashes.has(plugin.hash)) {
                     continue;
                 }
                 if (plugin.state === PluginState.Mounted || isLazy) {
+                    pluginHashes.add(plugin.hash);
                     allPlugins.push(plugin);
                 }
             }

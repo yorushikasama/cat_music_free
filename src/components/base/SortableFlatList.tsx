@@ -31,7 +31,7 @@ const defaultZIndex = 10;
 
 interface ISortableFlatListProps<T> {
     data: T[];
-    renderItem: (props: { item: T; index: number }) => JSX.Element;
+    renderItem: (props: { item: T; index: number }) => React.ReactElement;
     // 高度
     itemHeight: number;
     itemJustifyContent?:
@@ -70,9 +70,9 @@ export default function SortableFlatList<T extends any = any>(
     const activeRef = useRef(-1);
     const [activeItem, setActiveItem] = useState<T | null>(null);
 
-    const layoutRef = useRef<LayoutRectangle>();
+    const layoutRef = useRef<LayoutRectangle | undefined>(undefined);
     const wrapperRef = useRef<View | null>(null);
-    const listTopInWindowRef = useRef<number>();
+    const listTopInWindowRef = useRef<number | undefined>(undefined);
     // listref
     const listRef = useRef<FlashList<T> | null>(null);
     // fakeref
@@ -171,7 +171,9 @@ export default function SortableFlatList<T extends any = any>(
             onLayout={measureListPosition}>
             {/* 纯展示 */}
             <FakeFlatListItem
-                ref={_ => (fakeItemRef.current = _)}
+                ref={_ => {
+                    fakeItemRef.current = _;
+                }}
                 backgroundColor={activeBackgroundColor}
                 renderItem={renderItem}
                 itemHeight={itemHeight}
@@ -344,7 +346,7 @@ interface ISortableFlatListItemProps<T extends any = any> {
         | "space-around"
         | "space-evenly";
     setScrollEnabled: (scrollEnabled: boolean) => void;
-    renderItem: (props: { item: T; index: number }) => JSX.Element;
+    renderItem: (props: { item: T; index: number }) => React.ReactElement;
     setActiveItem: (item: T | null) => void;
     activeRef: React.MutableRefObject<number>;
 }
