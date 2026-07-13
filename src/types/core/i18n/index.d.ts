@@ -643,6 +643,28 @@ export interface ILanguageData {
     "repeatMode.QUEUE": string; // 列表循环
     "repeatMode.SINGLE": string; // 单曲循环
 
+    // AI
+    "sidebar.aiSettings": string;
+    "aiSettings.connection": string;
+    "aiSettings.connectionDescription": string;
+    "aiSettings.baseUrl": string;
+    "aiSettings.apiKey": string;
+    "aiSettings.model": string;
+    "aiSettings.lyricTranslation": string;
+    "aiSettings.targetLanguage": string;
+    "aiSettings.followAppLanguage": string;
+    "aiSettings.targetLanguageDescription": string;
+    "aiSettings.testConnection": string;
+    "aiSettings.testing": string;
+    "aiSettings.incomplete": string;
+    "aiSettings.testSuccess": string;
+    "aiSettings.testFailed": string;
+    "aiTranslation.configureFirst": string;
+    "aiTranslation.started": string;
+    "aiTranslation.success": string;
+    "aiTranslation.alreadyTarget": string;
+    "aiTranslation.failed": string;
+
     "particleEffect": string; // 粒子特效
     "particleEffectNone": string; // 无
     "particleEffectSakura": string; // 樱花

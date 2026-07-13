@@ -65,6 +65,13 @@ function HomeDrawer(props: any) {
                 navigateToSetting("theme");
             },
         },
+        {
+            icon: "strategy",
+            title: t("sidebar.aiSettings"),
+            onPress: () => {
+                navigateToSetting("ai");
+            },
+        },
     ];
 
     const otherSetting: ISettingOptions[] = [

@@ -209,6 +209,27 @@ class AppConfig implements IAppConfig {
             configStore.set("$schema", "5");
         }
 
+        if (schemaVersion < 6) {
+            if (!configStore.contains("ai.baseUrl")) {
+                this.setConfig("ai.baseUrl", "https://api.openai.com/v1");
+            }
+            if (!configStore.contains("ai.model")) {
+                this.setConfig("ai.model", "gpt-4o-mini");
+            }
+            if (!configStore.contains("ai.lyricTargetLanguage")) {
+                this.setConfig("ai.lyricTargetLanguage", "auto");
+            }
+
+            configStore.set("$schema", "6");
+        }
+
+        if (schemaVersion < 7) {
+            if (this.getConfig("ai.lyricTargetLanguage") === "简体中文") {
+                this.setConfig("ai.lyricTargetLanguage", "auto");
+            }
+            configStore.set("$schema", "7");
+        }
+
     }
 
     async setup(): Promise<void> {

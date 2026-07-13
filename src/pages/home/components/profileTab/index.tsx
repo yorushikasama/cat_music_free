@@ -100,6 +100,11 @@ export default function ProfileTab() {
             title: t("sidebar.themeSettings"),
             onPress: () => navigateToSetting("theme"),
         },
+        {
+            icon: "strategy",
+            title: t("sidebar.aiSettings"),
+            onPress: () => navigateToSetting("ai"),
+        },
     ];
 
     const otherItems: IProfileItem[] = [

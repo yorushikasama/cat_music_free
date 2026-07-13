@@ -55,58 +55,53 @@ export default function Body() {
             });
             const bgPath = `${pathConst.dataPath}background${extension}`;
             await copyFile(uri, bgPath);
+            const backgroundUrl = `file://${bgPath}#${Date.now()}`;
 
-            let themeColors: Partial<CustomizedColors>;
+            let themeColors: Partial<CustomizedColors> = theme.colors;
             if (isVideo) {
                 themeColors = theme.colors;
             } else {
-                const colorsResult = await ImageColors.getColors(uri, {
-                    fallback: "#ffffff",
-                });
-                const extractedColors = {
-                    primary: (colorsResult as any).dominant,
-                    average: (colorsResult as any).average,
-                    vibrant: (colorsResult as any).vibrant,
-                };
+                try {
+                    const colorsResult = await ImageColors.getColors(
+                        backgroundUrl,
+                        { fallback: theme.colors.primary },
+                    );
+                    const extractedPrimary =
+                        (colorsResult as any).dominant ??
+                        (colorsResult as any).average ??
+                        (colorsResult as any).vibrant;
 
-                const primaryGrayRate = grayRate(extractedColors.primary!);
-                if (primaryGrayRate < -0.4) {
-                    const primaryColor = Color(extractedColors.primary!);
+                    if (extractedPrimary) {
+                        const primaryGrayRate = grayRate(extractedPrimary);
+                        const primaryColor = Color(extractedPrimary);
+                        const adjustedPrimary = primaryGrayRate < -0.4 ||
+                            primaryGrayRate > 0.4
+                            ? primaryColor
+                                .darken(primaryGrayRate * 5)
+                                .toString()
+                            : primaryColor
+                                .saturate(Math.abs(primaryGrayRate) * 2 + 2)
+                                .toString();
 
-                    themeColors = {
-                        appBar: extractedColors.primary,
-                        primary: primaryColor
-                            .darken(primaryGrayRate * 5)
-                            .toString(),
-                        musicBar: extractedColors.primary,
-                        card: "#1e1e1e",
-                        tabBar: primaryColor.alpha(0.2).toString(),
-                    };
-                } else if (primaryGrayRate > 0.4) {
-                    themeColors = {
-                        appBar: extractedColors.primary,
-                        primary: Color(extractedColors.primary)
-                            .darken(primaryGrayRate * 5)
-                            .toString(),
-                        musicBar: extractedColors.primary,
-                        card: "#1e1e1e",
-                    };
-                } else {
-                    themeColors = {
-                        appBar: extractedColors.primary,
-                        primary: Color(extractedColors.primary)
-                            .saturate(Math.abs(primaryGrayRate) * 2 + 2)
-                            .toString(),
-                        musicBar: extractedColors.primary,
-                        card: "#1e1e1e",
-                    };
+                        themeColors = {
+                            appBar: extractedPrimary,
+                            primary: adjustedPrimary,
+                            musicBar: extractedPrimary,
+                            card: "#1e1e1e",
+                            ...(primaryGrayRate < -0.4
+                                ? { tabBar: primaryColor.alpha(0.2).toString() }
+                                : {}),
+                        };
+                    }
+                } catch (e: any) {
+                    errorLog("提取自定义背景配色失败", e?.message ?? e);
                 }
             }
 
             Theme.setTheme("custom", {
                 colors: themeColors,
                 background: {
-                    url: `file://${bgPath}#${Date.now()}`,
+                    url: backgroundUrl,
                 },
             });
             // Config.set('setting.theme.colors', {

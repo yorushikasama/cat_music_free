@@ -2,7 +2,7 @@ import type { ResumeMode, SortType } from "@/constants/commonConst.ts";
 import type { CustomizedColors } from "@/hooks/useColors";
 
 export interface IAppConfigProperties {
-    $schema: "3" | "4" | "5";
+    $schema: "3" | "4" | "5" | "6";
     // Basic
     "basic.autoPlayWhenAppStart": boolean;
     "basic.useCelluarNetworkPlay": boolean;
@@ -70,6 +70,12 @@ export interface IAppConfigProperties {
     "webdav.url": string;
     "webdav.username": string;
     "webdav.password": string;
+
+    // AI
+    "ai.baseUrl": string;
+    "ai.apiKey": string;
+    "ai.model": string;
+    "ai.lyricTargetLanguage": string;
 
     // Debug（保持嵌套结构）
     "debug.errorLog": boolean;

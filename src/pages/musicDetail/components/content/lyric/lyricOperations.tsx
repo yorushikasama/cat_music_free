@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 
@@ -15,6 +15,8 @@ import useOrientation from "@/hooks/useOrientation";
 import Toast from "@/utils/toast";
 import PersistStatus from "@/utils/persistStatus";
 import HeartIcon from "../heartIcon";
+import { isAIConfigured } from "@/core/ai";
+import { useI18N } from "@/core/i18n";
 
 interface ILyricOperationsProps {
     scrollToCurrentLrcItem: () => void;
@@ -24,6 +26,8 @@ export default function LyricOperations(props: ILyricOperationsProps) {
     const { scrollToCurrentLrcItem } = props;
 
     const detailFontSize = useAppConfig("lyric.detailFontSize");
+    const { t } = useI18N();
+    const [translating, setTranslating] = useState(false);
 
     const { hasTranslation } = useLyricState();
     const showTranslation = PersistStatus.useValue(
@@ -97,21 +101,50 @@ export default function LyricOperations(props: ILyricOperationsProps) {
             <TranslationIcon
                 width={iconSizeConst.normal}
                 height={iconSizeConst.normal}
-                opacity={!hasTranslation ? 0.2 : showTranslation ? 1 : 0.5}
+                opacity={translating ? 0.35 : !hasTranslation ? 0.55 : showTranslation ? 1 : 0.5}
                 color={
                     showTranslation && hasTranslation ? colors.primary : iconColor
                 }
-                onPress={() => {
-                    if (!hasTranslation) {
-                        Toast.warn("当前歌曲无翻译");
+                onPress={async () => {
+                    if (translating) {
                         return;
                     }
 
-                    PersistStatus.set(
-                        "lyric.showTranslation",
-                        !showTranslation,
-                    );
-                    scrollToCurrentLrcItem();
+                    if (hasTranslation) {
+                        PersistStatus.set(
+                            "lyric.showTranslation",
+                            !showTranslation,
+                        );
+                        scrollToCurrentLrcItem();
+                        return;
+                    }
+
+                    if (!isAIConfigured()) {
+                        Toast.warn(t("aiTranslation.configureFirst"));
+                        return;
+                    }
+
+                    setTranslating(true);
+                    Toast.success(t("aiTranslation.started"));
+                    try {
+                        const result =
+                            await lyricManager.translateCurrentLyricWithAI();
+                        if (result === "already-target") {
+                            Toast.success(t("aiTranslation.alreadyTarget"));
+                            return;
+                        }
+                        PersistStatus.set("lyric.showTranslation", true);
+                        scrollToCurrentLrcItem();
+                        Toast.success(t("aiTranslation.success"));
+                    } catch (error: any) {
+                        Toast.warn(
+                            t("aiTranslation.failed", {
+                                reason: error?.message ?? error,
+                            }),
+                        );
+                    } finally {
+                        setTranslating(false);
+                    }
                 }}
             />
             <Icon

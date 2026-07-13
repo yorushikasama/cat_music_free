@@ -22,6 +22,8 @@ import RNTrackPlayer, { Event } from "react-native-track-player";
 import { TrackPlayerEvents } from "@/core.defination/trackPlayer";
 import { IPluginManager } from "@/types/core/pluginManager";
 import { musicIsPaused } from "@/utils/trackUtils";
+import { resolveLyricTargetLanguage, translateLyric } from "./ai";
+import i18n from "./i18n";
 
 
 interface ILyricState {
@@ -199,7 +201,7 @@ class LyricManager implements IInjectable {
             ".lrc", lyricContent, "utf8");
 
         if (this.trackPlayer.isCurrentMusic(musicItem)) {
-            this.refreshLyric(false, false);
+            await this.refreshLyric(false, false);
         }
     }
 
@@ -268,6 +270,31 @@ class LyricManager implements IInjectable {
             );
             LyricUtil.setStatusBarLyricText("");
         }
+    }
+
+    async translateCurrentLyricWithAI() {
+        const musicItem = this.trackPlayer.currentMusic;
+        const rawLrc = this.lyricParser?.lyricSource?.rawLrc;
+        if (!musicItem || !rawLrc) {
+            throw new Error("当前歌曲没有可翻译的歌词");
+        }
+
+        const targetLanguage = resolveLyricTargetLanguage(
+            this.appConfig.getConfig("ai.lyricTargetLanguage"),
+            i18n.getLanguage().locale,
+        );
+        const translation = await translateLyric(rawLrc, targetLanguage);
+
+        if (!this.trackPlayer.isCurrentMusic(musicItem)) {
+            throw new Error("歌曲已切换，已取消保存翻译");
+        }
+
+        if (!translation.translatedLineCount) {
+            return "already-target" as const;
+        }
+
+        await this.uploadLocalLyric(musicItem, translation.lrc, "translation");
+        return "translated" as const;
     }
 
     private async refreshLyric(skipFetchLyricSourceIfSame: boolean = true, ignoreProgress: boolean = false) {

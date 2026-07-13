@@ -5,6 +5,7 @@ import BackupSetting from "./backupSetting";
 import BasicSetting from "./basicSetting";
 import PluginSetting from "./pluginSetting";
 import ThemeSetting from "./themeSetting";
+import AISetting from "./aiSetting";
 
 const settingTypes: Record<
     string,
@@ -30,6 +31,11 @@ const settingTypes: Record<
         title: "主题设置",
         i18nKey: "sidebar.themeSettings",
         component: ThemeSetting,
+    },
+    ai: {
+        title: "AI 设置",
+        i18nKey: "sidebar.aiSettings",
+        component: AISetting,
     },
     backup: {
         title: "备份与恢复",
