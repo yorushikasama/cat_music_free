@@ -664,6 +664,22 @@ export interface ILanguageData {
     "aiTranslation.success": string;
     "aiTranslation.alreadyTarget": string;
     "aiTranslation.failed": string;
+    "home.aiRecommend": string;
+    "home.quickAIRecommendDesc": string;
+    "aiRecommend.title": string;
+    "aiRecommend.headline": string;
+    "aiRecommend.placeholder": string;
+    "aiRecommend.promptCommute": string;
+    "aiRecommend.promptWalk": string;
+    "aiRecommend.promptFocus": string;
+    "aiRecommend.promptExplore": string;
+    "aiRecommend.generate": string;
+    "aiRecommend.generating": string;
+    "aiRecommend.forYou": string;
+    "aiRecommend.cached": string;
+    "aiRecommend.notInterested": string;
+    "aiRecommend.configureFirst": string;
+    "aiRecommend.failed": string;
 
     "particleEffect": string; // 粒子特效
     "particleEffectNone": string; // 无

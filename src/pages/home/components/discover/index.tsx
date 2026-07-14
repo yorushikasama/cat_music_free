@@ -592,6 +592,12 @@ export default function Discover() {
                 description: t("home.quickLocalDesc"),
                 onPress: () => navigate(ROUTE_PATH.LOCAL),
             },
+            {
+                icon: "strategy",
+                title: t("home.aiRecommend"),
+                description: t("home.quickAIRecommendDesc"),
+                onPress: () => navigate(ROUTE_PATH.AI_RECOMMEND),
+            },
         ],
         [t, navigate],
     );

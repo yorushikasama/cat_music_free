@@ -567,5 +567,21 @@
     "aiTranslation.started": "Translating lyrics",
     "aiTranslation.success": "Lyric translation completed",
     "aiTranslation.alreadyTarget": "The lyrics are already in the target language",
-    "aiTranslation.failed": "Lyric translation failed: {reason}"
+    "aiTranslation.failed": "Lyric translation failed: {reason}",
+    "home.aiRecommend": "AI Picks",
+    "home.quickAIRecommendDesc": "Pick songs by mood",
+    "aiRecommend.title": "AI Picks",
+    "aiRecommend.headline": "What do you want to hear?",
+    "aiRecommend.placeholder": "For example: quiet Japanese female vocals for a rainy day",
+    "aiRecommend.promptCommute": "Easy, rhythmic songs for my commute",
+    "aiRecommend.promptWalk": "Quiet but not sleepy songs for a night walk",
+    "aiRecommend.promptFocus": "Music with fewer vocals for focused work",
+    "aiRecommend.promptExplore": "Show me songs unlike what I play lately",
+    "aiRecommend.generate": "Generate picks",
+    "aiRecommend.generating": "Choosing songs",
+    "aiRecommend.forYou": "Picked for you",
+    "aiRecommend.cached": "Cached",
+    "aiRecommend.notInterested": "Not interested",
+    "aiRecommend.configureFirst": "Configure the AI connection first",
+    "aiRecommend.failed": "AI recommendation failed: {reason}"
 }

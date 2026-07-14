@@ -567,5 +567,21 @@
     "aiTranslation.started": "正在翻譯歌詞",
     "aiTranslation.success": "歌詞翻譯完成",
     "aiTranslation.alreadyTarget": "歌詞已經是目標語言，無需重複翻譯",
-    "aiTranslation.failed": "歌詞翻譯失敗：{reason}"
+    "aiTranslation.failed": "歌詞翻譯失敗：{reason}",
+    "home.aiRecommend": "AI 推薦",
+    "home.quickAIRecommendDesc": "依情境挑歌",
+    "aiRecommend.title": "AI 推薦",
+    "aiRecommend.headline": "說說現在想聽什麼",
+    "aiRecommend.placeholder": "例如：下雨天想聽安靜一點的日文女聲",
+    "aiRecommend.promptCommute": "通勤時想聽輕鬆、有節奏感的歌",
+    "aiRecommend.promptWalk": "夜晚散步，想要安靜但不沉悶",
+    "aiRecommend.promptFocus": "專注工作，少一點人聲干擾",
+    "aiRecommend.promptExplore": "給我一些和最近常聽不太一樣的新歌",
+    "aiRecommend.generate": "產生推薦",
+    "aiRecommend.generating": "正在挑選歌曲",
+    "aiRecommend.forYou": "為你挑選",
+    "aiRecommend.cached": "已快取",
+    "aiRecommend.notInterested": "不感興趣",
+    "aiRecommend.configureFirst": "請先在 AI 設定中完成連線設定",
+    "aiRecommend.failed": "AI 推薦失敗：{reason}"
 }
