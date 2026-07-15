@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import Config from "../../appConfig";
-import { getAIApiKey } from "../secretStore";
+import { getAIApiKey, setAIApiKey } from "../secretStore";
 import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("expo-secure-store", () => ({
@@ -24,8 +24,19 @@ describe("AI secret storage", () => {
         expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
             "catmusicfree.ai.apiKey",
             "legacy-secret",
-            expect.any(Object),
         );
         expect(Config.setConfig).toHaveBeenCalledWith("ai.apiKey", undefined);
+    });
+
+    it("keeps the key in app config when SecureStore is unavailable", async () => {
+        jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(
+            new Error("SecureStore native module unavailable"),
+        );
+
+        await expect(setAIApiKey("fallback-secret")).resolves.toBeUndefined();
+        expect(Config.setConfig).toHaveBeenCalledWith(
+            "ai.apiKey",
+            "fallback-secret",
+        );
     });
 });

@@ -6,13 +6,24 @@ const API_KEY_NAME = "catmusicfree.ai.apiKey";
 let migrationPromise: Promise<string> | null = null;
 
 async function migrateLegacyApiKey() {
-    const stored = (await SecureStore.getItemAsync(API_KEY_NAME))?.trim() ?? "";
     const legacy = Config.getConfig("ai.apiKey")?.trim() ?? "";
+    let stored = "";
+
+    try {
+        stored = (await SecureStore.getItemAsync(API_KEY_NAME))?.trim() ?? "";
+    } catch {
+        // Some bare React Native builds can ship without a compatible
+        // ExpoSecureStore native module. Keep the configuration usable in
+        // that case instead of making every AI action fail before its request.
+        return legacy;
+    }
 
     if (!stored && legacy) {
-        await SecureStore.setItemAsync(API_KEY_NAME, legacy, {
-            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-        });
+        try {
+            await SecureStore.setItemAsync(API_KEY_NAME, legacy);
+        } catch {
+            return legacy;
+        }
     }
     if (Config.getConfig("ai.apiKey") !== undefined) {
         Config.setConfig("ai.apiKey", undefined);
@@ -33,14 +44,26 @@ export function getAIApiKey() {
 export async function setAIApiKey(apiKey: string) {
     const normalized = apiKey.trim();
     if (!normalized) {
-        await SecureStore.deleteItemAsync(API_KEY_NAME);
+        try {
+            await SecureStore.deleteItemAsync(API_KEY_NAME);
+        } catch {
+            // The fallback below is still enough to make the key unavailable
+            // to the app when SecureStore cannot be reached.
+        } finally {
+            Config.setConfig("ai.apiKey", undefined);
+        }
         migrationPromise = Promise.resolve("");
         return;
     }
-    await SecureStore.setItemAsync(API_KEY_NAME, normalized, {
-        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
-    Config.setConfig("ai.apiKey", undefined);
+
+    try {
+        await SecureStore.setItemAsync(API_KEY_NAME, normalized);
+        Config.setConfig("ai.apiKey", undefined);
+    } catch {
+        // MMKV is the existing app configuration store. It is a compatibility
+        // fallback only; supported devices continue to use SecureStore.
+        Config.setConfig("ai.apiKey", normalized);
+    }
     migrationPromise = Promise.resolve(normalized);
 }
 
