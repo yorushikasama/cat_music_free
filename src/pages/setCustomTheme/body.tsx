@@ -1,28 +1,53 @@
 import Image from "@/components/base/image";
+import ThemePreview from "@/components/base/themePreview";
 import ThemeText from "@/components/base/themeText";
 import { showPanel } from "@/components/panels/usePanel";
 import { ImgAsset } from "@/constants/assetsConst";
 import globalStyle from "@/constants/globalStyle";
 import pathConst from "@/constants/pathConst";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
 import { useI18N } from "@/core/i18n";
 import Theme from "@/core/theme";
+import { getReadableTextColor } from "@/core/colorSafety";
 import useColors, { CustomizedColors } from "@/hooks/useColors";
-import { grayRate } from "@/utils/colorUtil";
+import { errorLog } from "@/utils/log";
 import rpx from "@/utils/rpx";
+import {
+    getMediaExtension,
+    isVideoBackgroundUrl,
+} from "@/utils/backgroundMedia";
 import Slider from "@react-native-community/slider";
 import Color from "color";
 import { ResizeMode, Video } from "expo-av";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { copyFile } from "react-native-fs";
 import { ScrollView, TouchableOpacity } from "react-native-gesture-handler";
 import ImageColors from "react-native-image-colors";
 import { launchImageLibrary } from "react-native-image-picker";
-import Icon from "@/components/base/icon";
-import { spacing } from "@/constants/spacing";
-import { radius } from "@/constants/borderRadius";
-import { errorLog } from "@/utils/log";
-import { getMediaExtension, isVideoBackgroundUrl } from "@/utils/backgroundMedia";
+
+interface IBackgroundSnapshot {
+    url?: string;
+    blur?: number;
+    opacity?: number;
+}
+
+function getThemeColor(
+    colors: CustomizedColors,
+    key: keyof CustomizedColors,
+) {
+    const value = colors[key];
+    if (typeof value !== "string") {
+        return "#000000";
+    }
+    try {
+        Color(value);
+        return value;
+    } catch {
+        return "#000000";
+    }
+}
 
 export default function Body() {
     const theme = Theme.useTheme();
@@ -31,20 +56,33 @@ export default function Body() {
     const colors = useColors();
     const hasBackground = !!backgroundInfo?.url;
     const hasVideoBackground = isVideoBackgroundUrl(backgroundInfo?.url);
-    const primaryTextColor = readableOn(theme.colors.primary);
+    const [blur, setBlur] = useState(backgroundInfo?.blur ?? 20);
+    const [opacity, setOpacity] = useState(backgroundInfo?.opacity ?? 0.7);
+    const [lastClearedBackground, setLastClearedBackground] =
+        useState<IBackgroundSnapshot | null>(null);
+    const [backgroundError, setBackgroundError] = useState(false);
+    const primaryTextColor = getReadableTextColor(theme.colors.primary);
+
+    useEffect(() => {
+        setBlur(backgroundInfo?.blur ?? 20);
+    }, [backgroundInfo?.blur]);
+
+    useEffect(() => {
+        setOpacity(backgroundInfo?.opacity ?? 0.7);
+    }, [backgroundInfo?.opacity]);
 
     async function onImageClick() {
         try {
-            const result = await launchImageLibrary({
-                mediaType: "mixed",
-            });
+            setBackgroundError(false);
+            const result = await launchImageLibrary({ mediaType: "mixed" });
             const asset = result.assets?.[0];
             const uri = asset?.uri;
             if (!uri) {
                 return;
             }
 
-            const isVideo = asset.type?.startsWith("video/") ||
+            const isVideo =
+                asset.type?.startsWith("video/") ||
                 isVideoBackgroundUrl(asset.fileName) ||
                 isVideoBackgroundUrl(uri);
             const extension = getPickedAssetExtension({
@@ -58,9 +96,7 @@ export default function Body() {
             const backgroundUrl = `file://${bgPath}#${Date.now()}`;
 
             let themeColors: Partial<CustomizedColors> = theme.colors;
-            if (isVideo) {
-                themeColors = theme.colors;
-            } else {
+            if (!isVideo) {
                 try {
                     const colorsResult = await ImageColors.getColors(
                         backgroundUrl,
@@ -71,27 +107,14 @@ export default function Body() {
                         (colorsResult as any).average ??
                         (colorsResult as any).vibrant;
 
-                    if (extractedPrimary) {
-                        const primaryGrayRate = grayRate(extractedPrimary);
-                        const primaryColor = Color(extractedPrimary);
-                        const adjustedPrimary = primaryGrayRate < -0.4 ||
-                            primaryGrayRate > 0.4
-                            ? primaryColor
-                                .darken(primaryGrayRate * 5)
-                                .toString()
-                            : primaryColor
-                                .saturate(Math.abs(primaryGrayRate) * 2 + 2)
-                                .toString();
-
-                        themeColors = {
-                            appBar: extractedPrimary,
-                            primary: adjustedPrimary,
-                            musicBar: extractedPrimary,
-                            card: "#1e1e1e",
-                            ...(primaryGrayRate < -0.4
-                                ? { tabBar: primaryColor.alpha(0.2).toString() }
-                                : {}),
-                        };
+                    if (typeof extractedPrimary === "string") {
+                        const mode = Color(extractedPrimary).isDark()
+                            ? "dark"
+                            : "light";
+                        themeColors = Theme.createCustomThemeColors(
+                            extractedPrimary,
+                            mode,
+                        );
                     }
                 } catch (e: any) {
                     errorLog("提取自定义背景配色失败", e?.message ?? e);
@@ -100,18 +123,28 @@ export default function Body() {
 
             Theme.setTheme("custom", {
                 colors: themeColors,
-                background: {
-                    url: backgroundUrl,
-                },
+                background: { url: backgroundUrl },
             });
-            // Config.set('setting.theme.colors', {
-            //     primary: primaryColor,
-            //     textHighlight: textHighlight,
-            //     accent: textHighlight,
-            // });
+            setLastClearedBackground(null);
         } catch (e: any) {
+            setBackgroundError(true);
             errorLog("设置自定义背景失败", e?.message ?? e);
         }
+    }
+
+    function clearCurrentBackground() {
+        if (backgroundInfo?.url) {
+            setLastClearedBackground({ ...backgroundInfo });
+        }
+        Theme.clearBackground();
+    }
+
+    function restoreBackground() {
+        if (!lastClearedBackground?.url) {
+            return;
+        }
+        Theme.setBackground(lastClearedBackground);
+        setLastClearedBackground(null);
     }
 
     return (
@@ -120,13 +153,33 @@ export default function Body() {
             contentContainerStyle={styles.content}>
             <View
                 style={[
+                    styles.saveHint,
+                    {
+                        backgroundColor: colors.selectedBackground,
+                        borderColor: colors.selectedBorder,
+                    },
+                ]}>
+                <ThemeText fontSize="description" fontColor="text">
+                    {t("setCustomTheme.autoSaveHint")}
+                </ThemeText>
+            </View>
+
+            <View
+                style={[
                     styles.previewPanel,
                     {
                         backgroundColor: colors.surfacePrimary,
                         borderColor: colors.controlBorder ?? colors.divider,
                     },
                 ]}>
-                <TouchableOpacity onPress={onImageClick}>
+                <TouchableOpacity
+                    accessibilityLabel={
+                        hasBackground
+                            ? t("setCustomTheme.changeBackground")
+                            : t("setCustomTheme.chooseBackground")
+                    }
+                    accessibilityRole="button"
+                    onPress={onImageClick}>
                     {hasVideoBackground && backgroundInfo?.url ? (
                         <Video
                             source={{ uri: backgroundInfo.url }}
@@ -149,17 +202,13 @@ export default function Body() {
 
                 <View style={styles.backgroundActions}>
                     <TouchableOpacity
+                        accessibilityRole="button"
                         activeOpacity={0.78}
                         onPress={onImageClick}
                         style={[
                             styles.backgroundActionPrimary,
                             { backgroundColor: theme.colors.primary },
                         ]}>
-                        <Icon
-                            name="arrow-up-tray"
-                            size={rpx(26)}
-                            color={primaryTextColor}
-                        />
                         <ThemeText
                             fontSize="description"
                             fontWeight="semibold"
@@ -171,20 +220,17 @@ export default function Body() {
                     </TouchableOpacity>
                     {hasBackground ? (
                         <TouchableOpacity
+                            accessibilityRole="button"
                             activeOpacity={0.72}
-                            onPress={Theme.clearBackground}
+                            onPress={clearCurrentBackground}
                             style={[
                                 styles.backgroundActionSecondary,
                                 {
                                     backgroundColor: colors.controlBackground,
-                                    borderColor: colors.controlBorder ?? colors.divider,
+                                    borderColor:
+                                        colors.controlBorder ?? colors.divider,
                                 },
                             ]}>
-                            <Icon
-                                name="trash-outline"
-                                size={rpx(26)}
-                                color={theme.colors.danger ?? theme.colors.text}
-                            />
                             <ThemeText
                                 fontSize="description"
                                 fontWeight="semibold"
@@ -193,7 +239,78 @@ export default function Body() {
                             </ThemeText>
                         </TouchableOpacity>
                     ) : null}
+                    {lastClearedBackground?.url ? (
+                        <TouchableOpacity
+                            accessibilityRole="button"
+                            activeOpacity={0.72}
+                            onPress={restoreBackground}
+                            style={[
+                                styles.backgroundActionSecondary,
+                                {
+                                    backgroundColor: colors.controlBackground,
+                                    borderColor:
+                                        colors.controlBorder ?? colors.divider,
+                                },
+                            ]}>
+                            <ThemeText
+                                fontSize="description"
+                                fontWeight="semibold"
+                                fontColor="text">
+                                {t("setCustomTheme.restoreBackground")}
+                            </ThemeText>
+                        </TouchableOpacity>
+                    ) : null}
                 </View>
+                {backgroundError ? (
+                    <ThemeText
+                        fontSize="description"
+                        fontColor="danger"
+                        style={styles.errorText}>
+                        {t("setCustomTheme.backgroundError")}
+                    </ThemeText>
+                ) : null}
+            </View>
+
+            <View
+                style={[
+                    styles.livePreviewPanel,
+                    {
+                        backgroundColor: colors.surfacePrimary,
+                        borderColor: colors.controlBorder ?? colors.divider,
+                    },
+                ]}>
+                <View style={styles.previewHeader}>
+                    <View style={styles.previewCopy}>
+                        <ThemeText fontSize="subTitle" fontWeight="semibold">
+                            {t("setCustomTheme.preview")}
+                        </ThemeText>
+                        <ThemeText fontSize="description" fontColor="textSecondary">
+                            {t("setCustomTheme.readabilityProtected")}
+                        </ThemeText>
+                    </View>
+                    <TouchableOpacity
+                        accessibilityRole="button"
+                        onPress={Theme.resetCustomColors}
+                        style={[
+                            styles.resetButton,
+                            {
+                                backgroundColor: colors.controlBackground,
+                                borderColor:
+                                    colors.controlBorder ?? colors.divider,
+                            },
+                        ]}>
+                        <ThemeText fontSize="description" fontWeight="semibold">
+                            {t("setCustomTheme.resetColors")}
+                        </ThemeText>
+                    </TouchableOpacity>
+                </View>
+                <ThemePreview
+                    colors={theme.colors}
+                    effect={
+                        theme.id === "p-acg-firefly" ? "firefly" : undefined
+                    }
+                    style={styles.livePreview}
+                />
             </View>
 
             <View
@@ -204,8 +321,14 @@ export default function Body() {
                         borderColor: colors.controlBorder ?? colors.divider,
                     },
                 ]}>
-                <ThemeText>{t("setCustomTheme.blur")}</ThemeText>
+                <View style={styles.sliderHeader}>
+                    <ThemeText>{t("setCustomTheme.blur")}</ThemeText>
+                    <ThemeText fontSize="description" fontColor="textSecondary">
+                        {Math.round(blur)}
+                    </ThemeText>
+                </View>
                 <Slider
+                    accessibilityLabel={t("setCustomTheme.blur")}
                     style={styles.slider}
                     minimumTrackTintColor={theme.colors.primary}
                     maximumTrackTintColor={theme.colors.text ?? "#999999"}
@@ -213,12 +336,12 @@ export default function Body() {
                     minimumValue={0}
                     step={1}
                     maximumValue={30}
+                    onValueChange={setBlur}
                     onSlidingComplete={val => {
-                        Theme.setBackground({
-                            blur: val,
-                        });
+                        setBlur(val);
+                        Theme.setBackground({ blur: val });
                     }}
-                    value={backgroundInfo?.blur ?? 20}
+                    value={blur}
                 />
             </View>
             <View
@@ -229,8 +352,14 @@ export default function Body() {
                         borderColor: colors.controlBorder ?? colors.divider,
                     },
                 ]}>
-                <ThemeText>{t("setCustomTheme.opacity")}</ThemeText>
+                <View style={styles.sliderHeader}>
+                    <ThemeText>{t("setCustomTheme.opacity")}</ThemeText>
+                    <ThemeText fontSize="description" fontColor="textSecondary">
+                        {`${Math.round(opacity * 100)}%`}
+                    </ThemeText>
+                </View>
                 <Slider
+                    accessibilityLabel={t("setCustomTheme.opacity")}
                     style={styles.slider}
                     minimumTrackTintColor={theme.colors.primary}
                     maximumTrackTintColor={theme.colors.text ?? "#999999"}
@@ -238,84 +367,97 @@ export default function Body() {
                     minimumValue={0.3}
                     step={0.01}
                     maximumValue={1}
+                    onValueChange={setOpacity}
                     onSlidingComplete={val => {
-                        Theme.setBackground({
-                            opacity: val,
-                        });
+                        setOpacity(val);
+                        Theme.setBackground({ opacity: val });
                     }}
-                    value={backgroundInfo?.opacity ?? 0.7}
+                    value={opacity}
                 />
             </View>
-            <View style={styles.colorsContainer}>
-                {Theme.configableColorKey.map(key => (
-                    <View
-                        key={key}
-                        style={[
-                            styles.colorItem,
-                            {
-                                backgroundColor: colors.surfacePrimary,
-                                borderColor: colors.controlBorder ?? colors.divider,
-                            },
-                        ]}>
-                        <ThemeText>{t("setCustomTheme." + key + "Color" as any)}</ThemeText>
-                        <TouchableOpacity
-                            onPress={() => {
-                                showPanel("ColorPicker", {
-                                    // @ts-ignore
-                                    defaultColor: theme.colors[key],
-                                    onSelected(color) {
-                                        Theme.setColors({
-                                            [key]: color.hexa().toString(),
+
+            {Theme.configurableColorGroups.map(group => (
+                <View key={group.id} style={styles.colorGroup}>
+                    <ThemeText fontSize="subTitle" fontWeight="semibold">
+                        {t(`setCustomTheme.group${
+                            group.id.charAt(0).toUpperCase() + group.id.slice(1)
+                        }` as any)}
+                    </ThemeText>
+                    <View style={styles.colorsContainer}>
+                        {group.keys.map(key => {
+                            const colorValue = getThemeColor(theme.colors, key);
+                            return (
+                                <TouchableOpacity
+                                    key={key}
+                                    accessibilityLabel={t(
+                                        "setCustomTheme." + key + "Color" as any,
+                                    )}
+                                    accessibilityRole="button"
+                                    onPress={() => {
+                                        showPanel("ColorPicker", {
+                                            defaultColor: colorValue,
+                                            onSelected(color) {
+                                                Theme.setColors({
+                                                    [key]: color.hexa().toString(),
+                                                } as Partial<CustomizedColors>);
+                                            },
                                         });
-                                    },
-                                });
-                            }}
-                            style={styles.colorItemBlockContainer}>
-                            <View
-                                style={[
-                                    styles.colorBlockContainer,
-                                    { borderColor: colors.controlBorder ?? colors.divider },
-                                ]}>
-                                <Image
-                                    resizeMode="repeat"
-                                    emptySrc={ImgAsset.transparentBg}
-                                    style={styles.transparentBg}
-                                />
-                                <View
+                                    }}
                                     style={[
+                                        styles.colorItem,
                                         {
-                                            /** @ts-ignore */
-                                            backgroundColor: theme.colors[key],
+                                            backgroundColor: colors.surfacePrimary,
+                                            borderColor:
+                                                colors.controlBorder ??
+                                                colors.divider,
                                         },
-                                        styles.colorBlock,
-                                    ]}
-                                />
-                            </View>
-                            <ThemeText
-                                fontSize="subTitle"
-                                style={styles.colorText}>
-                                {
-                                    /** @ts-ignore */
-                                    Color(theme.colors[key]).hexa().toString()
-                                }
-                            </ThemeText>
-                        </TouchableOpacity>
+                                    ]}>
+                                    <ThemeText>
+                                        {t(
+                                            "setCustomTheme." +
+                                                key +
+                                                "Color" as any,
+                                        )}
+                                    </ThemeText>
+                                    <View style={styles.colorItemFooter}>
+                                        <View
+                                            style={[
+                                                styles.colorBlockContainer,
+                                                {
+                                                    borderColor:
+                                                        colors.controlBorder ??
+                                                        colors.divider,
+                                                },
+                                            ]}>
+                                            <Image
+                                                resizeMode="repeat"
+                                                emptySrc={ImgAsset.transparentBg}
+                                                style={styles.transparentBg}
+                                            />
+                                            <View
+                                                style={[
+                                                    styles.colorBlock,
+                                                    {
+                                                        backgroundColor: colorValue,
+                                                    },
+                                                ]}
+                                            />
+                                        </View>
+                                        <ThemeText
+                                            fontSize="subTitle"
+                                            numberOfLines={1}
+                                            style={styles.colorText}>
+                                            {Color(colorValue).hexa().toString()}
+                                        </ThemeText>
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
-                ))}
-            </View>
+                </View>
+            ))}
         </ScrollView>
     );
-}
-
-function readableOn(color: string) {
-    try {
-        const base = Color(color);
-        const light = Color("#ffffff");
-        const dark = Color("#111111");
-        return base.contrast(light) >= base.contrast(dark) ? "#ffffff" : "#111111";
-    } catch {
-        return "#ffffff";
-    }
 }
 
 function getPickedAssetExtension(asset: {
@@ -343,14 +485,17 @@ function getPickedAssetExtension(asset: {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        width: "100%",
-        flex: 1,
-    },
     content: {
         paddingHorizontal: spacing.md,
         paddingTop: spacing.md,
         paddingBottom: spacing.xxl,
+    },
+    saveHint: {
+        borderRadius: radius.md,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        marginBottom: spacing.md,
     },
     previewPanel: {
         borderRadius: radius.lg,
@@ -373,59 +518,102 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     backgroundActionPrimary: {
-        minHeight: rpx(56),
+        minHeight: 48,
         borderRadius: radius.pill,
         paddingHorizontal: spacing.md,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        gap: spacing.xs,
     },
     backgroundActionSecondary: {
-        minHeight: rpx(56),
+        minHeight: 48,
         borderRadius: radius.pill,
         borderWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: spacing.md,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        gap: spacing.xs,
     },
-    sliderWrapper: {
+    errorText: {
+        marginTop: spacing.sm,
+        alignSelf: "stretch",
+    },
+    livePreviewPanel: {
         marginTop: spacing.md,
-        width: "100%",
-        minHeight: rpx(88),
-        borderRadius: radius.lg,
-        borderWidth: StyleSheet.hairlineWidth,
-        paddingHorizontal: spacing.md,
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    slider: {
-        flex: 1,
-        height: rpx(40),
-    },
-    colorsContainer: {
-        width: "100%",
-        flex: 1,
-        flexDirection: "row",
-        flexWrap: "wrap",
-        marginTop: spacing.md,
-        justifyContent: "space-between",
-        gap: spacing.md,
-    },
-    colorItem: {
-        flex: 1,
-        flexBasis: "40%",
-        minWidth: rpx(300),
         borderRadius: radius.lg,
         borderWidth: StyleSheet.hairlineWidth,
         padding: spacing.md,
     },
+    previewHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: spacing.sm,
+    },
+    previewCopy: {
+        flex: 1,
+        minWidth: 0,
+        paddingRight: spacing.sm,
+    },
+    resetButton: {
+        minHeight: 48,
+        paddingHorizontal: spacing.md,
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        justifyContent: "center",
+    },
+    livePreview: {
+        aspectRatio: 1.58,
+    },
+    sliderWrapper: {
+        marginTop: spacing.md,
+        width: "100%",
+        minHeight: 80,
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        justifyContent: "center",
+    },
+    sliderHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    slider: {
+        width: "100%",
+        height: 40,
+        marginTop: spacing.xs,
+    },
+    colorGroup: {
+        marginTop: spacing.lg,
+    },
+    colorsContainer: {
+        width: "100%",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        marginTop: spacing.sm,
+        gap: spacing.md,
+    },
+    colorItem: {
+        flexGrow: 1,
+        flexBasis: "42%",
+        minWidth: rpx(300),
+        minHeight: 96,
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: spacing.md,
+        justifyContent: "space-between",
+    },
+    colorItemFooter: {
+        marginTop: spacing.sm,
+        flexDirection: "row",
+        alignItems: "center",
+        minHeight: 48,
+    },
     colorBlockContainer: {
-        width: rpx(76),
-        height: rpx(50),
+        width: 48,
+        height: 36,
         borderWidth: StyleSheet.hairlineWidth,
         borderStyle: "solid",
         borderRadius: radius.sm,
@@ -439,13 +627,10 @@ const styles = StyleSheet.create({
         left: 0,
         zIndex: 2,
     },
-    colorItemBlockContainer: {
-        marginTop: rpx(18),
-        flexDirection: "row",
-        alignItems: "center",
-    },
     colorText: {
-        marginLeft: rpx(8),
+        flex: 1,
+        minWidth: 0,
+        marginLeft: spacing.sm,
     },
     transparentBg: {
         position: "absolute",

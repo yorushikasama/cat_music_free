@@ -302,18 +302,52 @@ export interface ILanguageData {
     // 主题设置相关
     "themeSettings.displayStyle": string; // 显示风格
     "themeSettings.followSystemTheme": string; // 跟随系统主题
+    "themeSettings.followSystemThemeHint": string;
     "themeSettings.setTheme": string; // 设置主题
+    "themeSettings.themeSelectionHint": string;
+    "themeSettings.systemFollowPaused": string;
+    "themeSettings.systemFollowPausedDescription": string;
+    "themeSettings.resumeFollowSystem": string;
+    "themeSettings.dailyThemes": string;
+    "themeSettings.dailyThemesHint": string;
+    "themeSettings.exploreStyles": string;
+    "themeSettings.exploreStylesHint": string;
+    "themeSettings.showStyles": string;
+    "themeSettings.hideStyles": string;
+    "themeSettings.customizeTheme": string;
+    "themeSettings.customizeThemeHint": string;
     "themeSettings.lightMode": string; // 明亮模式
+    "themeSettings.lightModeDescription": string;
     "themeSettings.darkMode": string; // 黑暗模式
+    "themeSettings.darkModeDescription": string;
+    "themeSettings.retroMode": string;
+    "themeSettings.retroModeDescription": string;
+    "themeSettings.acgMode": string;
+    "themeSettings.acgModeDescription": string;
+    "themeSettings.fireflyMode": string;
+    "themeSettings.fireflyModeDescription": string;
+    "themeSettings.emeraldNightMode": string;
+    "themeSettings.emeraldNightModeDescription": string;
     "themeSettings.customMode": string; // 自定义模式
+    "themeSettings.customModeDescription": string;
 
     // 自定义主题相关
     "setCustomTheme.customizeBackground": string; // 自定义背景
+    "setCustomTheme.close": string;
+    "setCustomTheme.autoSaveHint": string;
+    "setCustomTheme.preview": string;
+    "setCustomTheme.readabilityProtected": string;
     "setCustomTheme.chooseBackground": string; // 选择背景
     "setCustomTheme.changeBackground": string; // 更换背景
     "setCustomTheme.clearBackground": string; // 清除背景
+    "setCustomTheme.restoreBackground": string;
+    "setCustomTheme.resetColors": string;
+    "setCustomTheme.backgroundError": string;
     "setCustomTheme.blur": string; // 模糊
     "setCustomTheme.opacity": string; // 不透明度
+    "setCustomTheme.groupBase": string;
+    "setCustomTheme.groupPlayer": string;
+    "setCustomTheme.groupSurfaces": string;
     "setCustomTheme.primaryColor": string; // 主题色
     "setCustomTheme.textColor": string; // 文字颜色
     "setCustomTheme.appBarColor": string; // 应用栏颜色

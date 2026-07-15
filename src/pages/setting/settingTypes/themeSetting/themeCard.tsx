@@ -1,103 +1,143 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import Color from "color";
 import rpx from "@/utils/rpx";
-import useColors from "@/hooks/useColors";
+import useColors, { CustomizedColors } from "@/hooks/useColors";
 import ThemeText from "@/components/base/themeText";
-import Image from "@/components/base/image";
-import { ImgAsset } from "@/constants/assetsConst";
+import ThemePreview, {
+    ThemePreviewEffect,
+} from "@/components/base/themePreview";
+import Icon from "@/components/base/icon";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
-import Color from "color";
+import { getReadableTextColor } from "@/core/colorSafety";
 
 interface IThemeCardProps {
     selected?: boolean;
-    preview?: string;
+    previewColors: Partial<CustomizedColors>;
+    previewEffect?: ThemePreviewEffect;
     onPress?: () => void;
-    title?: string;
+    title: string;
+    description?: string;
 }
+
 export default function ThemeCard(props: IThemeCardProps) {
-    const { selected, preview, onPress, title } = props;
-
-    const isPreviewColor = preview?.startsWith("#") ? true : false;
-
+    const {
+        selected = false,
+        previewColors,
+        previewEffect,
+        onPress,
+        title,
+        description,
+    } = props;
     const colors = useColors();
 
     return (
-        <View style={styles.root}>
-            <Pressable
-                onPress={onPress}
-                android_ripple={{
-                    color: Color(colors.primary).alpha(0.08).rgb().string(),
-                    borderless: false,
-                }}
-                style={[
-                    styles.borderContainer,
-                    {
-                        backgroundColor: selected
-                            ? colors.selectedBackground
-                            : colors.controlBackground,
-                        borderColor: selected
-                            ? colors.selectedBorder
-                            : colors.controlBorder ?? colors.divider,
-                    },
-                ]}>
-                <View
-                    style={[
-                        styles.container,
-                        isPreviewColor
-                            ? {
-                                backgroundColor: preview,
-                            }
-                            : null,
-                    ]}>
-                    {isPreviewColor ? null : (
-                        <Image
-                            style={styles.image}
-                            uri={preview}
-                            emptySrc={ImgAsset.add}
+        <Pressable
+            accessibilityHint={description}
+            accessibilityLabel={title}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            android_ripple={{
+                color: Color(colors.primary).alpha(0.12).rgb().string(),
+                borderless: false,
+            }}
+            onPress={onPress}
+            style={({ pressed }) => [
+                styles.root,
+                {
+                    backgroundColor: selected
+                        ? colors.selectedBackground
+                        : colors.controlBackground,
+                    borderColor: selected
+                        ? colors.selectedBorder
+                        : colors.controlBorder ?? colors.divider,
+                    borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
+                },
+                pressed ? styles.pressed : null,
+            ]}>
+            <ThemePreview
+                colors={previewColors}
+                effect={previewEffect}
+                style={styles.preview}
+            />
+            <View style={styles.titleRow}>
+                <ThemeText
+                    numberOfLines={2}
+                    fontSize="subTitle"
+                    fontWeight={selected ? "semibold" : "medium"}
+                    fontColor="text"
+                    style={styles.title}>
+                    {title}
+                </ThemeText>
+                {selected ? (
+                    <View
+                        accessible={false}
+                        style={[
+                            styles.selectedMark,
+                            { backgroundColor: colors.primary },
+                        ]}>
+                        <Icon
+                            name="check"
+                            size={rpx(18)}
+                            color={getReadableTextColor(colors.primary, {
+                                backdrop:
+                                    colors.selectedBackground ??
+                                    colors.surfacePrimary,
+                            })}
                         />
-                    )}
-                </View>
-            </Pressable>
-            <ThemeText
-                numberOfLines={1}
-                fontSize="subTitle"
-                style={styles.title}
-                fontColor={selected ? "primary" : "text"}>
-                {title}
-            </ThemeText>
-        </View>
+                    </View>
+                ) : null}
+            </View>
+            {description ? (
+                <ThemeText
+                    numberOfLines={2}
+                    fontSize="description"
+                    fontColor="textSecondary"
+                    style={styles.description}>
+                    {description}
+                </ThemeText>
+            ) : null}
+        </Pressable>
     );
 }
 
 const styles = StyleSheet.create({
     root: {
+        width: rpx(224),
+        minHeight: rpx(278),
         marginRight: spacing.md,
         marginBottom: spacing.lg,
-    },
-    borderContainer: {
-        width: rpx(156),
-        height: rpx(156),
+        padding: spacing.sm,
         borderRadius: radius.lg,
-        borderWidth: StyleSheet.hairlineWidth,
-        justifyContent: "center",
-        alignItems: "center",
         overflow: "hidden",
     },
-    container: {
-        width: rpx(128),
-        height: rpx(128),
-        borderRadius: radius.sm,
-        overflow: "hidden",
+    pressed: {
+        opacity: 0.86,
+    },
+    preview: {
+        width: "100%",
+    },
+    titleRow: {
+        minHeight: rpx(44),
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: spacing.sm,
     },
     title: {
-        textAlign: "center",
-        marginTop: spacing.sm,
-        width: rpx(156),
+        flex: 1,
+        minWidth: 0,
     },
-    image: {
-        width: "100%",
-        height: "100%",
-        borderRadius: radius.sm,
+    selectedMark: {
+        width: rpx(36),
+        height: rpx(36),
+        marginLeft: spacing.xs,
+        borderRadius: radius.pill,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    description: {
+        marginTop: spacing.xs,
+        minHeight: rpx(42),
     },
 });

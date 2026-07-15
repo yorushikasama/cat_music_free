@@ -43,10 +43,10 @@ export default function LyricOperations(props: ILyricOperationsProps) {
     const theme = Theme.useTheme();
     const isRetro = theme.id === "p-retro";
     const isAcg = theme.id.startsWith("p-acg");
-    const isSpotify = theme.id === "p-spotify";
+    const isEmeraldNight = theme.id === "p-emerald-night";
 
-    const iconColor = isSpotify
-        ? "#b3b3b3"
+    const iconColor = isEmeraldNight
+        ? colors.textSecondary
         : (isAcg
             ? colors.text
             : (isRetro ? colors.text : "white"));

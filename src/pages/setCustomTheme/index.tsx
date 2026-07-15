@@ -22,7 +22,7 @@ export default function SetCustomTheme() {
                                 navigation.goBack();
                             }}
                             fontColor="appBarText">
-                            {t("common.done")}
+                            {t("setCustomTheme.close")}
                         </Button>
                     )}>
                     {t("setCustomTheme.customizeBackground")}

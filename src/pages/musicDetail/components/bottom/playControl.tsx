@@ -29,7 +29,7 @@ export default function PlayControl() {
     const palette = getDetailControlPalette(colors);
     const isRetro = theme.id === "p-retro";
     const isAcg = theme.id.startsWith("p-acg");
-    const isSpotify = theme.id === "p-spotify";
+    const isEmeraldNight = theme.id === "p-emerald-night";
     const isPaused = musicIsPaused(musicState);
 
     /*********** 控件颜色配置 ***********/
@@ -44,7 +44,7 @@ export default function PlayControl() {
     const sideButtonBorder = palette.borderColor;
     const pressedOverlay = palette.pressedOverlay;
 
-    const isSpecialTheme = isSpotify || isAcg || isRetro;
+    const isSpecialTheme = isEmeraldNight || isAcg || isRetro;
 
     return (
         <>

@@ -21,13 +21,13 @@ function _LyricItemComponent(props: ILyricItemComponentProps) {
     const theme = Theme.useTheme();
     const isRetro = theme.id === "p-retro";
     const isAcg = theme.id.startsWith("p-acg");
-    const isSpotify = theme.id === "p-spotify";
+    const isEmeraldNight = theme.id === "p-emerald-night";
 
     const baseFontSize = fontSize || fontSizeConst.content;
 
     const getBaseStyle = () => {
-        if (isSpotify) {
-            return { color: "#b3b3b3", opacity: 0.5 };
+        if (isEmeraldNight) {
+            return { color: colors.textSecondary, opacity: 0.5 };
         }
         if (isAcg) {
             return { color: colors.textSecondary, opacity: 0.4 };
@@ -39,9 +39,9 @@ function _LyricItemComponent(props: ILyricItemComponentProps) {
     };
 
     const getHighlightStyle = () => {
-        if (isSpotify) {
+        if (isEmeraldNight) {
             return {
-                color: "#ffffff",
+                color: colors.text,
                 opacity: 1,
                 fontSize: baseFontSize + rpx(2),
                 fontWeight: "700",
@@ -70,8 +70,8 @@ function _LyricItemComponent(props: ILyricItemComponentProps) {
     };
 
     const getLightStyle = () => {
-        if (isSpotify) {
-            return { color: "#ffffff", opacity: 0.85 };
+        if (isEmeraldNight) {
+            return { color: colors.text, opacity: 0.85 };
         }
         if (isAcg) {
             return {
@@ -99,7 +99,9 @@ function _LyricItemComponent(props: ILyricItemComponentProps) {
                 lyricStyles.item,
                 {
                     fontSize: baseFontSize,
-                    letterSpacing: isAcg ? rpx(1.5) : (isSpotify ? rpx(0.5) : 0),
+                    letterSpacing: isAcg
+                        ? rpx(1.5)
+                        : (isEmeraldNight ? rpx(0.5) : 0),
                     lineHeight: isAcg ? baseFontSize * 1.8 : undefined,
                 },
                 getBaseStyle(),

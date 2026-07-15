@@ -1,5 +1,5 @@
 {
-  "version": "8.1.0",
+  "version": "8.1.1",
   "changeLog": [
     "新增安全的 AI 歌词翻译与音乐推荐，API Key 迁移到系统安全存储",
     "下载、备份、恢复、本地音乐和插件导入全面迁移到 SAF 与 MediaStore",
@@ -8,8 +8,8 @@
     "修复搜索标签、权限体验并清零 TypeScript 与 ESLint 问题"
   ],
   "download": [
-    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.0/app-arm64-v8a-release.apk",
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.0/app-arm64-v8a-release.apk",
-    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.0/app-arm64-v8a-release.apk"
+    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.1/app-arm64-v8a-release.apk",
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.1/app-arm64-v8a-release.apk",
+    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.1/app-arm64-v8a-release.apk"
   ]
 }

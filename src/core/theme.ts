@@ -7,6 +7,10 @@ import {
 import { GlobalState } from "@/utils/stateMapper";
 import { CustomizedColors } from "@/hooks/useColors";
 import Color from "color";
+import {
+    createThemeColorsFromSeed,
+    normalizeThemeColors,
+} from "@/core/colorSafety";
 
 export const lightTheme = {
     id: "p-light",
@@ -21,7 +25,7 @@ export const lightTheme = {
         pageBackground: "#f5f5f7",
         shadow: "#000",
         appBar: "#f17d34",
-        appBarText: "#fefefe",
+        appBarText: "#1B1B1B",
         musicBar: "#ffffff",
         musicBarText: "#333333",
         divider: "rgba(0,0,0,0.06)",
@@ -192,7 +196,7 @@ export const acgLightTheme = {
         ..._DefaultTheme.colors,
         background: "transparent",
         text: "#5a4a5a",
-        textSecondary: "#8a7a8a",
+        textSecondary: "#6E5E70",
         primary: "#ff8fa3",
         pageBackground: "#fff5f8",
         shadow: "#ffb7c5",
@@ -236,7 +240,7 @@ export const acgLightTheme = {
         detailBlurRadius: 80,
         detailBlurOpacity: 0.25,
         playControlIconColor: "#5a4a5a",
-        playControlBtnColor: "#ffffff",
+        playControlBtnColor: "#3F1F2C",
         playControlBtnBg: "#ff8fa3",
         playControlBtnBorder: "#ffccd8",
     },
@@ -250,7 +254,7 @@ export const acgFireflyTheme = {
         ..._DefaultTheme.colors,
         background: "transparent",
         text: "#1F463E",
-        textSecondary: Color("#1F463E").alpha(0.68).toString(),
+        textSecondary: "#4A6A60",
         primary: "#4FBF63",
         pageBackground: "#EAF4ED",
         shadow: "#365F55",
@@ -296,66 +300,66 @@ export const acgFireflyTheme = {
         detailVignetteColor: "rgba(35,67,59,0.18)",
         detailGrainColor: "#8AD879",
         playControlIconColor: "#4B6F63",
-        playControlBtnColor: "#4FBF63",
+        playControlBtnColor: "#173830",
         playControlBtnBg: "rgba(248,252,245,0.88)",
         playControlBtnBorder: "rgba(79,191,99,0.28)",
     },
 };
 
-export const spotifyTheme = {
-    id: "p-spotify",
+export const emeraldNightTheme = {
+    id: "p-emerald-night",
     ..._DarkTheme,
     dark: true,
     colors: {
         ..._DarkTheme.colors,
         background: "transparent",
-        text: "#ffffff",
-        textSecondary: "#b3b3b3",
-        primary: "#1ed760",
-        pageBackground: "#121212",
+        text: "#E8F8F2",
+        textSecondary: "#B9CAC4",
+        primary: "#35C99E",
+        pageBackground: "#0C1513",
         shadow: "#000000",
-        appBar: "#181818",
-        appBarText: "#ffffff",
-        musicBar: "#181818",
-        musicBarText: "#ffffff",
-        divider: "rgba(255,255,255,0.1)",
-        listActive: "rgba(255,255,255,0.1)",
-        mask: "rgba(18,18,18,0.85)",
-        backdrop: "#1f1f1f",
-        tabBar: "#181818",
-        placeholder: "#282828",
-        success: "#1ed760",
-        danger: "#f3727f",
-        info: "#539df5",
-        card: "#181818",
-        notification: "#1f1f1f",
-        surfacePrimary: "#181818",
-        surfaceSecondary: "#1f1f1f",
-        surfaceTertiary: "#282828",
-        accent: "#1ed760cc",
-        gradientStart: "#1ed760",
-        gradientEnd: "#1aab50",
+        appBar: "#13211E",
+        appBarText: "#E8F8F2",
+        musicBar: "#13211E",
+        musicBarText: "#E8F8F2",
+        divider: "rgba(232,248,242,0.1)",
+        listActive: "rgba(53,201,158,0.14)",
+        mask: "rgba(12,21,19,0.88)",
+        backdrop: "#172925",
+        tabBar: "#13211E",
+        placeholder: "#213632",
+        success: "#62C982",
+        danger: "#F07F91",
+        info: "#69BDF0",
+        card: "#13211E",
+        notification: "#172925",
+        surfacePrimary: "#13211E",
+        surfaceSecondary: "#172925",
+        surfaceTertiary: "#213632",
+        accent: "#9BE8CA",
+        gradientStart: "#35C99E",
+        gradientEnd: "#1D8E78",
         shadowLight: "rgba(0,0,0,0.3)",
         shadowMedium: "rgba(0,0,0,0.4)",
         shadowHeavy: "rgba(0,0,0,0.5)",
-        progressActiveColor: "#1ed760",
-        progressInactiveColor: "#4d4d4d",
-        seekTrackColor: "#1ed760",
-        seekInactiveTrackColor: "#4d4d4d",
-        seekThumbColor: "#ffffff",
-        seekTextColor: "#b3b3b3",
-        playlistIconColor: "#b3b3b3",
+        progressActiveColor: "#35C99E",
+        progressInactiveColor: "#3C5750",
+        seekTrackColor: "#35C99E",
+        seekInactiveTrackColor: "#3C5750",
+        seekThumbColor: "#E8F8F2",
+        seekTextColor: "#B9CAC4",
+        playlistIconColor: "#B9CAC4",
         detailGradientColors: [
-            "rgba(18,18,18,0.3)",
-            "rgba(18,18,18,0.7)",
-            "rgba(18,18,18,0.9)",
+            "rgba(12,21,19,0.28)",
+            "rgba(12,21,19,0.68)",
+            "rgba(12,21,19,0.92)",
         ],
-        detailBgColor: "#121212",
+        detailBgColor: "#0C1513",
         detailBlurRadius: 60,
         detailBlurOpacity: 0.3,
-        playControlIconColor: "#b3b3b3",
-        playControlBtnColor: "#121212",
-        playControlBtnBg: "#1ed760",
+        playControlIconColor: "#B9CAC4",
+        playControlBtnColor: "#0C1513",
+        playControlBtnBg: "#35C99E",
         playControlBtnBorder: "transparent",
     },
 };
@@ -372,13 +376,34 @@ const DEFAULT_BACKGROUND_OPACITY = 0.6;
 const themeStore = new GlobalState(darkTheme);
 const backgroundStore = new GlobalState<IBackgroundInfo | null>(null);
 
+type ResolvedThemeColors = typeof darkTheme.colors;
+
+function asResolvedThemeColors(colors: CustomizedColors): ResolvedThemeColors {
+    return colors as ResolvedThemeColors;
+}
+
+function getCustomThemeBase(colors?: Partial<CustomizedColors>) {
+    const pageBackground = colors?.pageBackground ?? colors?.background;
+    if (typeof pageBackground === "string") {
+        try {
+            return Color(pageBackground).isDark()
+                ? darkTheme.colors
+                : lightTheme.colors;
+        } catch {}
+    }
+    return darkTheme.colors;
+}
+
 function getPresetTheme(themeName: string) {
     if (themeName === "p-light") return lightTheme;
     if (themeName === "p-dark") return darkTheme;
     if (themeName === "p-retro") return retroTheme;
     if (themeName === "p-acg") return acgLightTheme;
     if (themeName === "p-acg-firefly") return acgFireflyTheme;
-    if (themeName === "p-spotify") return spotifyTheme;
+    // Keep the old ID readable for users upgrading from the previous preset.
+    if (themeName === "p-emerald-night" || themeName === "p-spotify") {
+        return emeraldNightTheme;
+    }
     return null;
 }
 
@@ -400,17 +425,26 @@ function setup() {
         Config.setConfig("theme.selectedTheme", "p-acg");
     }
 
+    if (currentTheme === "p-spotify") {
+        currentTheme = "p-emerald-night";
+        Config.setConfig("theme.selectedTheme", currentTheme);
+    }
+
     const presetTheme = getPresetTheme(currentTheme);
     if (presetTheme) {
         themeStore.setValue(presetTheme);
     } else {
+        const savedColors = Config.getConfig(
+            "theme.colors",
+        ) as Partial<CustomizedColors> | undefined;
+        const colors = normalizeThemeColors(
+            savedColors ?? {},
+            getCustomThemeBase(savedColors),
+        );
         themeStore.setValue({
             id: currentTheme,
-            dark: true,
-            // @ts-ignore
-            colors:
-                (Config.getConfig("theme.colors") as CustomizedColors) ??
-                darkTheme.colors,
+            dark: Color(colors.pageBackground ?? colors.background ?? "#000").isDark(),
+            colors: asResolvedThemeColors(colors),
         });
     }
 
@@ -432,22 +466,28 @@ function setTheme(
         background?: IBackgroundInfo;
     },
 ) {
-    const presetTheme = getPresetTheme(themeName);
+    const resolvedThemeName =
+        themeName === "p-spotify" ? "p-emerald-night" : themeName;
+    const presetTheme = getPresetTheme(resolvedThemeName);
     if (presetTheme) {
         themeStore.setValue(presetTheme);
     } else {
+        const colors = normalizeThemeColors(
+            extra?.colors ?? {},
+            getCustomThemeBase(extra?.colors),
+        );
         themeStore.setValue({
-            id: themeName,
-            dark: true,
-            colors: {
-                ...darkTheme.colors,
-                ...(extra?.colors ?? {}),
-            },
+            id: resolvedThemeName,
+            dark: Color(colors.pageBackground ?? colors.background ?? "#000").isDark(),
+            colors: asResolvedThemeColors(colors),
         });
     }
 
-    Config.setConfig("theme.selectedTheme", themeName);
+    Config.setConfig("theme.selectedTheme", resolvedThemeName);
     Config.setConfig("theme.colors", themeStore.getValue().colors);
+    if (resolvedThemeName === "custom") {
+        Config.setConfig("theme.customColors", themeStore.getValue().colors);
+    }
 
     if (extra?.background) {
         const currentBg = backgroundStore.getValue();
@@ -478,16 +518,40 @@ function setTheme(
 function setColors(colors: Partial<CustomizedColors>) {
     const currentTheme = themeStore.getValue();
     if (!isPresetTheme(currentTheme.id)) {
+        const safeColors = normalizeThemeColors(colors, currentTheme.colors);
         const newTheme = {
             ...currentTheme,
-            colors: {
-                ...currentTheme.colors,
-                ...colors,
-            },
+            dark: Color(
+                safeColors.pageBackground ?? safeColors.background ?? "#000",
+            ).isDark(),
+            colors: asResolvedThemeColors(safeColors),
         };
         Config.setConfig("theme.customColors", newTheme.colors);
         Config.setConfig("theme.colors", newTheme.colors);
         themeStore.setValue(newTheme);
+    }
+}
+
+function createCustomThemeColors(seedColor: string, mode: "light" | "dark") {
+    const base = mode === "light" ? lightTheme.colors : darkTheme.colors;
+    return normalizeThemeColors(createThemeColorsFromSeed(seedColor, mode), base);
+}
+
+function resetCustomColors() {
+    const currentTheme = themeStore.getValue();
+    const colors = normalizeThemeColors({}, getCustomThemeBase(currentTheme.colors));
+
+    Config.setConfig("theme.customColors", colors);
+    Config.setConfig("theme.colors", colors);
+
+    if (!isPresetTheme(currentTheme.id)) {
+        themeStore.setValue({
+            ...currentTheme,
+            dark: Color(
+                colors.pageBackground ?? colors.background ?? "#000",
+            ).isDark(),
+            colors: asResolvedThemeColors(colors),
+        });
     }
 }
 
@@ -526,19 +590,28 @@ function clearBackground() {
     backgroundStore.setValue(newBgInfo);
 }
 
-const configableColorKey: Array<keyof CustomizedColors> = [
-    "primary",
-    "text",
-    "appBar",
-    "appBarText",
-    "musicBar",
-    "musicBarText",
-    "pageBackground",
-    "backdrop",
-    "card",
-    "placeholder",
-    "tabBar",
-    "notification",
+const configurableColorGroups: Array<{
+    id: "base" | "player" | "surfaces";
+    keys: Array<keyof CustomizedColors>;
+}> = [
+    {
+        id: "base",
+        keys: ["primary", "text", "pageBackground"],
+    },
+    {
+        id: "player",
+        keys: [
+            "appBar",
+            "appBarText",
+            "musicBar",
+            "musicBarText",
+            "tabBar",
+        ],
+    },
+    {
+        id: "surfaces",
+        keys: ["backdrop", "card", "placeholder", "notification"],
+    },
 ];
 
 const Theme = {
@@ -547,10 +620,12 @@ const Theme = {
     setBackground,
     clearBackground,
     setColors,
+    createCustomThemeColors,
+    resetCustomColors,
     useTheme: themeStore.useValue,
     getTheme: themeStore.getValue,
     useBackground: backgroundStore.useValue,
-    configableColorKey,
+    configurableColorGroups,
 };
 
 export default Theme;

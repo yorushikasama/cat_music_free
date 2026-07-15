@@ -152,6 +152,10 @@ export default function AISetting() {
 
         setTesting(true);
         try {
+            // A successful connection test is also the user's confirmation of
+            // this draft. Persist it first so leaving this page afterwards
+            // does not make the rest of the AI features appear unconfigured.
+            await save();
             await testAIConnection({
                 baseUrl,
                 apiKey: apiKey.trim() || undefined,
@@ -419,8 +423,16 @@ export default function AISetting() {
                     backgroundColor={primaryTint}
                     textColor={colors.primary}
                     onPress={async () => {
-                        await save();
-                        Toast.success(t("toast.saveSuccess"));
+                        try {
+                            await save();
+                            Toast.success(t("toast.saveSuccess"));
+                        } catch (error: any) {
+                            Toast.warn(
+                                t("aiSettings.testFailed", {
+                                    reason: getLocalizedAIErrorMessage(error),
+                                }),
+                            );
+                        }
                     }}
                 />
             </View>
