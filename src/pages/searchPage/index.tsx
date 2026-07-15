@@ -28,7 +28,7 @@ export default function () {
             setPageStatus(PageStatus.EDITING);
             setQuery("");
         };
-    }, []);
+    }, [setPageStatus, setQuery, setSearchResultsState]);
 
     return (
         <PageShell appBar={<NavBar />} musicBar>

@@ -1,11 +1,14 @@
 import Color from "color";
 
 export function colorNumberToRgba(color: number) {
+    // React Native encodes native colors as unsigned ARGB integers.
+    /* eslint-disable no-bitwise */
     const argb = color >>> 0;
     const alpha = ((argb >> 24) & 255) / 255;
     const red = (argb >> 16) & 255;
     const green = (argb >> 8) & 255;
     const blue = argb & 255;
+    /* eslint-enable no-bitwise */
 
     if (alpha >= 1) {
         return `rgb(${red},${green},${blue})`;

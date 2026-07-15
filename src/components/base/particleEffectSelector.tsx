@@ -33,20 +33,21 @@ export default function ParticleEffectSelector() {
             <View style={styles.optionList}>
                 {EFFECT_OPTIONS.map(option => {
                     const isSelected = currentEffect === option;
+                    const optionStyle = {
+                        backgroundColor: isSelected
+                            ? Color(colors.primary).alpha(0.09).rgb().string()
+                            : "transparent",
+                        borderColor: isSelected
+                            ? colors.primary
+                            : colors.divider,
+                    };
                     return (
                         <TouchableOpacity
                             key={option}
                             activeOpacity={0.7}
                             style={[
                                 styles.optionItem,
-                                {
-                                    backgroundColor: isSelected
-                                        ? Color(colors.primary).alpha(0.09).rgb().string()
-                                        : "transparent",
-                                    borderColor: isSelected
-                                        ? colors.primary
-                                        : colors.divider,
-                                },
+                                optionStyle,
                             ]}
                             onPress={() => {
                                 Config.setConfig("theme.particleEffect", option);

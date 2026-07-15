@@ -65,12 +65,12 @@ export default function usePluginSheetMusicList(
                 setRequestState(RequestStateCode.ERROR);
             }
         },
-        [requestState],
+        [originalSheetItem, requestState],
     );
 
     useEffect(() => {
         getSheetDetail();
-    }, []);
+    }, [getSheetDetail]);
 
     return [requestState, sheetItem, musicList, getSheetDetail] as const;
 }

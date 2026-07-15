@@ -8,6 +8,7 @@ import { showDialog } from "@/components/dialogs/useDialog";
 import AppBar from "@/components/base/appBar";
 import { useI18N } from "@/core/i18n";
 import PageShell from "@/components/base/pageShell";
+import StorageAccess from "@/native/storageAccess";
 
 export default function MainPage() {
     const navigate = useNavigate();
@@ -32,32 +33,21 @@ export default function MainPage() {
                             icon: "magnifying-glass",
                             title: t("localMusic.scanLocalMusic"),
                             async onPress() {
-                                navigate(ROUTE_PATH.FILE_SELECTOR, {
-                                    fileType: "folder",
-                                    multi: true,
-                                    actionText: t("localMusic.beginScan"),
-                                    async onAction(selectedFiles) {
-                                        return new Promise(resolve => {
-                                            showDialog("LoadingDialog", {
-                                                title: t("localMusic.scanLocalMusic"),
-                                                promise:
-                                                    LocalMusicSheet.importLocal(
-                                                        selectedFiles.map(
-                                                            _ => _.path,
-                                                        ),
-                                                    ),
-                                                onResolve(data, hideDialog) {
-                                                    Toast.success(t("toast.importSuccess"));
-                                                    hideDialog();
-                                                    resolve(true);
-                                                },
-                                                onCancel(hideDialog) {
-                                                    LocalMusicSheet.cancelImportLocal();
-                                                    hideDialog();
-                                                    resolve(false);
-                                                },
-                                            });
-                                        });
+                                const documents = await StorageAccess.openDocuments(
+                                    ["audio/*"],
+                                    true,
+                                );
+                                if (!documents?.length) return;
+                                showDialog("LoadingDialog", {
+                                    title: t("localMusic.scanLocalMusic"),
+                                    promise: LocalMusicSheet.importDocuments(documents),
+                                    onResolve(_, hideDialog) {
+                                        Toast.success(t("toast.importSuccess"));
+                                        hideDialog();
+                                    },
+                                    onCancel(hideDialog) {
+                                        LocalMusicSheet.cancelImportLocal();
+                                        hideDialog();
                                     },
                                 });
                             },

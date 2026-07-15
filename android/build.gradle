@@ -3,7 +3,7 @@ buildscript {
         buildToolsVersion = "35.0.0"
         minSdkVersion = 24
         compileSdkVersion = 35
-        targetSdkVersion = 30
+        targetSdkVersion = 35
         ndkVersion = "27.1.12297006"
         kotlinVersion = "1.9.24"
     }
@@ -36,6 +36,12 @@ subprojects { sub ->
         sub.extensions.getByType(AndroidComponentsExtension).finalizeDsl { ext ->
             ext.compileOptions.sourceCompatibility = JavaVersion.VERSION_17
             ext.compileOptions.targetCompatibility = JavaVersion.VERSION_17
+            if (sub.name == "react-native-mmkv") {
+                ext.defaultConfig.externalNativeBuild.cmake.arguments.addAll([
+                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+                    "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+                ])
+            }
         }
     }
     sub.pluginManager.withPlugin("org.jetbrains.kotlin.android") {

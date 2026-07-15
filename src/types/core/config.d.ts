@@ -2,7 +2,7 @@ import type { ResumeMode, SortType } from "@/constants/commonConst.ts";
 import type { CustomizedColors } from "@/hooks/useColors";
 
 export interface IAppConfigProperties {
-    $schema: "3" | "4" | "5" | "6";
+    $schema: "3" | "4" | "5" | "6" | "7" | "8";
     // Basic
     "basic.autoPlayWhenAppStart": boolean;
     "basic.useCelluarNetworkPlay": boolean;
@@ -11,6 +11,9 @@ export interface IAppConfigProperties {
     "basic.clickMusicInSearch": "playMusic" | "playMusicAndReplace";
     "basic.clickMusicInAlbum": "playAlbum" | "playMusic";
     "basic.downloadPath": string;
+    "basic.downloadDirectoryUri": string;
+    "basic.downloadDirectoryName": string;
+    "basic.legacyDownloadPath": string;
     "basic.notInterrupt": boolean;
     "basic.tempRemoteDuck": "pause" | "lowerVolume";
     "basic.tempRemoteDuckVolume": 0.3 | 0.5 | 0.8;

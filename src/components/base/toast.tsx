@@ -75,7 +75,7 @@ export function ToastBaseComponent() {
                 );
             });
         }
-    }, [activeToast]);
+    }, [activeToast, setNextToast, toastAnim]);
 
     function removeCurrentToast() {
         if (toastAnim.value === 1) {

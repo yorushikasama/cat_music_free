@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Animated, Easing, ViewStyle } from "react-native";
+import { Animated, Easing, StyleSheet, ViewStyle } from "react-native";
 import rpx from "@/utils/rpx";
 import Svg, { RNSVGCircle, RNSVGEllipse, RNSVGPath } from "react-native-svg";
 import useColors from "@/hooks/useColors";
@@ -14,9 +14,10 @@ function Cloud({ size = rpx(80), x, y, opacity = 0.3 }: { size?: number; x: numb
     if (!isAcg) return null;
 
     const primaryFill = toSvgColor(colors.primary);
+    const svgStyle = { left: x, top: y, opacity };
 
     return (
-        <Svg width={size} height={size * 0.6} style={{ position: "absolute", left: x, top: y, opacity }}>
+        <Svg width={size} height={size * 0.6} style={[styles.absolute, svgStyle]}>
             <RNSVGEllipse cx={size * 0.35} cy={size * 0.4} rx={size * 0.25} ry={size * 0.2} fill={primaryFill} />
             <RNSVGEllipse cx={size * 0.55} cy={size * 0.35} rx={size * 0.3} ry={size * 0.22} fill={primaryFill} />
             <RNSVGEllipse cx={size * 0.7} cy={size * 0.4} rx={size * 0.2} ry={size * 0.17} fill={primaryFill} />
@@ -31,9 +32,15 @@ function Heart({ size = rpx(24), x, y, opacity = 0.25, rotation = 0 }: { size?: 
     if (!isAcg) return null;
 
     const primaryFill = toSvgColor(colors.primary);
+    const svgStyle = {
+        left: x,
+        top: y,
+        opacity,
+        transform: [{ rotate: `${rotation}deg` }],
+    };
 
     return (
-        <Svg width={size} height={size} style={{ position: "absolute", left: x, top: y, opacity, transform: [{ rotate: `${rotation}deg` }] }}>
+        <Svg width={size} height={size} style={[styles.absolute, svgStyle]}>
             <RNSVGPath
                 d={`M ${size * 0.5} ${size * 0.85} C ${size * 0.15} ${size * 0.55} 0 ${size * 0.3} ${size * 0.15} ${size * 0.2} C ${size * 0.3} ${size * 0.05} ${size * 0.5} ${size * 0.15} ${size * 0.5} ${size * 0.35} C ${size * 0.5} ${size * 0.15} ${size * 0.7} ${size * 0.05} ${size * 0.85} ${size * 0.2} C ${size} ${size * 0.3} ${size * 0.85} ${size * 0.55} ${size * 0.5} ${size * 0.85} Z`}
                 fill={primaryFill}
@@ -63,9 +70,10 @@ function Star({ size = rpx(20), x, y, opacity = 0.2 }: { size?: number; x: numbe
     }
     path += "Z";
     const primaryFill = toSvgColor(colors.primary);
+    const svgStyle = { left: x, top: y, opacity };
 
     return (
-        <Svg width={size} height={size} style={{ position: "absolute", left: x, top: y, opacity }}>
+        <Svg width={size} height={size} style={[styles.absolute, svgStyle]}>
             <RNSVGPath d={path} fill={primaryFill} />
         </Svg>
     );
@@ -79,9 +87,10 @@ function RibbonBow({ size = rpx(40), x, y, opacity = 0.18 }: { size?: number; x:
     const w = size;
     const h = size * 0.7;
     const primaryFill = toSvgColor(colors.primary);
+    const svgStyle = { left: x, top: y, opacity };
 
     return (
-        <Svg width={w} height={h} style={{ position: "absolute", left: x, top: y, opacity }}>
+        <Svg width={w} height={h} style={[styles.absolute, svgStyle]}>
             <RNSVGPath
                 d={`M ${w * 0.5} ${h * 0.5}
                    C ${w * 0.2} ${h * 0.15} ${w * 0.05} ${h * 0.3} ${w * 0.15} ${h * 0.5}
@@ -161,17 +170,17 @@ function FloatingBubbles() {
                     inputRange: [0, 0.6, 1],
                     outputRange: [bubble.opacity, bubble.opacity * 0.4, 0],
                 }) ?? 0;
+                const bubbleStyle = {
+                    left: `${bubble.x}%` as `${number}%`,
+                    top: `${bubble.startY}%` as `${number}%`,
+                    transform: [{ translateY }],
+                    opacity: fadeOut,
+                };
 
                 return (
                     <Animated.View
                         key={bubble.id}
-                        style={{
-                            position: "absolute",
-                            left: `${bubble.x}%`,
-                            top: `${bubble.startY}%`,
-                            transform: [{ translateY }],
-                            opacity: fadeOut,
-                        }}>
+                        style={[styles.absolute, bubbleStyle]}>
                         <Svg width={bubble.size} height={bubble.size}>
                             <RNSVGCircle
                                 cx={bubble.size / 2}
@@ -225,3 +234,9 @@ export default function AcgDecoration(_props: { style?: ViewStyle }) {
 }
 
 export { Cloud, Heart, Star, RibbonBow, FloatingBubbles };
+
+const styles = StyleSheet.create({
+    absolute: {
+        position: "absolute",
+    },
+});

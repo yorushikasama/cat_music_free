@@ -30,7 +30,7 @@ export default function ArtistDetail() {
             setQueryResult(initQueryResult);
             setScrollToTopState(true);
         };
-    }, []);
+    }, [setQueryResult, setScrollToTopState]);
 
     return (
         <PageShell

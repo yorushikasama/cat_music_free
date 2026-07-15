@@ -1,34 +1,47 @@
+import Icon from "@/components/base/icon";
 import Input from "@/components/base/input";
 import ThemeText from "@/components/base/themeText";
+import { showDialog } from "@/components/dialogs/useDialog";
+import { radius } from "@/constants/borderRadius";
+import { spacing } from "@/constants/spacing";
 import Config, { useAppConfig } from "@/core/appConfig";
-import { testAIConnection } from "@/core/ai";
+import {
+    clearAIApiKey,
+    fetchAIModels,
+    getAIApiKey,
+    getLocalizedAIErrorMessage,
+    revokeAIDataSharingConsent,
+    setAIApiKey,
+    testAIConnection,
+} from "@/core/ai";
 import { useI18N } from "@/core/i18n";
 import useColors from "@/hooks/useColors";
+import rpx from "@/utils/rpx";
 import Toast from "@/utils/toast";
-import React, { useState } from "react";
+import Color from "color";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+    ActivityIndicator,
     ScrollView,
     StyleSheet,
     TouchableOpacity,
     View,
 } from "react-native";
-import { spacing } from "@/constants/spacing";
-import { radius } from "@/constants/borderRadius";
 import SettingSection from "../components/settingSection";
-import Color from "color";
 
 export default function AISetting() {
     const { t, getLanguage } = useI18N();
     const colors = useColors();
     const savedBaseUrl = useAppConfig("ai.baseUrl");
-    const savedApiKey = useAppConfig("ai.apiKey");
     const savedModel = useAppConfig("ai.model");
     const savedTargetLanguage = useAppConfig("ai.lyricTargetLanguage");
 
     const [baseUrl, setBaseUrl] = useState(
         savedBaseUrl || "https://api.openai.com/v1",
     );
-    const [apiKey, setApiKey] = useState(savedApiKey || "");
+    const [apiKey, setApiKey] = useState("");
+    const [hasSavedApiKey, setHasSavedApiKey] = useState(false);
+    const [apiKeyVisible, setApiKeyVisible] = useState(false);
     const [model, setModel] = useState(savedModel || "gpt-4o-mini");
     const [targetLanguage, setTargetLanguage] = useState(
         savedTargetLanguage && savedTargetLanguage !== "auto"
@@ -36,35 +49,119 @@ export default function AISetting() {
             : "",
     );
     const [testing, setTesting] = useState(false);
-    const primaryTextColor = Color(colors.primary).isDark()
-        ? "#ffffff"
-        : "#000000";
+    const [fetchingModels, setFetchingModels] = useState(false);
+    const draftConfigured = !!(
+        baseUrl.trim() &&
+        (apiKey.trim() || hasSavedApiKey) &&
+        model.trim()
+    );
+    const endpointName = useMemo(() => {
+        try {
+            return new URL(baseUrl.trim()).host;
+        } catch {
+            return baseUrl.trim() || t("aiSettings.endpointMissing");
+        }
+    }, [baseUrl, t]);
+    const primaryTint = Color(colors.primary)
+        .alpha(colors.hasBackgroundImage ? 0.18 : 0.12)
+        .string();
 
-    function save() {
+    useEffect(() => {
+        let active = true;
+        getAIApiKey().then(value => {
+            if (active) {
+                setApiKey(value);
+                setHasSavedApiKey(!!value);
+            }
+        });
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    async function save() {
         Config.setConfig("ai.baseUrl", baseUrl.trim());
-        Config.setConfig("ai.apiKey", apiKey.trim());
         Config.setConfig("ai.model", model.trim());
         Config.setConfig(
             "ai.lyricTargetLanguage",
             targetLanguage.trim() || "auto",
         );
+        if (apiKey.trim()) {
+            const normalizedApiKey = apiKey.trim();
+            await setAIApiKey(normalizedApiKey);
+            setApiKey(normalizedApiKey);
+            setApiKeyVisible(false);
+            setHasSavedApiKey(true);
+        }
+    }
+
+    async function toggleApiKeyVisibility() {
+        if (apiKeyVisible) {
+            setApiKeyVisible(false);
+            return;
+        }
+        if (!apiKey && hasSavedApiKey) {
+            setApiKey(await getAIApiKey());
+        }
+        setApiKeyVisible(true);
+    }
+
+    async function getModels() {
+        if (!baseUrl.trim()) {
+            Toast.warn(t("aiSettings.endpointIncomplete"));
+            return;
+        }
+
+        setFetchingModels(true);
+        try {
+            const models = await fetchAIModels({
+                baseUrl,
+                apiKey: apiKey.trim() || undefined,
+            });
+            if (!models.length) {
+                Toast.warn(t("aiSettings.modelsEmpty"));
+                return;
+            }
+            Toast.success(
+                t("aiSettings.modelsLoaded", { count: models.length }),
+            );
+            showDialog("RadioDialog", {
+                title: t("aiSettings.selectModel"),
+                content: models,
+                defaultSelected: model,
+                onOk(value) {
+                    setModel(String(value));
+                },
+            });
+        } catch (error: any) {
+            Toast.warn(
+                t("aiSettings.modelsFailed", {
+                    reason: getLocalizedAIErrorMessage(error),
+                }),
+            );
+        } finally {
+            setFetchingModels(false);
+        }
     }
 
     async function testConnection() {
-        if (!baseUrl.trim() || !apiKey.trim() || !model.trim()) {
+        if (!draftConfigured) {
             Toast.warn(t("aiSettings.incomplete"));
             return;
         }
 
-        save();
         setTesting(true);
         try {
-            await testAIConnection();
+            await testAIConnection({
+                baseUrl,
+                apiKey: apiKey.trim() || undefined,
+                model,
+            });
             Toast.success(t("aiSettings.testSuccess"));
         } catch (error: any) {
             Toast.warn(
                 t("aiSettings.testFailed", {
-                    reason: error?.message ?? error,
+                    reason: getLocalizedAIErrorMessage(error),
                 }),
             );
         } finally {
@@ -76,12 +173,65 @@ export default function AISetting() {
         <ScrollView
             style={styles.wrapper}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.content}>
+            <View
+                style={[
+                    styles.statusBand,
+                    {
+                        borderBottomColor:
+                            colors.controlBorder ?? colors.divider,
+                    },
+                ]}>
+                <View
+                    style={[
+                        styles.statusIcon,
+                        {
+                            backgroundColor: Color(colors.primary)
+                                .alpha(0.12)
+                                .string(),
+                        },
+                    ]}>
+                    <Icon
+                        name="strategy"
+                        size={rpx(28)}
+                        color={colors.primary}
+                    />
+                </View>
+                <View style={styles.statusCopy}>
+                    <ThemeText fontSize="title" fontWeight="bold">
+                        {draftConfigured
+                            ? t("aiSettings.statusReady")
+                            : t("aiSettings.statusIncomplete")}
+                    </ThemeText>
+                    <ThemeText
+                        fontSize="description"
+                        fontColor="textSecondary"
+                        numberOfLines={1}>
+                        {model.trim()
+                            ? `${endpointName} · ${model.trim()}`
+                            : endpointName}
+                    </ThemeText>
+                </View>
+                <View
+                    style={[
+                        styles.statusDot,
+                        {
+                            backgroundColor: draftConfigured
+                                ? colors.success
+                                : colors.textSecondary,
+                        },
+                    ]}
+                />
+            </View>
+
             <SettingSection
                 title={t("aiSettings.connection")}
                 description={t("aiSettings.connectionDescription")}>
                 <View style={styles.fields}>
-                    <Field label={t("aiSettings.baseUrl")}>
+                    <Field
+                        label={t("aiSettings.baseUrl")}
+                        hint={t("aiSettings.baseUrlDescription")}>
                         <Input
                             value={baseUrl}
                             onChangeText={setBaseUrl}
@@ -91,79 +241,188 @@ export default function AISetting() {
                             variant="outlined"
                         />
                     </Field>
-                    <Field label={t("aiSettings.apiKey")}>
-                        <Input
-                            value={apiKey}
-                            onChangeText={setApiKey}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            secureTextEntry
-                            variant="outlined"
-                        />
+                    <Field
+                        label={t("aiSettings.apiKey")}
+                        hint={t("aiSettings.apiKeyDescription")}>
+                        <View style={styles.apiKeyRow}>
+                            <View style={styles.apiKeyInput}>
+                                <Input
+                                    value={apiKey}
+                                    onChangeText={setApiKey}
+                                    placeholder={
+                                        hasSavedApiKey
+                                            ? t("aiSettings.apiKeyStored")
+                                            : undefined
+                                    }
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    secureTextEntry={!apiKeyVisible}
+                                    variant="outlined"
+                                />
+                            </View>
+                            <TouchableOpacity
+                                accessibilityRole="button"
+                                accessibilityLabel={t(
+                                    apiKeyVisible
+                                        ? "aiSettings.hideApiKey"
+                                        : "aiSettings.showApiKey",
+                                )}
+                                activeOpacity={0.7}
+                                onPress={toggleApiKeyVisibility}
+                                style={[
+                                    styles.keyVisibilityButton,
+                                    {
+                                        backgroundColor: primaryTint,
+                                    },
+                                ]}>
+                                <ThemeText
+                                    fontSize="description"
+                                    fontWeight="semibold"
+                                    color={colors.primary}>
+                                    {t(
+                                        apiKeyVisible
+                                            ? "aiSettings.hideApiKey"
+                                            : "aiSettings.showApiKey",
+                                    )}
+                                </ThemeText>
+                            </TouchableOpacity>
+                        </View>
+                        {hasSavedApiKey ? (
+                            <TouchableOpacity
+                                accessibilityRole="button"
+                                accessibilityLabel={t("aiSettings.clearApiKey")}
+                                activeOpacity={0.7}
+                                onPress={async () => {
+                                    await clearAIApiKey();
+                                    setHasSavedApiKey(false);
+                                    setApiKey("");
+                                    setApiKeyVisible(false);
+                                    Toast.success(
+                                        t("aiSettings.apiKeyCleared"),
+                                    );
+                                }}
+                                style={styles.clearKeyButton}>
+                                <ThemeText
+                                    fontSize="description"
+                                    color={colors.danger ?? colors.primary}>
+                                    {t("aiSettings.clearApiKey")}
+                                </ThemeText>
+                            </TouchableOpacity>
+                        ) : null}
                     </Field>
                     <Field label={t("aiSettings.model")}>
-                        <Input
-                            value={model}
-                            onChangeText={setModel}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            variant="outlined"
-                        />
+                        <View style={styles.modelRow}>
+                            <View style={styles.modelInput}>
+                                <Input
+                                    value={model}
+                                    onChangeText={setModel}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    variant="outlined"
+                                />
+                            </View>
+                            <TouchableOpacity
+                                accessibilityRole="button"
+                                accessibilityLabel={t("aiSettings.fetchModels")}
+                                activeOpacity={0.72}
+                                disabled={fetchingModels}
+                                onPress={getModels}
+                                style={[
+                                    styles.fetchButton,
+                                    {
+                                        backgroundColor: primaryTint,
+                                    },
+                                ]}>
+                                {fetchingModels ? (
+                                    <ActivityIndicator
+                                        size="small"
+                                        color={colors.primary}
+                                    />
+                                ) : (
+                                    <Icon
+                                        name="arrow-path"
+                                        size={rpx(22)}
+                                        color={colors.primary}
+                                    />
+                                )}
+                                <ThemeText
+                                    fontSize="description"
+                                    fontWeight="semibold"
+                                    color={colors.primary}
+                                    numberOfLines={1}>
+                                    {fetchingModels
+                                        ? t("aiSettings.fetchingModels")
+                                        : t("aiSettings.fetchModels")}
+                                </ThemeText>
+                            </TouchableOpacity>
+                        </View>
                     </Field>
                 </View>
             </SettingSection>
 
-            <SettingSection title={t("aiSettings.lyricTranslation")}>
+            <SettingSection
+                title={t("aiSettings.dataPrivacy")}
+                description={t("aiSettings.dataPrivacyDescription")}>
+                <View style={styles.privacyActions}>
+                    <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={t("aiSettings.revokeConsent")}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                            revokeAIDataSharingConsent();
+                            Toast.success(t("aiSettings.consentRevoked"));
+                        }}>
+                        <ThemeText
+                            fontSize="description"
+                            color={colors.primary}>
+                            {t("aiSettings.revokeConsent")}
+                        </ThemeText>
+                    </TouchableOpacity>
+                </View>
+            </SettingSection>
+
+            <SettingSection
+                title={t("aiSettings.lyricTranslation")}
+                description={t("aiSettings.lyricTranslationDescription")}>
                 <View style={styles.fields}>
-                    <Field label={t("aiSettings.targetLanguage")}>
+                    <Field
+                        label={t("aiSettings.targetLanguage")}
+                        hint={t("aiSettings.targetLanguageDescription")}>
                         <Input
                             value={targetLanguage}
                             onChangeText={setTargetLanguage}
-                            placeholder={`${t("aiSettings.followAppLanguage")} (${getLanguage().name})`}
+                            placeholder={`${t(
+                                "aiSettings.followAppLanguage",
+                            )} (${getLanguage().name})`}
                             variant="outlined"
                         />
-                        <ThemeText
-                            fontSize="description"
-                            style={[styles.fieldHint, { color: colors.textSecondary }]}>
-                            {t("aiSettings.targetLanguageDescription")}
-                        </ThemeText>
                     </Field>
                 </View>
             </SettingSection>
 
             <View style={styles.actions}>
-                <TouchableOpacity
-                    activeOpacity={0.76}
-                    style={[
-                        styles.secondaryButton,
-                        {
-                            borderColor: colors.controlBorder ?? colors.divider,
-                        },
-                    ]}
-                    disabled={testing}
-                    onPress={testConnection}>
-                    <ThemeText fontWeight="semibold">
-                        {testing
+                <ActionButton
+                    icon="check-circle-outline"
+                    label={
+                        testing
                             ? t("aiSettings.testing")
-                            : t("aiSettings.testConnection")}
-                    </ThemeText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    activeOpacity={0.76}
-                    style={[
-                        styles.primaryButton,
-                        { backgroundColor: colors.primary },
-                    ]}
-                    onPress={() => {
-                        save();
+                            : t("aiSettings.testConnection")
+                    }
+                    disabled={testing}
+                    backgroundColor={colors.surfaceSecondary}
+                    textColor={colors.text}
+                    onPress={testConnection}
+                />
+                <ActionButton
+                    icon="check"
+                    label={t("common.save")}
+                    backgroundColor={primaryTint}
+                    textColor={colors.primary}
+                    onPress={async () => {
+                        await save();
                         Toast.success(t("toast.saveSuccess"));
-                    }}>
-                    <ThemeText
-                        fontWeight="semibold"
-                        style={{ color: primaryTextColor }}>
-                        {t("common.save")}
-                    </ThemeText>
-                </TouchableOpacity>
+                    }}
+                />
             </View>
         </ScrollView>
     );
@@ -171,9 +430,11 @@ export default function AISetting() {
 
 function Field({
     label,
+    hint,
     children,
 }: {
     label: string;
+    hint?: string;
     children: React.ReactNode;
 }) {
     return (
@@ -185,7 +446,59 @@ function Field({
                 {label}
             </ThemeText>
             {children}
+            {hint ? (
+                <ThemeText
+                    fontSize="description"
+                    fontColor="textSecondary"
+                    lineHeight
+                    style={styles.fieldHint}>
+                    {hint}
+                </ThemeText>
+            ) : null}
         </View>
+    );
+}
+
+function ActionButton({
+    icon,
+    label,
+    onPress,
+    disabled,
+    backgroundColor,
+    textColor,
+}: {
+    icon: "check-circle-outline" | "check";
+    label: string;
+    onPress: () => void;
+    disabled?: boolean;
+    backgroundColor?: string;
+    textColor?: string;
+}) {
+    const colors = useColors();
+    const resolvedTextColor = textColor ?? colors.text;
+
+    return (
+        <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            activeOpacity={0.74}
+            disabled={disabled}
+            onPress={onPress}
+            style={[
+                styles.actionButton,
+                {
+                    backgroundColor: backgroundColor ?? "transparent",
+                },
+                disabled && styles.disabledAction,
+            ]}>
+            <Icon name={icon} size={rpx(22)} color={resolvedTextColor} />
+            <ThemeText
+                fontWeight="semibold"
+                color={resolvedTextColor}
+                numberOfLines={1}>
+                {label}
+            </ThemeText>
+        </TouchableOpacity>
     );
 }
 
@@ -197,11 +510,36 @@ const styles = StyleSheet.create({
     content: {
         paddingBottom: spacing.xxxl,
     },
+    statusBand: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.lg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    statusIcon: {
+        width: rpx(52),
+        height: rpx(52),
+        borderRadius: radius.sm,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    statusCopy: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    statusDot: {
+        width: rpx(10),
+        height: rpx(10),
+        borderRadius: radius.pill,
+    },
     fields: {
-        padding: spacing.md,
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.md,
     },
     field: {
-        marginBottom: spacing.md,
+        marginBottom: spacing.lg,
     },
     fieldLabel: {
         marginBottom: spacing.xs,
@@ -209,25 +547,68 @@ const styles = StyleSheet.create({
     fieldHint: {
         marginTop: spacing.xs,
     },
+    clearKeyButton: {
+        alignSelf: "flex-start",
+        marginTop: spacing.xs,
+        paddingVertical: spacing.xs,
+    },
+    apiKeyRow: {
+        flexDirection: "row",
+        alignItems: "stretch",
+        gap: spacing.sm,
+    },
+    apiKeyInput: {
+        flex: 1,
+        minWidth: 0,
+    },
+    keyVisibilityButton: {
+        minWidth: rpx(88),
+        minHeight: rpx(68),
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: spacing.sm,
+        borderRadius: radius.sm,
+    },
+    privacyActions: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+    },
+    modelRow: {
+        flexDirection: "row",
+        alignItems: "stretch",
+        gap: spacing.sm,
+    },
+    modelInput: {
+        flex: 1,
+        minWidth: 0,
+    },
+    fetchButton: {
+        minWidth: rpx(142),
+        minHeight: rpx(68),
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderRadius: radius.sm,
+    },
     actions: {
         flexDirection: "row",
         gap: spacing.md,
         paddingHorizontal: spacing.md,
-        marginTop: spacing.lg,
+        marginTop: spacing.xl,
     },
-    primaryButton: {
+    actionButton: {
         flex: 1,
-        minHeight: 44,
-        borderRadius: radius.sm,
+        minHeight: rpx(72),
+        flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-    },
-    secondaryButton: {
-        flex: 1,
-        minHeight: 44,
+        gap: spacing.xs,
         borderRadius: radius.sm,
-        borderWidth: StyleSheet.hairlineWidth,
-        alignItems: "center",
-        justifyContent: "center",
+        paddingHorizontal: spacing.sm,
+    },
+    disabledAction: {
+        opacity: 0.5,
     },
 });

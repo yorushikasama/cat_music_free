@@ -26,6 +26,7 @@ export default function EditSheetDetailDialog(props: IEditSheetDetailProps) {
 
     const [coverImg, setCoverImg] = useState(musicSheet?.coverImg);
     const [title, setTitle] = useState(musicSheet?.title);
+    const titleInputColorStyle = { borderBottomColor: colors.text };
 
     const { t } = useI18N();
 
@@ -118,13 +119,7 @@ export default function EditSheetDetailDialog(props: IEditSheetDetailProps) {
                         value={title}
                         hasHorizontalPadding={false}
                         onChangeText={onTitleChange}
-                        style={{
-                            height: fontSizeConst.content * 2.5,
-                            width: "50%",
-                            borderBottomWidth: 1,
-                            includeFontPadding: false,
-                            borderBottomColor: colors.text,
-                        }}
+                        style={[style.titleInput, titleInputColorStyle]}
                     />
                 </View>
             </Dialog.Content>
@@ -160,5 +155,11 @@ const style = StyleSheet.create({
         height: rpx(100),
         borderRadius: rpx(28),
         overflow: "hidden",
+    },
+    titleInput: {
+        height: fontSizeConst.content * 2.5,
+        width: "50%",
+        borderBottomWidth: 1,
+        includeFontPadding: false,
     },
 });

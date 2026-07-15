@@ -1,6 +1,6 @@
 import { RequestStateCode } from "@/constants/commonConst";
 import PluginManager from "@/core/pluginManager";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export default function useTopListDetail(
     topListItem: IMusic.IMusicSheetItemBase | null,
@@ -15,7 +15,7 @@ export default function useTopListDetail(
 
     const [requestState, setRequestState] = useState(RequestStateCode.IDLE);
 
-    async function loadMore() {
+    const loadMore = useCallback(async () => {
         if (!topListItem) {
             return;
         }
@@ -63,13 +63,13 @@ export default function useTopListDetail(
         } catch {
             setRequestState(RequestStateCode.ERROR);
         }
-    }
+    }, [pluginHash, requestState, topListItem]);
 
     useEffect(() => {
         if (topListItem === null) {
             return;
         }
         loadMore();
-    }, []);
+    }, [loadMore, topListItem]);
     return [mergedTopListItem, requestState, loadMore] as const;
 }

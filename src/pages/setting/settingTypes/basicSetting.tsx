@@ -7,17 +7,16 @@ import ParticleEffectSelector from "@/components/base/particleEffectSelector";
 import { showDialog } from "@/components/dialogs/useDialog";
 import { showPanel } from "@/components/panels/usePanel";
 import { SortType } from "@/constants/commonConst.ts";
-import pathConst from "@/constants/pathConst";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import Config, { useAppConfig } from "@/core/appConfig";
 import { useI18N } from "@/core/i18n";
-import { ROUTE_PATH, useNavigate } from "@/core/router";
 import useColors from "@/hooks/useColors";
 import LyricUtil, {
     getStatusBarLyricConfig,
     NativeTextAlignment,
 } from "@/native/lyricUtil";
+import StorageAccess from "@/native/storageAccess";
 import { AppConfigPropertyKey } from "@/types/core/config";
 import { clearCache, getCacheSize, sizeFormatter } from "@/utils/fileUtils";
 import { clearLog, getErrorLogContent } from "@/utils/log";
@@ -30,8 +29,8 @@ import Color from "color";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, SectionList, StyleSheet, TouchableOpacity, View } from "react-native";
 import type { ViewToken } from "react-native";
-import { readdir } from "react-native-fs";
 import { FlatList, ScrollView } from "react-native-gesture-handler";
+import { requestNotificationPermission } from "@/utils/notificationPermission";
 
 function createSwitch(
     title: string,
@@ -125,7 +124,9 @@ export default function BasicSetting() {
     const maxDownload = useAppConfig("basic.maxDownload");
     const clickMusicInSearch = useAppConfig("basic.clickMusicInSearch");
     const clickMusicInAlbum = useAppConfig("basic.clickMusicInAlbum");
-    const downloadPath = useAppConfig("basic.downloadPath");
+    const downloadDirectoryUri = useAppConfig("basic.downloadDirectoryUri");
+    const downloadDirectoryName = useAppConfig("basic.downloadDirectoryName");
+    const legacyDownloadPath = useAppConfig("basic.legacyDownloadPath");
     const notInterrupt = useAppConfig("basic.notInterrupt");
     const tempRemoteDuck = useAppConfig("basic.tempRemoteDuck");
     const tempRemoteDuckVolume = useAppConfig("basic.tempRemoteDuckVolume");
@@ -152,7 +153,6 @@ export default function BasicSetting() {
     const debugEnableTraceLog = useAppConfig("debug.traceLog");
     const debugEnableDevLog = useAppConfig("debug.devLog");
 
-    const navigate = useNavigate();
 
     const [cacheSize, refreshCacheSize] = useCacheSize();
     const [activeSection, setActiveSection] = useState(0);
@@ -244,6 +244,13 @@ export default function BasicSetting() {
                     t("basicSettings.showExitOnNotification"),
                     "basic.showExitOnNotification",
                     showExitOnNotification ?? false,
+                    async newValue => {
+                        if (newValue && !(await requestNotificationPermission())) {
+                            Toast.warn(t("toast.notificationPermissionDenied"));
+                            return;
+                        }
+                        Config.setConfig("basic.showExitOnNotification", newValue);
+                    },
                 ),
             ],
         },
@@ -401,30 +408,33 @@ export default function BasicSetting() {
                             fontSize="subTitle"
                             style={styles.centerText}
                             numberOfLines={3}>
-                            {downloadPath ??
-                                pathConst.downloadMusicPath}
+                            {downloadDirectoryName ??
+                                (legacyDownloadPath
+                                    ? t("basicSettings.downloadPathNeedsReselection", {
+                                        path: legacyDownloadPath,
+                                    })
+                                    : t("basicSettings.defaultDownloadPath"))}
                         </ThemeText>
                     ),
-                    onPress() {
-                        navigate<"file-selector">(ROUTE_PATH.FILE_SELECTOR, {
-                            fileType: "folder",
-                            multi: false,
-                            actionText: t("basicSettings.fileSelector.selectFolder"),
-                            async onAction(selectedFiles) {
-                                try {
-                                    const targetDir = selectedFiles[0];
-                                    await readdir(targetDir.path);
-                                    Config.setConfig(
-                                        "basic.downloadPath",
-                                        targetDir.path,
-                                    );
-                                    return true;
-                                } catch {
-                                    Toast.warn(t("toast.folderNotExistOrNoPermission"));
-                                    return false;
-                                }
-                            },
-                        });
+                    async onPress() {
+                        try {
+                            const directory = await StorageAccess.selectDirectory(
+                                downloadDirectoryUri,
+                            );
+                            if (!directory) return;
+                            Config.setConfig(
+                                "basic.downloadDirectoryUri",
+                                directory.uri,
+                            );
+                            Config.setConfig(
+                                "basic.downloadDirectoryName",
+                                directory.name ?? directory.uri,
+                            );
+                            Config.setConfig("basic.legacyDownloadPath", undefined);
+                            Config.setConfig("basic.downloadPath", undefined);
+                        } catch {
+                            Toast.warn(t("toast.folderNotExistOrNoPermission"));
+                        }
                     },
                 },
                 createRadio(
@@ -868,6 +878,10 @@ function LyricSetting() {
         async newValue => {
             try {
                 if (newValue) {
+                    if (!(await requestNotificationPermission())) {
+                        Toast.warn(t("toast.notificationPermissionDenied"));
+                        return;
+                    }
                     const hasPermission =
                         await LyricUtil.checkSystemAlertPermission();
 

@@ -27,18 +27,8 @@ export default function ImageViewer(props: IImageViewerProps) {
             <Image
                 style={
                     orientation === "vertical"
-                        ? {
-                            width: vw(100),
-                            minHeight: vw(100),
-                            maxHeight: vh(100),
-                            resizeMode: "cover",
-                        }
-                        : {
-                            maxWidth: vw(80),
-                            height: vh(60),
-                            minWidth: vh(60),
-                            resizeMode: "cover",
-                        }
+                        ? styles.verticalImage
+                        : styles.horizontalImage
                 }
                 source={{
                     uri: url,
@@ -75,5 +65,17 @@ const styles = StyleSheet.create({
     button: {
         marginHorizontal: rpx(24),
         paddingHorizontal: rpx(200),
+    },
+    verticalImage: {
+        width: vw(100),
+        minHeight: vw(100),
+        maxHeight: vh(100),
+        resizeMode: "cover",
+    },
+    horizontalImage: {
+        maxWidth: vw(80),
+        height: vh(60),
+        minWidth: vh(60),
+        resizeMode: "cover",
     },
 });

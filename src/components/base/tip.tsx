@@ -92,23 +92,15 @@ const calculateTipPosition = (
 };
 
 // 三角形组件
-const Triangle = ({ size, color, style }: { size: number; color: string; style?: any }) => (
-    <View
-        style={[
-            {
-                width: 0,
-                height: 0,
-                borderLeftWidth: size / 2,
-                borderRightWidth: size / 2,
-                borderBottomWidth: size,
-                borderLeftColor: "transparent",
-                borderRightColor: "transparent",
-                borderBottomColor: color,
-            },
-            style,
-        ]}
-    />
-);
+const Triangle = ({ size, color, style }: { size: number; color: string; style?: any }) => {
+    const triangleStyle = {
+        borderLeftWidth: size / 2,
+        borderRightWidth: size / 2,
+        borderBottomWidth: size,
+        borderBottomColor: color,
+    };
+    return <View style={[styles.triangleShape, triangleStyle, style]} />;
+};
 
 // Tip内容Portal组件
 const TipPortal = ({
@@ -308,5 +300,11 @@ const styles = StyleSheet.create({
     },
     triangle: {
         position: "absolute",
+    },
+    triangleShape: {
+        width: 0,
+        height: 0,
+        borderLeftColor: "transparent",
+        borderRightColor: "transparent",
     },
 });

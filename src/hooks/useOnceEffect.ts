@@ -16,5 +16,5 @@ export default function useOnceEffect(
             result = cb();
         }
         return result;
-    }, deps);
+    });
 }

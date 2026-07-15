@@ -17,6 +17,7 @@ import com.facebook.soloader.SoLoader
 import `fun`.upup.catmusicfree.lyricUtil.LyricUtilPackage
 import `fun`.upup.catmusicfree.mp3Util.Mp3UtilPackage
 import `fun`.upup.catmusicfree.utils.UtilsPackage
+import `fun`.upup.catmusicfree.storageAccess.StorageAccessPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -29,6 +30,7 @@ class MainApplication : Application(), ReactApplication {
               add(UtilsPackage())
               add(Mp3UtilPackage())
               add(LyricUtilPackage())
+              add(StorageAccessPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

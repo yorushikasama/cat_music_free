@@ -1,6 +1,5 @@
 import ListItem from "@/components/base/listItem";
 import Backup from "@/core/backup";
-import { ROUTE_PATH, useNavigate } from "@/core/router";
 import Toast from "@/utils/toast";
 import React from "react";
 import { ScrollView, StyleSheet } from "react-native";
@@ -13,18 +12,14 @@ import { ResumeMode } from "@/constants/commonConst.ts";
 import Config, { useAppConfig } from "@/core/appConfig";
 import { useI18N } from "@/core/i18n";
 import delay from "@/utils/delay";
-import { writeInChunks } from "@/utils/fileUtils.ts";
 import { errorLog } from "@/utils/log.ts";
-import { getDocumentAsync } from "expo-document-picker";
-import { readAsStringAsync } from "expo-file-system";
+import StorageAccess from "@/native/storageAccess";
 import { AuthType, createClient } from "webdav";
 import SettingSection, { SettingDivider } from "../components/settingSection";
 import { spacing } from "@/constants/spacing";
 
 export default function BackupSetting() {
     const { t } = useI18N();
-    const navigate = useNavigate();
-
     const resumeMode = useAppConfig("backup.resumeMode");
     const webdavUrl = useAppConfig("webdav.url");
     const webdavUsername = useAppConfig("webdav.username");
@@ -32,53 +27,44 @@ export default function BackupSetting() {
 
 
     const onBackupToLocal = async () => {
-        navigate(ROUTE_PATH.FILE_SELECTOR, {
-            fileType: "folder",
-            multi: false,
-            actionText: t("backupAndResume.beginBackup"),
-            async onAction(selectedFiles) {
-                const raw = Backup.backup();
-                const folder = selectedFiles[0]?.path;
-                return new Promise(resolve => {
-                    showDialog("LoadingDialog", {
-                        title: t("backupAndResume.backupDialogTitle"),
-                        loadingText: t("backupAndResume.backuping"),
-                        promise: writeInChunks(
-                            `${folder}${folder?.endsWith("/") ? "" : "/"
-                            }backup.json`,
-                            raw,
-                        ),
-                        onResolve(_, hideDialog) {
-                            Toast.success(t("toast.backupSuccess"));
-                            hideDialog();
-                            resolve(true);
-                        },
-                        onCancel(hideDialog) {
-                            hideDialog();
-                            resolve(false);
-                        },
-                        onReject(reason, hideDialog) {
-                            hideDialog();
-                            resolve(false);
-                            errorLog("本地备份失败", reason);
-                            Toast.warn(t("toast.backupFail", { reason: reason?.message ?? reason }));
-                        },
-                    });
-                });
-            },
-        });
+        try {
+            const document = await StorageAccess.createDocument(
+                "backup.json",
+                "application/json",
+            );
+            if (!document) return;
+            const raw = Backup.backup();
+            showDialog("LoadingDialog", {
+                title: t("backupAndResume.backupDialogTitle"),
+                loadingText: t("backupAndResume.backuping"),
+                promise: StorageAccess.writeText(document.uri, raw),
+                onResolve(_, hideDialog) {
+                    Toast.success(t("toast.backupSuccess"));
+                    hideDialog();
+                },
+                onCancel(hideDialog) {
+                    hideDialog();
+                },
+                onReject(reason, hideDialog) {
+                    hideDialog();
+                    errorLog("本地备份失败", reason);
+                    Toast.warn(t("toast.backupFail", { reason: reason?.message ?? reason }));
+                },
+            });
+        } catch (reason: any) {
+            errorLog("本地备份失败", reason);
+            Toast.warn(t("toast.backupFail", { reason: reason?.message ?? reason }));
+        }
     };
 
     async function onResumeFromLocal() {
         try {
-            const pickResult = await getDocumentAsync({
-                copyToCacheDirectory: true,
-                type: "application/json",
-            });
-            if (pickResult.canceled) {
-                return;
-            }
-            const result = await readAsStringAsync(pickResult.assets[0].uri);
+            const documents = await StorageAccess.openDocuments(
+                ["application/json", "text/plain"],
+                false,
+            );
+            if (!documents?.length) return;
+            const result = await StorageAccess.readText(documents[0].uri);
             return new Promise(resolve => {
                 showDialog("LoadingDialog", {
                     title: t("backupAndResume.resumeFromLocalFile"),

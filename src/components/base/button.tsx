@@ -87,8 +87,8 @@ export function Button(props: IButtonProps) {
                     borderRadius: radius.sm,
                     borderWidth: border.width,
                     borderColor: border.color,
-                    opacity: disabled ? 0.4 : 1,
                 },
+                disabled && styles.disabled,
                 style,
             ]}>
             <ThemeText
@@ -106,5 +106,8 @@ const styles = StyleSheet.create({
         flexShrink: 0,
         justifyContent: "center",
         alignItems: "center",
+    },
+    disabled: {
+        opacity: 0.4,
     },
 });

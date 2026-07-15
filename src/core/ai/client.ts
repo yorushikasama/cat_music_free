@@ -1,5 +1,6 @@
 import Config from "@/core/appConfig";
 import axios from "axios";
+import { getAIApiKey } from "./secretStore";
 
 export interface IAIChatMessage {
     role: "system" | "user" | "assistant";
@@ -14,29 +15,119 @@ interface IChatCompletionResponse {
     }>;
 }
 
+interface IModelsResponse {
+    data?: Array<{
+        id?: string;
+    }>;
+}
+
 export interface IAIClientConfig {
     baseUrl: string;
     apiKey: string;
     model: string;
 }
 
+export type AIErrorCode =
+    | "invalid-url"
+    | "insecure-url"
+    | "missing-api-key"
+    | "missing-model"
+    | "empty-response"
+    | "request-failed"
+    | "invalid-response"
+    | "no-candidates"
+    | "no-plugins"
+    | "no-translatable-lyrics"
+    | "incomplete-translation"
+    | "aborted";
+
+export class AIError extends Error {
+    public readonly cause?: unknown;
+
+    constructor(
+        public readonly code: AIErrorCode,
+        message: string,
+        options?: { cause?: unknown },
+    ) {
+        super(message);
+        this.name = "AIError";
+        this.cause = options?.cause;
+    }
+}
+
 function normalizeBaseUrl(baseUrl: string) {
     return baseUrl.trim().replace(/\/+$/, "");
 }
 
-export function getAIClientConfig(): IAIClientConfig {
+export function validateAIBaseUrl(baseUrl: string) {
+    const normalized = normalizeBaseUrl(baseUrl);
+    let parsed: URL;
+    try {
+        parsed = new URL(normalized);
+    } catch (error) {
+        throw new AIError("invalid-url", "Invalid AI API URL", {
+            cause: error,
+        });
+    }
+
+    const isLocalDevelopment =
+        typeof __DEV__ !== "undefined" &&
+        __DEV__ &&
+        parsed.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "10.0.2.2"].includes(parsed.hostname);
+    if (parsed.protocol !== "https:" && !isLocalDevelopment) {
+        throw new AIError("insecure-url", "AI API URL must use HTTPS");
+    }
+    return normalized;
+}
+
+async function resolveAIClientConfig(
+    overrides?: Partial<IAIClientConfig>,
+): Promise<IAIClientConfig> {
+    const saved = await getAIClientConfig();
+    return {
+        baseUrl: validateAIBaseUrl(overrides?.baseUrl ?? saved.baseUrl),
+        apiKey: (overrides?.apiKey ?? saved.apiKey).trim(),
+        model: (overrides?.model ?? saved.model).trim(),
+    };
+}
+
+function getAIRequestError(error: any, fallback: string) {
+    if (error instanceof AIError) {
+        return error;
+    }
+    if (axios.isCancel(error) || error?.code === "ERR_CANCELED") {
+        return new AIError("aborted", "AI request was cancelled", {
+            cause: error,
+        });
+    }
+    const message = String(
+        error?.response?.data?.error?.message ??
+            error?.response?.data?.message ??
+            error?.message ??
+            fallback,
+    );
+    return new AIError("request-failed", message, { cause: error });
+}
+
+export async function getAIClientConfig(): Promise<IAIClientConfig> {
     return {
         baseUrl: normalizeBaseUrl(
             Config.getConfig("ai.baseUrl") || "https://api.openai.com/v1",
         ),
-        apiKey: Config.getConfig("ai.apiKey")?.trim() || "",
+        apiKey: await getAIApiKey(),
         model: Config.getConfig("ai.model")?.trim() || "gpt-4o-mini",
     };
 }
 
-export function isAIConfigured() {
-    const config = getAIClientConfig();
-    return !!(config.baseUrl && config.apiKey && config.model);
+export async function isAIConfigured() {
+    try {
+        const config = await getAIClientConfig();
+        validateAIBaseUrl(config.baseUrl);
+        return !!(config.baseUrl && config.apiKey && config.model);
+    } catch {
+        return false;
+    }
 }
 
 export async function createChatCompletion(
@@ -44,14 +135,16 @@ export async function createChatCompletion(
     options?: {
         temperature?: number;
         maxTokens?: number;
+        signal?: AbortSignal;
     },
+    configOverrides?: Partial<IAIClientConfig>,
 ) {
-    const config = getAIClientConfig();
+    const config = await resolveAIClientConfig(configOverrides);
     if (!config.apiKey) {
-        throw new Error("请先配置 AI API Key");
+        throw new AIError("missing-api-key", "AI API Key is required");
     }
     if (!config.model) {
-        throw new Error("请先配置 AI 模型");
+        throw new AIError("missing-model", "AI model is required");
     }
 
     try {
@@ -71,25 +164,52 @@ export async function createChatCompletion(
                     "Content-Type": "application/json",
                 },
                 timeout: 60000,
+                signal: options?.signal,
             },
         );
 
         const content = response.data.choices?.[0]?.message?.content?.trim();
         if (!content) {
-            throw new Error("AI 返回了空内容");
+            throw new AIError(
+                "empty-response",
+                "AI returned an empty response",
+            );
         }
         return content;
     } catch (error: any) {
-        const message =
-            error?.response?.data?.error?.message ??
-            error?.response?.data?.message ??
-            error?.message ??
-            "AI 请求失败";
-        throw new Error(String(message));
+        throw getAIRequestError(error, "AI request failed");
     }
 }
 
-export async function testAIConnection() {
+export async function fetchAIModels(
+    configOverrides?: Partial<IAIClientConfig>,
+) {
+    const config = await resolveAIClientConfig(configOverrides);
+    try {
+        const response = await axios.get<IModelsResponse>(
+            `${config.baseUrl}/models`,
+            {
+                headers: config.apiKey
+                    ? { Authorization: `Bearer ${config.apiKey}` }
+                    : undefined,
+                timeout: 30000,
+            },
+        );
+        return Array.from(
+            new Set(
+                (response.data.data ?? [])
+                    .map(item => item.id?.trim())
+                    .filter((id): id is string => !!id),
+            ),
+        ).sort((a, b) => a.localeCompare(b));
+    } catch (error: any) {
+        throw getAIRequestError(error, "Failed to load AI models");
+    }
+}
+
+export async function testAIConnection(
+    configOverrides?: Partial<IAIClientConfig>,
+) {
     const content = await createChatCompletion(
         [
             {
@@ -98,6 +218,7 @@ export async function testAIConnection() {
             },
         ],
         { temperature: 0, maxTokens: 8 },
+        configOverrides,
     );
     return content.length > 0;
 }

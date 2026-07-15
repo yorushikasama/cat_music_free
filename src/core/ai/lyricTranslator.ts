@@ -1,4 +1,4 @@
-import { createChatCompletion } from "./client";
+import { AIError, createChatCompletion } from "./client";
 
 interface ISourceLine {
     lineIndex: number;
@@ -31,7 +31,7 @@ function parseResponseJson(content: string): ITranslationItem[] {
     const parsed = JSON.parse(normalized);
     const translations = Array.isArray(parsed) ? parsed : parsed?.translations;
     if (!Array.isArray(translations)) {
-        throw new Error("AI 翻译结果格式无效");
+        throw new AIError("invalid-response", "Invalid AI translation response");
     }
 
     return translations
@@ -146,7 +146,10 @@ async function translateBatch(
         new Set(returnedIds).size !== returnedIds.length ||
         returnedIds.some(id => !expectedIds.has(id))
     ) {
-        throw new Error("AI 未返回完整歌词翻译");
+        throw new AIError(
+            "incomplete-translation",
+            "AI returned an incomplete lyric translation",
+        );
     }
     return translations;
 }
@@ -157,7 +160,10 @@ export async function translateLyric(
 ): Promise<ILyricTranslationResult> {
     const { sourceLines, uniqueTexts } = collectTimedLyricLines(rawLrc);
     if (!sourceLines.length) {
-        throw new Error("当前歌词没有可翻译的时间轴内容");
+        throw new AIError(
+            "no-translatable-lyrics",
+            "The current lyric has no translatable timed content",
+        );
     }
 
     const translations: ITranslationItem[] = [];

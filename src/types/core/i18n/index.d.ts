@@ -136,6 +136,8 @@ export interface ILanguageData {
     "permissionSetting.floatWindowPermissionDescription": string; // 悬浮窗权限说明
     "permissionSetting.fileReadWritePermission": string; // 文件读写权限
     "permissionSetting.fileReadWritePermissionDescription": string; // 文件读写权限说明
+    "permissionSetting.notificationPermission": string;
+    "permissionSetting.notificationPermissionDescription": string;
     "permissionSetting.granted": string; // 已授权
     "permissionSetting.goAuthorize": string; // 去授权
 
@@ -305,7 +307,6 @@ export interface ILanguageData {
     "themeSettings.darkMode": string; // 黑暗模式
     "themeSettings.customMode": string; // 自定义模式
 
-
     // 自定义主题相关
     "setCustomTheme.customizeBackground": string; // 自定义背景
     "setCustomTheme.chooseBackground": string; // 选择背景
@@ -370,19 +371,19 @@ export interface ILanguageData {
     "basicSettings.clickMusicInAlbum": string; // 点击专辑内单曲时
     "basicSettings.clickMusicInAlbum.playMusic": string; // 播放歌曲
     "basicSettings.clickMusicInAlbum.playAlbum": string; // 播放专辑
-    
+
     "basicSettings.musicOrderInLocalSheet": string; // 新建歌单时默认歌曲排序
     "basicSettings.musicOrderInLocalSheet.title": string; // 按歌曲名排序
     "basicSettings.musicOrderInLocalSheet.artist": string; // 按作者名排序
     "basicSettings.musicOrderInLocalSheet.album": string; // 按专辑名排序
     "basicSettings.musicOrderInLocalSheet.newest": string; // 按收藏时间从新到旧排序
     "basicSettings.musicOrderInLocalSheet.oldest": string; // 按收藏时间从旧到新排序
-    
+
     "basicSettings.plugin": string; // 插件
     "basicSettings.autoUpdatePlugin": string; // 软件启动时自动更新插件
     "basicSettings.notCheckPluginVersion": string; // 安装插件时不校验版本
     "basicSettings.lazyLoadPlugin": string; // 启用插件懒加载（实验性功能）
-    
+
     "basicSettings.playback": string; // 播放
     "basicSettings.notInterrupt": string; // 允许与其他应用同时播放
     "basicSettings.autoPlayWhenAppStart": string; // 软件启动时自动播放歌曲
@@ -396,9 +397,11 @@ export interface ILanguageData {
     "basicSettings.playQualityOrder": string; // 默认播放音质缺失时
     "basicSettings.playQualityOrder.asc": string; // 播放更高音质
     "basicSettings.playQualityOrder.desc": string; // 播放更低音质
-    
+
     "basicSettings.download": string; // 下载
     "basicSettings.downloadPath": string; // 下载路径
+    "basicSettings.defaultDownloadPath": string;
+    "basicSettings.downloadPathNeedsReselection": string;
     "basicSettings.fileSelector.selectFolder": string; // 选择文件夹
     "fileSelector.storageRoots": string; // 存储位置
     "fileSelector.currentLocation": string; // 当前位置
@@ -411,11 +414,11 @@ export interface ILanguageData {
     "basicSettings.downloadQualityOrder": string; // 默认下载音质缺失时
     "basicSettings.downloadQualityOrder.asc": string; // 下载更高音质
     "basicSettings.downloadQualityOrder.desc": string; // 下载更低音质
-    
+
     "basicSettings.network": string; // 网络
     "basicSettings.useCelluarNetworkPlay": string; // 使用移动网络播放
     "basicSettings.useCelluarNetworkDownload": string; // 使用移动网络下载
-    
+
     "basicSettings.lyric": string; // 歌词
     "basicSettings.lyric.autoSearchLyric": string; // 歌词缺失时自动搜索歌词
     "basicSettings.lyric.showStatusBarLyric": string; // 开启桌面歌词
@@ -446,20 +449,20 @@ export interface ILanguageData {
     "basicSettings.lyric.previewToast": string; // 桌面歌词预览提示
     "basicSettings.lyric.textColor": string; // 文本颜色
     "basicSettings.lyric.backgroundColor": string; // 文本背景色
-    
+
     "basicSettings.cache": string; // 缓存
     "basicSettings.cache.musicCacheLimit": string; // 音乐缓存上限
     "basicSettings.cache.clearMusicCache": string; // 清除音乐缓存
     "basicSettings.cache.clearLyricCache": string; // 清除歌词缓存
     "basicSettings.cache.clearImageCache": string; // 清除图片缓存
-    
+
     "basicSettings.developer": string; // 开发选项
     "basicSettings.developer.errorLog": string; // 记录错误日志
     "basicSettings.developer.traceLog": string; // 记录详细日志
     "basicSettings.developer.devLog": string; // 调试面板
     "basicSettings.developer.viewErrorLog": string; // 查看错误日志
     "basicSettings.developer.clearLog": string; // 清空日志
-    
+
     // 对话框相关 - 缓存设置
     "dialog.setCacheTitle": string; // 设置缓存
     "dialog.setCachePlaceholder": string; // 输入缓存占用上限提示
@@ -477,7 +480,7 @@ export interface ILanguageData {
     "dialog.setScheduleCloseTime.placeholder": string; // 请输入时间
     "dialog.setScheduleCloseTime.unit": string; // 分钟
     "dialog.setScheduleCloseTime.hint": string; // 最长支持设置24小时（1440分钟）
-    
+
     // 提示消息相关 - 缓存和日志
     "toast.cacheSetSuccess": string; // 设置成功
     "toast.musicCacheCleared": string; // 已清除音乐缓存
@@ -485,8 +488,9 @@ export interface ILanguageData {
     "toast.imageCacheCleared": string; // 已清除图片缓存
     "toast.logCleared": string; // 日志已清空
     "toast.noFloatWindowPermission": string; // 无悬浮窗权限
+    "toast.notificationPermissionDenied": string;
     "toast.folderNotExistOrNoPermission": string; // 文件夹不存在或无权限
-    
+
     // 音质相关
     "musicQuality.low": string; // 低音质
     "musicQuality.standard": string; // 标准音质
@@ -580,7 +584,7 @@ export interface ILanguageData {
     "panel.musicItemLyricOptions.settingFail": string; // 设置失败
     "panel.musicItemLyricOptions.deleteFail": string; // 删除失败
 
-    // 面板相关 - 音乐项选项    
+    // 面板相关 - 音乐项选项
     "panel.musicItemOptions.author": string; // 作者
     "panel.musicItemOptions.album": string; // 专辑
     "panel.musicItemOptions.downloaded": string; // 已下载
@@ -589,7 +593,7 @@ export interface ILanguageData {
     "panel.musicItemOptions.deleteLocalDownloadConfirm": string; // 删除本地下载确认
     "panel.musicItemOptions.associatedLyric": string; // 已关联歌词
     "panel.musicItemOptions.associateLyric": string; // 关联歌词
-    "panel.musicItemOptions.unassociateLyric": string; // 解除关联歌词    
+    "panel.musicItemOptions.unassociateLyric": string; // 解除关联歌词
     "panel.musicItemOptions.unassociateLyricSuccess": string; // 已解除关联歌词
     "panel.musicItemOptions.timingClose": string; // 定时关闭
     "panel.musicItemOptions.clearPluginCache": string; // 清除插件缓存
@@ -648,9 +652,17 @@ export interface ILanguageData {
     "aiSettings.connection": string;
     "aiSettings.connectionDescription": string;
     "aiSettings.baseUrl": string;
+    "aiSettings.baseUrlDescription": string;
     "aiSettings.apiKey": string;
+    "aiSettings.apiKeyDescription": string;
+    "aiSettings.apiKeyStored": string;
+    "aiSettings.showApiKey": string;
+    "aiSettings.hideApiKey": string;
+    "aiSettings.clearApiKey": string;
+    "aiSettings.apiKeyCleared": string;
     "aiSettings.model": string;
     "aiSettings.lyricTranslation": string;
+    "aiSettings.lyricTranslationDescription": string;
     "aiSettings.targetLanguage": string;
     "aiSettings.followAppLanguage": string;
     "aiSettings.targetLanguageDescription": string;
@@ -659,6 +671,32 @@ export interface ILanguageData {
     "aiSettings.incomplete": string;
     "aiSettings.testSuccess": string;
     "aiSettings.testFailed": string;
+    "aiSettings.statusReady": string;
+    "aiSettings.statusIncomplete": string;
+    "aiSettings.endpointMissing": string;
+    "aiSettings.endpointIncomplete": string;
+    "aiSettings.fetchModels": string;
+    "aiSettings.fetchingModels": string;
+    "aiSettings.selectModel": string;
+    "aiSettings.modelsLoaded": string;
+    "aiSettings.modelsEmpty": string;
+    "aiSettings.modelsFailed": string;
+    "aiConsent.title": string;
+    "aiConsent.recommendationDescription": string;
+    "aiConsent.translationDescription": string;
+    "aiConsent.accept": string;
+    "aiError.invalidUrl": string;
+    "aiError.insecureUrl": string;
+    "aiError.missingApiKey": string;
+    "aiError.missingModel": string;
+    "aiError.emptyResponse": string;
+    "aiError.requestFailed": string;
+    "aiError.invalidResponse": string;
+    "aiError.noCandidates": string;
+    "aiError.noPlugins": string;
+    "aiError.noTranslatableLyrics": string;
+    "aiError.incompleteTranslation": string;
+    "aiError.aborted": string;
     "aiTranslation.configureFirst": string;
     "aiTranslation.started": string;
     "aiTranslation.success": string;
@@ -673,20 +711,58 @@ export interface ILanguageData {
     "aiRecommend.promptWalk": string;
     "aiRecommend.promptFocus": string;
     "aiRecommend.promptExplore": string;
+    "aiRecommend.sceneCommute": string;
+    "aiRecommend.sceneWalk": string;
+    "aiRecommend.sceneFocus": string;
+    "aiRecommend.sceneExplore": string;
     "aiRecommend.generate": string;
     "aiRecommend.generating": string;
     "aiRecommend.forYou": string;
     "aiRecommend.cached": string;
+    "aiRecommend.resetIgnored": string;
+    "aiRecommend.ignoredReset": string;
+    "aiRecommend.clearCache": string;
     "aiRecommend.notInterested": string;
     "aiRecommend.configureFirst": string;
     "aiRecommend.failed": string;
+    "aiRecommend.notConfigured": string;
+    "aiRecommend.promptRequired": string;
+    "aiRecommend.emptyTitle": string;
+    "aiRecommend.emptyDescription": string;
+    "aiRecommend.setupTitle": string;
+    "aiRecommend.setupDescription": string;
+    "aiSettings.apiKeyStored": string;
+    "aiSettings.showApiKey": string;
+    "aiSettings.hideApiKey": string;
+    "aiSettings.clearApiKey": string;
+    "aiSettings.apiKeyCleared": string;
+    "aiSettings.dataPrivacy": string;
+    "aiSettings.dataPrivacyDescription": string;
+    "aiSettings.revokeConsent": string;
+    "aiSettings.consentRevoked": string;
+    "aiConsent.title": string;
+    "aiConsent.recommendationDescription": string;
+    "aiConsent.translationDescription": string;
+    "aiConsent.accept": string;
+    "aiError.invalidUrl": string;
+    "aiError.insecureUrl": string;
+    "aiError.missingApiKey": string;
+    "aiError.missingModel": string;
+    "aiError.emptyResponse": string;
+    "aiError.requestFailed": string;
+    "aiError.invalidResponse": string;
+    "aiError.noCandidates": string;
+    "aiError.noPlugins": string;
+    "aiError.noTranslatableLyrics": string;
+    "aiError.incompleteTranslation": string;
+    "aiError.aborted": string;
 
-    "particleEffect": string; // 粒子特效
-    "particleEffectNone": string; // 无
-    "particleEffectSakura": string; // 樱花
-    "particleEffectSnow": string; // 雪花
-    "particleEffectStar": string; // 星星
-    "particleEffectFirefly": string; // 萤火虫
+    particleEffect: string; // 粒子特效
+    particleEffectNone: string; // 无
+    particleEffectSakura: string; // 樱花
+    particleEffectSnow: string; // 雪花
+    particleEffectStar: string; // 星星
+    particleEffectFirefly: string; // 萤火虫
 }
 
 // 语言接口定义

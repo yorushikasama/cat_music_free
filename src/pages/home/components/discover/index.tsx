@@ -80,7 +80,9 @@ function readableOn(color: string) {
         const base = Color(color);
         const light = Color("#ffffff");
         const dark = Color("#111111");
-        return base.contrast(light) >= base.contrast(dark) ? "#ffffff" : "#111111";
+        return base.contrast(light) >= base.contrast(dark)
+            ? "#ffffff"
+            : "#111111";
     } catch {
         return "#ffffff";
     }
@@ -146,7 +148,10 @@ function DiscoverSection(props: IDiscoverSectionProps) {
                 <ThemeText
                     fontSize="title"
                     fontWeight="bold"
-                    style={{ color: colors.text, fontSize: SECTION_TITLE_SIZE }}>
+                    style={{
+                        color: colors.text,
+                        fontSize: SECTION_TITLE_SIZE,
+                    }}>
                     {title}
                 </ThemeText>
                 {actionText ? (
@@ -170,7 +175,8 @@ function SheetCard(props: ISheetCardProps) {
     const { sheet, pluginHash } = props;
     const navigate = useNavigate();
     const colors = useColors();
-    const targetPluginHash = PluginManager.getByMedia(sheet)?.hash ?? pluginHash;
+    const targetPluginHash =
+        PluginManager.getByMedia(sheet)?.hash ?? pluginHash;
 
     return (
         <TouchableOpacity
@@ -203,7 +209,9 @@ const SongRow = memo(function SongRow(props: ISongRowProps) {
     const { music } = props;
     const colors = useColors();
     const currentMusic = useCurrentMusic();
-    const isActive = currentMusic && getMediaUniqueKey(currentMusic) === getMediaUniqueKey(music);
+    const isActive =
+        currentMusic &&
+        getMediaUniqueKey(currentMusic) === getMediaUniqueKey(music);
 
     const handlePlay = useCallback(() => {
         TrackPlayer.play(music);
@@ -224,12 +232,18 @@ const SongRow = memo(function SongRow(props: ISongRowProps) {
     return (
         <TouchableOpacity
             activeOpacity={0.7}
-            style={[styles.songRow, { borderBottomColor: colors.divider ?? "rgba(0,0,0,0.06)" }]}
+            style={[
+                styles.songRow,
+                { borderBottomColor: colors.divider ?? "rgba(0,0,0,0.06)" },
+            ]}
             onPress={handlePlay}>
             <FastImage
                 style={[
                     styles.songImage,
-                    isActive && { borderWidth: rpx(4), borderColor: colors.primary },
+                    isActive && {
+                        borderWidth: rpx(4),
+                        borderColor: colors.primary,
+                    },
                 ]}
                 source={music.artwork}
                 placeholderSource={ImgAsset.albumDefault}
@@ -434,10 +448,7 @@ const RecentPlaySection = memo(function RecentPlaySection() {
             onAction={() => navigate(ROUTE_PATH.HISTORY)}>
             <View style={styles.songList}>
                 {recentSongs.map(music => (
-                    <SongRow
-                        key={getMediaUniqueKey(music)}
-                        music={music}
-                    />
+                    <SongRow key={getMediaUniqueKey(music)} music={music} />
                 ))}
             </View>
         </DiscoverSection>
@@ -466,9 +477,7 @@ export default function Discover() {
     const [recommendSheets, setRecommendSheets] = useState<
         IMusic.IMusicSheetItemBase[]
     >([]);
-    const [recommendState, setRecommendState] = useState(
-        RequestStateCode.IDLE,
-    );
+    const [recommendState, setRecommendState] = useState(RequestStateCode.IDLE);
     const [refreshing, setRefreshing] = useState(false);
     const recommendSheetsCountRef = useRef(0);
 
@@ -483,59 +492,68 @@ export default function Discover() {
         ? topLists[firstTopListPlugin.hash]
         : null;
 
-    const fetchRecommendSheets = useCallback(async (refresh = false) => {
-        if (!recommendPlugins.length) return;
-        if (!refresh) {
-            setRecommendState(RequestStateCode.PENDING_FIRST_PAGE);
-        }
-        try {
-            const selectedPlugins = shuffleArray(recommendPlugins).slice(0, 2);
-            const pageSeed = refresh
-                ? Math.floor(Math.random() * HOME_RECOMMEND_PAGE_WINDOW) + 1
-                : 1;
-            const results = await Promise.allSettled(
-                selectedPlugins.map(plugin =>
-                    Promise.resolve(
-                        plugin.methods?.getRecommendSheetsByTag?.(
-                            { title: t("common.default"), id: "" },
-                            pageSeed,
-                        ),
-                    ).then(result => ({
-                        plugin,
-                        data: result?.data ?? [],
-                    })),
-                ),
-            );
+    const fetchRecommendSheets = useCallback(
+        async (refresh = false) => {
+            if (!recommendPlugins.length) return;
+            if (!refresh) {
+                setRecommendState(RequestStateCode.PENDING_FIRST_PAGE);
+            }
+            try {
+                const selectedPlugins = shuffleArray(recommendPlugins).slice(
+                    0,
+                    2,
+                );
+                const pageSeed = refresh
+                    ? Math.floor(Math.random() * HOME_RECOMMEND_PAGE_WINDOW) + 1
+                    : 1;
+                const results = await Promise.allSettled(
+                    selectedPlugins.map(plugin =>
+                        Promise.resolve(
+                            plugin.methods?.getRecommendSheetsByTag?.(
+                                { title: t("common.default"), id: "" },
+                                pageSeed,
+                            ),
+                        ).then(result => ({
+                            plugin,
+                            data: result?.data ?? [],
+                        })),
+                    ),
+                );
 
-            const nextSheets = uniqueSheets(
-                results.flatMap(result => {
-                    if (result.status !== "fulfilled" || !result.value) {
-                        return [];
-                    }
-                    return result.value.data.map(item =>
-                        resetMediaItem(
-                            item,
-                            result.value.plugin.instance.platform,
-                            true,
+                const nextSheets = uniqueSheets(
+                    results.flatMap(result => {
+                        if (result.status !== "fulfilled" || !result.value) {
+                            return [];
+                        }
+                        return result.value.data.map(item =>
+                            resetMediaItem(
+                                item,
+                                result.value.plugin.instance.platform,
+                                true,
+                            ),
+                        );
+                    }),
+                );
+
+                if (nextSheets.length) {
+                    setRecommendSheets(
+                        shuffleArray(nextSheets).slice(
+                            0,
+                            HOME_RECOMMEND_PAGE_SIZE,
                         ),
                     );
-                }),
-            );
-
-            if (nextSheets.length) {
-                setRecommendSheets(
-                    shuffleArray(nextSheets).slice(0, HOME_RECOMMEND_PAGE_SIZE),
-                );
-                setRecommendState(RequestStateCode.FINISHED);
-            } else if (!refresh || !recommendSheetsCountRef.current) {
-                setRecommendState(RequestStateCode.ERROR);
+                    setRecommendState(RequestStateCode.FINISHED);
+                } else if (!refresh || !recommendSheetsCountRef.current) {
+                    setRecommendState(RequestStateCode.ERROR);
+                }
+            } catch {
+                if (!refresh || !recommendSheetsCountRef.current) {
+                    setRecommendState(RequestStateCode.ERROR);
+                }
             }
-        } catch {
-            if (!refresh || !recommendSheetsCountRef.current) {
-                setRecommendState(RequestStateCode.ERROR);
-            }
-        }
-    }, [recommendPlugins, t]);
+        },
+        [recommendPlugins, t],
+    );
 
     const handleRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -592,12 +610,6 @@ export default function Discover() {
                 description: t("home.quickLocalDesc"),
                 onPress: () => navigate(ROUTE_PATH.LOCAL),
             },
-            {
-                icon: "strategy",
-                title: t("home.aiRecommend"),
-                description: t("home.quickAIRecommendDesc"),
-                onPress: () => navigate(ROUTE_PATH.AI_RECOMMEND),
-            },
         ],
         [t, navigate],
     );
@@ -639,7 +651,10 @@ export default function Discover() {
                         <ThemeText
                             fontSize="appbar"
                             fontWeight="bold"
-                            style={[styles.headerTitle, { color: colors.text }]}>
+                            style={[
+                                styles.headerTitle,
+                                { color: colors.text },
+                            ]}>
                             {t("home.discover")}
                         </ThemeText>
                     </View>
@@ -685,7 +700,12 @@ export default function Discover() {
                         <View
                             style={[
                                 styles.quickActionIcon,
-                                { backgroundColor: alpha(colors.primary, 0.12) },
+                                {
+                                    backgroundColor: alpha(
+                                        colors.primary,
+                                        0.12,
+                                    ),
+                                },
                             ]}>
                             <Icon
                                 name={action.icon}
@@ -727,7 +747,10 @@ export default function Discover() {
                     <ThemeText
                         fontSize="title"
                         fontWeight="bold"
-                        style={[styles.emptyGuideTitle, { color: colors.text }]}>
+                        style={[
+                            styles.emptyGuideTitle,
+                            { color: colors.text },
+                        ]}>
                         {t("home.emptyDiscoverTitle")}
                     </ThemeText>
                     <ThemeText
@@ -745,7 +768,9 @@ export default function Discover() {
                                 styles.emptyPrimaryAction,
                                 { backgroundColor: colors.primary },
                             ]}
-                            onPress={() => navigate(ROUTE_PATH.SETTING, { type: "plugin" })}>
+                            onPress={() =>
+                                navigate(ROUTE_PATH.SETTING, { type: "plugin" })
+                            }>
                             <ThemeText
                                 fontSize="description"
                                 fontWeight="semibold"
@@ -812,7 +837,6 @@ export default function Discover() {
               firstTopListData?.state === RequestStateCode.PENDING_REST_PAGE ? (
                     <TopListSkeletonSection />
                 ) : null}
-
         </ScrollView>
     );
 }

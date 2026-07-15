@@ -5,13 +5,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import StatusBar from "@/components/base/statusBar";
 import globalStyle from "@/constants/globalStyle";
 import Theme from "@/core/theme";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import {
+    BottomTabBarProps,
+    createBottomTabNavigator,
+} from "@react-navigation/bottom-tabs";
 import BottomArea from "./components/bottomArea";
 import Discover from "./components/discover";
 import SheetsTab from "./components/sheetsTab";
 import ProfileTab from "./components/profileTab";
+import { AIRecommendTab } from "@/pages/aiRecommend";
 
 const Tab = createBottomTabNavigator();
+const renderBottomTabBar = (props: BottomTabBarProps) => (
+    <BottomArea {...props} />
+);
 
 function HomeStatusBar() {
     const theme = Theme.useTheme();
@@ -53,11 +60,12 @@ export default function Home() {
         <SafeAreaView edges={["top"]} style={styles.appWrapper}>
             <HomeStatusBar />
             <Tab.Navigator
-                tabBar={props => <BottomArea {...props} />}
+                tabBar={renderBottomTabBar}
                 screenOptions={{
                     headerShown: false,
                 }}>
                 <Tab.Screen name="Discover" component={DiscoverScreen} />
+                <Tab.Screen name="AIRecommend" component={AIRecommendTab} />
                 <Tab.Screen name="Sheets" component={SheetsScreen} />
                 <Tab.Screen name="Profile" component={ProfileScreen} />
             </Tab.Navigator>

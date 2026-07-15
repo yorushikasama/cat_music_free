@@ -11,11 +11,12 @@ npm run release:app -- --version 0.6.11 --changelog "第一条更新|第二条�
 1. 更新 `package.json` 版本号。
 2. 更新 `android/app/build.gradle` 的 `appVersion` 和 `appVersionCode`。
 3. 更新 `release/version.json` 的版本号、更新内容和 Release 下载链接版本。
-4. 运行 `npx tsc --noEmit`。
-5. 运行 `git diff --check`。
-6. 构建 Android release 包。
-7. `git add -A`，提交 `chore: release <version>`，并推送到 `cat-music-free` 的 `main` 分支。
-8. 创建或更新 GitHub、Gitee、Gitea 的 Release 附件。
+4. 运行 TypeScript、零警告 ESLint、Jest、发布工具测试和 `git diff --check`。
+5. 清理 RN bundle 与 Android 构建缓存后构建 arm64 release APK。
+6. 校验 APK 版本、v2/v3 签名、SHA-256、16 KB ELF 对齐、无 MP4 残留且小于 20 MiB。
+7. 自动暂存已跟踪文件及 `src/`、`android/app/src/`、`tools/`、`docs/`、`release/` 等允许目录中的新增文件；未知根目录文件会阻止发布。
+8. 提交 `chore: release <version>`，并推送到 `cat-music-free` 的 `main` 分支。
+9. 创建或更新 GitHub、Gitee、Gitea 的 Release 附件，并逐一确认 APK 直链可访问。
 
 当前 `cat-music-free` remote 配了三个 push URL：
 

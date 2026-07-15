@@ -3,9 +3,12 @@ import { BackHandler, NativeEventSubscription } from "react-native";
 
 export default function (
     onHardwareBackPress: () => boolean | null | undefined,
-    deps: any[] = [],
+    _deps: any[] = [],
 ) {
     const backHandlerRef = useRef<NativeEventSubscription | undefined>(undefined);
+    const callbackRef = useRef(onHardwareBackPress);
+    callbackRef.current = onHardwareBackPress;
+
     useEffect(() => {
         if (backHandlerRef.current) {
             backHandlerRef.current.remove();
@@ -14,7 +17,7 @@ export default function (
 
         backHandlerRef.current = BackHandler.addEventListener(
             "hardwareBackPress",
-            onHardwareBackPress,
+            () => callbackRef.current(),
         );
 
         return () => {
@@ -23,5 +26,5 @@ export default function (
                 backHandlerRef.current = undefined;
             }
         };
-    }, deps);
+    }, []);
 }

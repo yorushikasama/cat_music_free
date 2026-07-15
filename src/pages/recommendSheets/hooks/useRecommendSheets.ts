@@ -76,7 +76,7 @@ export default function (pluginHash: string, tag: ICommon.IUnique) {
 
     useEffect(() => {
         query();
-    }, [tag]);
+    }, [query]);
 
 
     return [query, sheets, requestState, refreshing] as const;

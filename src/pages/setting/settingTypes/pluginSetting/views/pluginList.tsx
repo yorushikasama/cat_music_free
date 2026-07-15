@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import rpx, { vmax } from "@/utils/rpx";
-import * as DocumentPicker from "expo-document-picker";
 import SkeletonList from "@/components/base/skeleton";
 
 import PluginManager, { useSortedPlugins } from "@/core/pluginManager";
@@ -22,6 +21,7 @@ import { IIconName } from "@/components/base/icon.tsx";
 import { IInstallPluginResult } from "@/types/core/pluginManager";
 import { useI18N } from "@/core/i18n";
 import { spacing } from "@/constants/spacing";
+import StorageAccess from "@/native/storageAccess";
 
 interface IOption {
     icon: IIconName;
@@ -78,15 +78,12 @@ export default function PluginList() {
 
     async function onInstallFromLocalClick() {
         try {
-            const results = await DocumentPicker.getDocumentAsync({
-                copyToCacheDirectory: true,
-                multiple: true,
-                type: "*/*",
-            });
-            if (results.canceled) {
-                return;
-            }
-            const jsFiles = results.assets?.filter(it =>
+            const results = await StorageAccess.openDocuments(
+                ["text/javascript", "application/javascript", "application/json", "text/plain"],
+                true,
+            );
+            if (!results?.length) return;
+            const jsFiles = results.filter(it =>
                 it.name?.endsWith(".js") || it.name?.endsWith(".json"),
             );
             if (!jsFiles?.length) {
@@ -228,15 +225,15 @@ export default function PluginList() {
     }
 
     async function onUpdateAllClick() {
-        const plugins = PluginManager.getEnabledPlugins();
+        const enabledPlugins = PluginManager.getEnabledPlugins();
         setLoading(true);
 
         const successResults: IInstallPluginResult[] = [];
         const failResults: IInstallPluginResult[] = [];
 
         try {
-            for (let i = 0; i < plugins.length; ++i) {
-                const srcUrl = plugins[i].instance.srcUrl;
+            for (let i = 0; i < enabledPlugins.length; ++i) {
+                const srcUrl = enabledPlugins[i].instance.srcUrl;
                 if (srcUrl) {
                     const result = await installPluginFromUrl(srcUrl);
                     if (result[0]) {

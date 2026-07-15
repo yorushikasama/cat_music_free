@@ -6,6 +6,7 @@ import { useI18N } from "@/core/i18n";
 import PageShell from "@/components/base/pageShell";
 import AppBar from "@/components/base/appBar";
 import Empty from "@/components/base/empty";
+import { StyleSheet } from "react-native";
 
 export default function Setting() {
     const { type } = useParams<"setting">();
@@ -34,10 +35,17 @@ export default function Setting() {
             {type === "plugin" ? (
                 <settingItem.component />
             ) : (
-                <HorizontalSafeAreaView style={{ width: "100%", flex: 1 }}>
+                <HorizontalSafeAreaView style={styles.content}>
                     <settingItem.component />
                 </HorizontalSafeAreaView>
             )}
         </PageShell>
     );
 }
+
+const styles = StyleSheet.create({
+    content: {
+        width: "100%",
+        flex: 1,
+    },
+});

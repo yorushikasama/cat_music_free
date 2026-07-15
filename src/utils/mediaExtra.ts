@@ -239,7 +239,7 @@ function useMediaExtraProperty<K extends keyof IMediaExtraProperties>(mediaItem:
                 }
             }
         };
-    }, [mediaItem]);
+    }, [key, mediaItem]);
 
     return mediaExtraPropertyState;
 }

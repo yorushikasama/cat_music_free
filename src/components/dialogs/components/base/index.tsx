@@ -74,7 +74,7 @@ function Dialog(props: IDialogProps) {
                 backHandlerRef.current = undefined;
             }
         };
-    }, []);
+    }, [onDismiss, sharedShowValue]);
 
     const containerStyle = useAnimatedStyle(() => {
         return {

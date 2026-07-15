@@ -16,6 +16,7 @@ import CryptoJs from "crypto-js";
 import { nanoid } from "nanoid/non-secure";
 import { useEffect, useState } from "react";
 import { ReadDirItem, exists, readDir, unlink } from "react-native-fs";
+import StorageAccess, { IStorageDocument } from "@/native/storageAccess";
 
 let localSheet: IMusic.IMusicItem[] = [];
 const localSheetStateMapper = new StateMapper(() => localSheet);
@@ -35,7 +36,10 @@ export async function setup() {
             musicSheet,
             async musicItem => {
                 const localPath = getLocalPath(musicItem);
-                return !!localPath && await exists(localPath);
+                return !!localPath &&
+                    (localPath.startsWith("content://")
+                        ? StorageAccess.documentExists(localPath)
+                        : exists(localPath));
             },
         );
         if (validSheet.length !== musicSheet.length) {
@@ -103,7 +107,11 @@ export async function removeMusic(
             localMusicItem[internalSerializeKey]?.localPath;
         if (deleteOriginalFile && localPath) {
             try {
-                await unlink(localPath);
+                if (localPath.startsWith("content://")) {
+                    await StorageAccess.deleteDocument(localPath);
+                } else {
+                    await unlink(localPath);
+                }
             } catch (e: any) {
                 if (e.message !== "File does not exist") {
                     throw e;
@@ -224,6 +232,48 @@ async function importLocal(_folderPaths: string[]) {
     await saveLocalMeta();
 }
 
+async function importDocuments(documents: IStorageDocument[]) {
+    const validDocuments = documents.filter(
+        document =>
+            document.uri &&
+            localMediaFilter(document.name ?? document.uri),
+    );
+    const paths = validDocuments.map(document => document.uri);
+    const metas = await mp3Util.getMediaMeta(paths);
+    const musicItems = validDocuments.map((document, index) => {
+        const fileName = document.name ?? getFileName(document.uri);
+        const dotIndex = fileName.lastIndexOf(".");
+        const titleFromFileName =
+            dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+        let { platform, id, title, artist } =
+            parseFilename(fileName) ?? {};
+        const meta = metas[index];
+        if (!platform || !id) {
+            platform = "本地";
+            id = CryptoJs.MD5(document.uri).toString(CryptoJs.enc.Hex);
+        }
+        return {
+            id,
+            platform,
+            title: title ?? meta?.title ?? titleFromFileName,
+            artist: artist ?? meta?.artist ?? "未知歌手",
+            duration: parseInt(meta?.duration ?? "0", 10) / 1000,
+            album: meta?.album ?? "未知专辑",
+            artwork: "",
+            [internalSerializeKey]: {
+                localPath: document.uri,
+            },
+        } as IMusic.IMusicItem;
+    });
+    await addMusic(musicItems);
+    localMeta = {
+        ...localMeta,
+        lastScanAt: Date.now(),
+    };
+    await saveLocalMeta();
+    return musicItems.length;
+}
+
 /** 是否为本地音乐 */
 function isLocalMusic(
     musicItem: ICommon.IMediaBase | null,
@@ -271,6 +321,7 @@ const LocalMusicSheet = {
     addMusicDraft,
     saveLocalSheet,
     importLocal,
+    importDocuments,
     cancelImportLocal,
     isLocalMusic,
     useIsLocal,

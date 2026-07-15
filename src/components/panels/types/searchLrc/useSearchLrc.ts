@@ -110,7 +110,7 @@ export default function useSearchLrc() {
                     produce(draft => {
                         const prevMediaResult = draft.data;
 
-                        const prevPluginResult: any = prevMediaResult[
+                        const previousPluginPage: any = prevMediaResult[
                             _hash
                         ] ?? {
                             data: [],
@@ -126,7 +126,7 @@ export default function useSearchLrc() {
                             page,
                             data: newSearch
                                 ? currResult
-                                : (prevPluginResult.data ?? []).concat(
+                                : (previousPluginPage.data ?? []).concat(
                                     currResult,
                                 ),
                         };
@@ -149,11 +149,11 @@ export default function useSearchLrc() {
                 searchResultStore.setValue(
                     produce(draft => {
                         const prevMediaResult = draft.data;
-                        const prevPluginResult = prevMediaResult[_hash] ?? {
+                        const previousPluginPage = prevMediaResult[_hash] ?? {
                             data: [],
                         };
 
-                        prevPluginResult.state = RequestStateCode.FINISHED;
+                        previousPluginPage.state = RequestStateCode.FINISHED;
                         return draft;
                     }),
                 );

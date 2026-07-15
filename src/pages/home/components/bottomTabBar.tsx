@@ -30,10 +30,7 @@ interface ITabItem {
     name: string;
     icon: IIconName;
     activeIcon: IIconName;
-    mascots: {
-        acg: ImageSourcePropType;
-        firefly: ImageSourcePropType;
-    };
+    mascots?: Partial<Record<"acg" | "firefly", ImageSourcePropType>>;
     labelKey: string;
 }
 
@@ -47,6 +44,15 @@ const tabs: ITabItem[] = [
             firefly: ImgAsset.xilianTabIcons.sakura,
         },
         labelKey: "home.discover",
+    },
+    {
+        name: "AIRecommend",
+        icon: "strategy",
+        activeIcon: "strategy",
+        mascots: {
+            firefly: ImgAsset.xilianTabIcons.maid,
+        },
+        labelKey: "home.aiRecommend",
     },
     {
         name: "Sheets",
@@ -222,7 +228,7 @@ export default function BottomTabBar(props: BottomTabBarProps) {
                             activeBackgroundColor={activeBackgroundColor}
                             activeLabelColor={colors.text}
                             mascot={
-                                mascotTheme
+                                mascotTheme && tab.mascots
                                     ? tab.mascots[mascotTheme]
                                     : undefined
                             }

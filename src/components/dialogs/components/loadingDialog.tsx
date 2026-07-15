@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import Loading from "@/components/base/loading";
 import rpx from "@/utils/rpx";
 import { StyleSheet } from "react-native";
@@ -20,15 +20,17 @@ export default function LoadingDialog(props: ILoadingDialogProps) {
         props;
     
     const { t } = useI18N();
+    const taskRef = useRef({ promise, task, onResolve, onReject });
 
     useEffect(() => {
-        const _promise = promise || task?.();
+        const current = taskRef.current;
+        const _promise = current.promise || current.task?.();
         _promise
             ?.then(data => {
-                onResolve?.(data, hideDialog);
+                current.onResolve?.(data, hideDialog);
             })
             .catch(e => {
-                onReject?.(e, hideDialog);
+                current.onReject?.(e, hideDialog);
             });
     }, []);
 

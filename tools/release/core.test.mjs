@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assertApkVersion, parseApkBadging } from "./apk.mjs";
+import {
+    assertApkVersion,
+    parseApkBadging,
+    parseLoadAlignments,
+} from "./apk.mjs";
 import { escapeCurlConfigValue } from "./process.mjs";
 
 test("parses and validates APK version metadata", () => {
@@ -18,4 +22,12 @@ test("parses and validates APK version metadata", () => {
 test("escapes curl config headers and rejects newlines", () => {
     assert.equal(escapeCurlConfigValue('Header: a"b\\c'), 'Header: a\\"b\\\\c');
     assert.throws(() => escapeCurlConfigValue("Header: ok\nInjected: yes"));
+});
+
+test("parses ELF LOAD alignments", () => {
+    const output = [
+        "  LOAD 0x000000 0x0000000000000000 0x0000000000000000 0x0123 0x0123 R E 0x4000",
+        "  LOAD 0x004000 0x0000000000004000 0x0000000000004000 0x0020 0x0030 RW  0x10000",
+    ].join("\n");
+    assert.deepEqual(parseLoadAlignments(output), [0x4000, 0x10000]);
 });

@@ -5,6 +5,7 @@ import getOrCreateMMKV from "@/utils/getOrCreateMMKV.ts";
 
 import type { AppConfigPropertyKey, IAppConfig, IAppConfigProperties } from "@/types/core/config";
 import { safeStringify, safeParse } from "@/utils/jsonUtil";
+import pathConst from "@/constants/pathConst";
 
 const configStore = getOrCreateMMKV("App.config");
 
@@ -228,6 +229,22 @@ class AppConfig implements IAppConfig {
                 this.setConfig("ai.lyricTargetLanguage", "auto");
             }
             configStore.set("$schema", "7");
+        }
+
+        if (schemaVersion < 8) {
+            const oldPath = this.getConfig("basic.downloadPath")?.trim();
+            if (oldPath) {
+                const normalizePath = (value: string) =>
+                    value.replace(/^file:\/\//, "").replace(/[\\/]+$/, "");
+                if (
+                    normalizePath(oldPath) !==
+                    normalizePath(pathConst.downloadMusicPath)
+                ) {
+                    this.setConfig("basic.legacyDownloadPath", oldPath);
+                }
+                this.setConfig("basic.downloadPath", undefined);
+            }
+            configStore.set("$schema", "8");
         }
 
     }

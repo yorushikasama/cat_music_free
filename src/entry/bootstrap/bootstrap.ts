@@ -13,15 +13,13 @@ import MusicSheet from "@/core/musicSheet";
 import PluginManager from "@/core/pluginManager";
 import Theme from "@/core/theme";
 import TrackPlayer from "@/core/trackPlayer";
-import NativeUtils from "@/native/utils";
 import { checkAndCreateDir } from "@/utils/fileUtils";
 import { errorLog, trace } from "@/utils/log";
 import { IPerfLogger, perfLogger } from "@/utils/perfLogger";
 import PersistStatus from "@/utils/persistStatus";
 import Toast from "@/utils/toast";
 import * as SplashScreen from "expo-splash-screen";
-import {  Linking, Platform } from "react-native";
-import { PERMISSIONS, check, request } from "react-native-permissions";
+import { Linking } from "react-native";
 import RNTrackPlayer, { AppKilledPlaybackBehavior, Capability } from "react-native-track-player";
 import i18n from "@/core/i18n";
 import bootstrapAtom from "./bootstrap.atom";
@@ -46,34 +44,7 @@ async function bootstrapImpl() {
         )
         .catch(console.warn); // it's good to explicitly catch and inspect any error
     const logger = perfLogger();
-    // 1. 检查权限
-    if (Number(Platform.Version) >= 30) {
-        const hasPermission = await NativeUtils.checkStoragePermission();
-        if (
-            !hasPermission &&
-            !PersistStatus.get("app.skipBootstrapStorageDialog")
-        ) {
-            showDialog("CheckStorage");
-        }
-    } else {
-        const [readStoragePermission, writeStoragePermission] =
-            await Promise.all([
-                check(PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE),
-                check(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE),
-            ]);
-        if (
-            !(
-                readStoragePermission === "granted" &&
-                writeStoragePermission === "granted"
-            )
-        ) {
-            await request(PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE);
-            await request(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE);
-        }
-    }
-    logger.mark("权限检查完成");
-
-    // 2. 数据初始化
+    // 1. 数据初始化
     /** 初始化路径 */
     await setupFolder();
     trace("文件夹初始化完成");

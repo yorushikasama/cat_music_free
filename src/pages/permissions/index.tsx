@@ -3,7 +3,6 @@ import ThemeText from "@/components/base/themeText";
 import Icon, { IIconName } from "@/components/base/icon";
 import { useI18N } from "@/core/i18n";
 import LyricUtil from "@/native/lyricUtil";
-import NativeUtils from "@/native/utils";
 import rpx from "@/utils/rpx";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, ScrollView, StyleSheet, View } from "react-native";
@@ -12,8 +11,12 @@ import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import useColors from "@/hooks/useColors";
 import Color from "color";
+import {
+    hasNotificationPermission,
+    requestNotificationPermission,
+} from "@/utils/notificationPermission";
 
-type IPermissionTypes = "floatingWindow" | "fileStorage";
+type IPermissionTypes = "floatingWindow" | "notification";
 
 export default function Permissions() {
     const appState = useRef(AppState.currentState);
@@ -21,7 +24,7 @@ export default function Permissions() {
         Record<IPermissionTypes, boolean>
     >({
         floatingWindow: false,
-        fileStorage: false,
+        notification: false,
     });
     const { t } = useI18N();
     const colors = useColors();
@@ -32,9 +35,8 @@ export default function Permissions() {
             const hasPermission = await LyricUtil.checkSystemAlertPermission();
             newPermission.floatingWindow = hasPermission;
         }
-        if (!type || type === "fileStorage") {
-            const hasPermission = await NativeUtils.checkStoragePermission();
-            newPermission.fileStorage = hasPermission;
+        if (!type || type === "notification") {
+            newPermission.notification = await hasNotificationPermission();
         }
 
         setPermissions(prev => ({
@@ -79,11 +81,14 @@ export default function Permissions() {
             onPress: () => LyricUtil.requestSystemAlertPermission(),
         },
         {
-            type: "fileStorage",
-            icon: "folder-music-outline",
-            title: t("permissionSetting.fileReadWritePermission"),
-            description: t("permissionSetting.fileReadWritePermissionDescription"),
-            onPress: () => NativeUtils.requestStoragePermission(),
+            type: "notification",
+            icon: "alarm-outline",
+            title: t("permissionSetting.notificationPermission"),
+            description: t("permissionSetting.notificationPermissionDescription"),
+            onPress: async () => {
+                await requestNotificationPermission();
+                checkPermission("notification");
+            },
         },
     ];
 

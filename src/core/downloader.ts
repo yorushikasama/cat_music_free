@@ -2,7 +2,7 @@ import { internalSerializeKey, supportLocalMediaType } from "@/constants/commonC
 import pathConst from "@/constants/pathConst";
 import { IAppConfig } from "@/types/core/config";
 import { IInjectable } from "@/types/infra";
-import { addFileScheme, escapeCharacter, mkdirR } from "@/utils/fileUtils";
+import { addFileScheme, escapeCharacter } from "@/utils/fileUtils";
 import { errorLog } from "@/utils/log";
 import { patchMediaExtra } from "@/utils/mediaExtra";
 import { getMediaUniqueKey, isSameMediaItem } from "@/utils/mediaUtils";
@@ -11,11 +11,12 @@ import { getQualityOrder } from "@/utils/qualities";
 import EventEmitter from "eventemitter3";
 import { atom, getDefaultStore, useAtomValue } from "jotai";
 import { nanoid } from "nanoid/non-secure";
-import path from "path-browserify";
 import { useEffect, useState } from "react";
-import { copyFile, downloadFile, exists, unlink } from "react-native-fs";
+import { downloadFile, stopDownload, unlink } from "react-native-fs";
 import LocalMusicSheet from "./localMusicSheet";
 import { IPluginManager } from "@/types/core/pluginManager";
+import { getDownloadDestination } from "./downloadDestination";
+import StorageAccess from "@/native/storageAccess";
 
 
 export enum DownloadStatus {
@@ -28,7 +29,8 @@ export enum DownloadStatus {
     // 下载完成
     Completed,
     // 下载失败
-    Error
+    Error,
+    Cancelled,
 }
 
 
@@ -93,11 +95,13 @@ interface IEvents {
     [DownloaderEvent.DownloadQueueCompleted]: () => void;
 }
 
-class Downloader extends EventEmitter<IEvents> implements IInjectable {
+export class Downloader extends EventEmitter<IEvents> implements IInjectable {
     private configService!: IAppConfig;
     private pluginManagerService!: IPluginManager;
 
     private downloadingCount = 0;
+    private queueCompletionEmitted = false;
+    private cancelledTaskKeys = new Set<string>();
 
     private static generateFilename(musicItem: IMusic.IMusicItem) {
         return `${escapeCharacter(musicItem.platform)}@${escapeCharacter(
@@ -147,26 +151,33 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
         this.emit(DownloaderEvent.DownloadTaskError, reason, musicItem, error);
     }
 
+    private markTaskAsCancelled(musicItem: IMusic.IMusicItem) {
+        const key = getMediaUniqueKey(musicItem);
+        this.downloadingCount = Math.max(0, this.downloadingCount - 1);
+        this.updateDownloadTask(musicItem, {
+            status: DownloadStatus.Cancelled,
+        });
+        this.cancelledTaskKeys.delete(key);
+        downloadTasks.delete(key);
+        const queue = getDefaultStore().get(downloadQueueAtom);
+        getDefaultStore().set(
+            downloadQueueAtom,
+            queue.filter(item => !isSameMediaItem(item, musicItem)),
+        );
+    }
+
+    private isTaskCancelled(musicItem: IMusic.IMusicItem) {
+        return this.cancelledTaskKeys.has(getMediaUniqueKey(musicItem));
+    }
+
     /** 匹配文件后缀 */
     private getExtensionName(url: string) {
-        const regResult = url.match(
-            /^https?\:\/\/.+\.([^\?\.]+?$)|(?:([^\.]+?)\?.+$)/,
-        );
-        if (regResult) {
-            return regResult[1] ?? regResult[2] ?? "mp3";
-        } else {
+        try {
+            const pathname = new URL(url).pathname;
+            return pathname.match(/\.([^./]+)$/)?.[1]?.toLowerCase() ?? "mp3";
+        } catch {
             return "mp3";
         }
-    };
-
-    /** 获取下载路径 */
-    private getDownloadPath(fileName: string) {
-        const dlPath =
-            this.configService.getConfig("basic.downloadPath") ?? pathConst.downloadMusicPath;
-        if (!dlPath.endsWith("/")) {
-            return `${dlPath}/${fileName ?? ""}`;
-        }
-        return fileName ? dlPath + fileName : dlPath;
     };
 
     /** 获取缓存的下载路径 */
@@ -179,42 +190,49 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
     }
 
 
-    private async downloadNextPendingTask() {
+    private pumpDownloadQueue() {
         const maxDownloadCount = Math.max(1, Math.min(+(this.configService.getConfig("basic.maxDownload") || 3), 10));
-        const downloadQueue = getDefaultStore().get(downloadQueueAtom);
+        while (this.downloadingCount < maxDownloadCount) {
+            const queue = getDefaultStore().get(downloadQueueAtom);
+            const nextTask = queue
+                .map(musicItem => downloadTasks.get(getMediaUniqueKey(musicItem)))
+                .find(task => task?.status === DownloadStatus.Pending);
 
-        // 如果超过最大下载数量，或者没有下载任务，则不执行
-        if (this.downloadingCount >= maxDownloadCount || this.downloadingCount >= downloadQueue.length) {
-            return;
-        }
-
-        // 寻找下一个pending task
-        let nextTask: IDownloadTaskInfo | null = null;
-        for (let i = 0; i < downloadQueue.length; i++) {
-            const musicItem = downloadQueue[i];
-            const key = getMediaUniqueKey(musicItem);
-            const task = downloadTasks.get(key);
-            if (task && task.status === DownloadStatus.Pending) {
-                nextTask = task;
-                break;
+            if (!nextTask) {
+                if (this.downloadingCount === 0 && !this.queueCompletionEmitted) {
+                    this.queueCompletionEmitted = true;
+                    this.emit(DownloaderEvent.DownloadQueueCompleted);
+                }
+                return;
             }
-        }
 
-        // 没有下一个任务了
-        if (!nextTask) {
-            if (this.downloadingCount === 0) {
-                this.emit(DownloaderEvent.DownloadQueueCompleted);
-            }
-            return;
+            this.markTaskAsStarted(nextTask.musicItem);
+            this.runDownloadTask(nextTask)
+                .catch(error => {
+                    const task = downloadTasks.get(
+                        getMediaUniqueKey(nextTask.musicItem),
+                    );
+                    if (
+                        task?.status === DownloadStatus.Preparing ||
+                        task?.status === DownloadStatus.Downloading
+                    ) {
+                        this.markTaskAsError(
+                            nextTask.musicItem,
+                            DownloadFailReason.Unknown,
+                            error,
+                        );
+                    }
+                })
+                .finally(() => {
+                    this.pumpDownloadQueue();
+                });
         }
+    }
 
+    private async runDownloadTask(nextTask: IDownloadTaskInfo) {
         const musicItem = nextTask.musicItem;
-        // 更新下载状态
-        this.markTaskAsStarted(musicItem);
-
         let url = musicItem.url;
         let headers = musicItem.headers;
-
         const plugin = this.pluginManagerService.getByName(musicItem.platform);
 
         try {
@@ -266,8 +284,10 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
             return;
         }
 
-        // 预处理完成，可以开始处理下一个任务
-        this.downloadNextPendingTask();
+        if (this.isTaskCancelled(musicItem)) {
+            this.markTaskAsCancelled(musicItem);
+            return;
+        }
 
         // 下载逻辑
         // 识别文件后缀
@@ -281,22 +301,15 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
             this.getCacheDownloadPath(`${nanoid()}.${extension}`),
         );
 
-        // 真实下载地址
-        const targetDownloadPath = addFileScheme(
-            this.getDownloadPath(`${nextTask.filename}.${extension}`),
-        );
-
-        // 检测下载位置是否存在
-        try {
-            const folder = path.dirname(targetDownloadPath);
-            const folderExists = await exists(folder);
-            if (!folderExists) {
-                await mkdirR(folder);
-            }
-        } catch (e: any) {
-            this.emit(DownloaderEvent.DownloadTaskError, DownloadFailReason.NoWritePermission, musicItem, e);
-            return;
-        }
+        const targetFileName = `${nextTask.filename}.${extension}`;
+        const mimeType =
+            extension === "flac"
+                ? "audio/flac"
+                : extension === "m4a"
+                    ? "audio/mp4"
+                    : extension === "wav"
+                        ? "audio/wav"
+                        : "audio/mpeg";
 
         // 下载
         const { promise } = downloadFile({
@@ -325,38 +338,75 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
 
         try {
             await promise;
-            // 下载完成，移动文件
-            await copyFile(cacheDownloadPath, targetDownloadPath);
+            if (this.isTaskCancelled(musicItem)) {
+                this.markTaskAsCancelled(musicItem);
+                try {
+                    await unlink(cacheDownloadPath);
+                } catch {}
+                return;
+            }
+            const targetUri = await getDownloadDestination().publish(
+                cacheDownloadPath,
+                targetFileName,
+                mimeType,
+                musicItem,
+            );
+            if (this.isTaskCancelled(musicItem)) {
+                try {
+                    if (targetUri.startsWith("content://")) {
+                        await StorageAccess.deleteDocument(targetUri);
+                    } else {
+                        await unlink(targetUri);
+                    }
+                } catch {}
+                this.markTaskAsCancelled(musicItem);
+                try {
+                    await unlink(cacheDownloadPath);
+                } catch {}
+                return;
+            }
 
-            LocalMusicSheet.addMusic({
+            await LocalMusicSheet.addMusic({
                 ...musicItem,
                 [internalSerializeKey]: {
-                    localPath: targetDownloadPath,
+                    localPath: targetUri,
                 },
             });
 
             patchMediaExtra(musicItem, {
                 downloaded: true,
-                localPath: targetDownloadPath,
+                localPath: targetUri,
             });
 
             this.markTaskAsCompleted(musicItem);
         } catch (e: any) {
-            this.markTaskAsError(musicItem, DownloadFailReason.Unknown, e);
+            if (this.isTaskCancelled(musicItem)) {
+                this.markTaskAsCancelled(musicItem);
+                try {
+                    await unlink(cacheDownloadPath);
+                } catch {}
+                return;
+            }
+            const reason = String(e?.code ?? "").includes("TREE") ||
+                String(e?.code ?? "").includes("PUBLISH")
+                ? DownloadFailReason.NoWritePermission
+                : DownloadFailReason.Unknown;
+            this.markTaskAsError(musicItem, reason, e);
         }
 
         // 清理工作
         try {
             await unlink(cacheDownloadPath);
         } catch {}
-        this.downloadNextPendingTask();
 
         // 如果任务状态是完成，则从队列中移除
         const key = getMediaUniqueKey(musicItem);
         if (downloadTasks.get(key)?.status === DownloadStatus.Completed) {
             downloadTasks.delete(key);
-            const downloadQueue = getDefaultStore().get(downloadQueueAtom);
-            const newDownloadQueue = downloadQueue.filter(item => !isSameMediaItem(item, musicItem));
+            const queue = getDefaultStore().get(downloadQueueAtom);
+            const newDownloadQueue = queue.filter(
+                item => !isSameMediaItem(item, musicItem),
+            );
             getDefaultStore().set(downloadQueueAtom, newDownloadQueue);
         }
     }
@@ -409,7 +459,8 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
         const newDownloadQueue = [...downloadQueue, ...musicItems];
         getDefaultStore().set(downloadQueueAtom, newDownloadQueue);
 
-        this.downloadNextPendingTask();
+        this.queueCompletionEmitted = false;
+        this.pumpDownloadQueue();
     }
 
     remove(musicItem: IMusic.IMusicItem) {
@@ -424,6 +475,16 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
             const downloadQueue = getDefaultStore().get(downloadQueueAtom);
             const newDownloadQueue = downloadQueue.filter(item => !isSameMediaItem(item, musicItem));
             getDefaultStore().set(downloadQueueAtom, newDownloadQueue);
+            return true;
+        }
+        if (
+            task.status === DownloadStatus.Preparing ||
+            task.status === DownloadStatus.Downloading
+        ) {
+            this.cancelledTaskKeys.add(key);
+            if (task.jobId !== undefined) {
+                stopDownload(task.jobId);
+            }
             return true;
         }
         return false;
@@ -445,6 +506,11 @@ class Downloader extends EventEmitter<IEvents> implements IInjectable {
 
 const downloader = new Downloader();
 export default downloader;
+
+export function resetDownloaderStateForTests() {
+    downloadTasks.clear();
+    getDefaultStore().set(downloadQueueAtom, []);
+}
 
 export function useDownloadTask(musicItem: IMusic.IMusicItem) {
     const [downloadStatus, setDownloadStatus] = useState(downloadTasks.get(getMediaUniqueKey(musicItem)) ?? null);

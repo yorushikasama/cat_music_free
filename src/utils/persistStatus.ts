@@ -27,13 +27,14 @@ interface IPersistStatus {
     /** app */
     "app.skipVersion": string;
     /** 开屏弹窗 */
-    "app.skipBootstrapStorageDialog": boolean;
     /** 语言设置 */
     "app.language": string;
     /** 上次更新插件的时间 */
     "app.pluginUpdateTime": number;
     /** 缓存的定时关闭自定义时间（分钟） */
     "app.scheduleCloseTime": number;
+    /** 用户已确认向自定义 AI 服务发送内容 */
+    "ai.dataSharingAccepted": boolean;
     /** 歌词-是否启用翻译 */
     "lyric.showTranslation": boolean;
     /** 歌词-详情页字体大小 */

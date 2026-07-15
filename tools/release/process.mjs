@@ -27,20 +27,21 @@ export async function run(command, args, options = {}) {
     });
 }
 
-export async function runCapture(command, args) {
-    const result = await runCaptureAllowFailure(command, args);
+export async function runCapture(command, args, options = {}) {
+    const result = await runCaptureAllowFailure(command, args, options);
     if (result.code !== 0) {
         throw new Error(result.stderr || `${command} failed with code ${result.code}`);
     }
     return result.stdout;
 }
 
-export async function runCaptureAllowFailure(command, args) {
+export async function runCaptureAllowFailure(command, args, options = {}) {
     return new Promise((resolve, reject) => {
         const child = spawn(command, args, {
             cwd: process.cwd(),
-            shell: false,
+            shell: process.platform === "win32" && /\.(bat|cmd)$/i.test(command),
             stdio: ["ignore", "pipe", "pipe"],
+            ...options,
         });
         let stdout = "";
         let stderr = "";

@@ -7,6 +7,14 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("../client", () => ({
     createChatCompletion: require("@jest/globals").jest.fn(),
+    AIError: class AIError extends Error {
+        code: string;
+
+        constructor(code: string, message: string) {
+            super(message);
+            this.code = code;
+        }
+    },
 }));
 
 jest.mock("../../../utils/mediaUtils", () => ({
@@ -75,6 +83,6 @@ describe("AI music recommendation", () => {
                 candidates,
                 history: [],
             }),
-        ).rejects.toThrow("AI 没有从可播放歌曲中给出有效推荐");
+        ).rejects.toMatchObject({ code: "invalid-response" });
     });
 });

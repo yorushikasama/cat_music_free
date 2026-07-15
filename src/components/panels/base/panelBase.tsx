@@ -61,7 +61,7 @@ export default function (props: IPanelBaseProps) {
     const orientation = useOrientation();
     const useAnimatedBase = useMemo(
         () => (orientation === "horizontal" ? rpx(750) : height),
-        [orientation],
+        [height, orientation],
     );
 
     const backHandlerRef = useRef<NativeEventSubscription | undefined>(undefined);
@@ -72,10 +72,7 @@ export default function (props: IPanelBaseProps) {
         snapPoint.value = withTiming(1, timingConfig);
 
         timerRef.current = setTimeout(() => {
-            if (loading) {
-                // 兜底
-                setLoading(false);
-            }
+            setLoading(false);
         }, 400);
         if (backHandlerRef.current) {
             backHandlerRef.current.remove();
@@ -110,7 +107,7 @@ export default function (props: IPanelBaseProps) {
             }
             listenerSubscription.remove();
         };
-    }, []);
+    }, [snapPoint]);
 
     const maskAnimated = useAnimatedStyle(() => {
         return {
@@ -162,18 +159,27 @@ export default function (props: IPanelBaseProps) {
         [],
     );
 
+    const panelPositionStyle = orientation === "horizontal"
+        ? {
+            height: vh(100) - safeAreaInsets.top,
+            bottom: 0,
+        }
+        : {
+            top: positionMethod === "top"
+                ? NativeUtils.getWindowDimensions().height +
+                    safeAreaInsets.top -
+                    height -
+                    safeAreaInsets.bottom
+                : undefined,
+            bottom: positionMethod === "bottom" ? 0 : undefined,
+            height,
+        };
+
     const panelBody = (
         <Animated.View
             style={[
                 style.wrapper,
-                orientation === "horizontal" ? {
-                    height: vh(100) - safeAreaInsets.top,
-                    bottom: 0,
-                } : {
-                    top: positionMethod === "top" ? (NativeUtils.getWindowDimensions().height + safeAreaInsets.top) - height - safeAreaInsets.bottom : undefined,
-                    bottom: positionMethod === "bottom" ? 0 : undefined,
-                    height: height,
-                },
+                panelPositionStyle,
                 {
                     backgroundColor: colors.surfacePrimary ?? colors.backdrop,
                     borderColor: colors.divider,

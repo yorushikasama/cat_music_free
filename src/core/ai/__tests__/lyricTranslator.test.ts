@@ -9,6 +9,14 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("../client", () => ({
     createChatCompletion: require("@jest/globals").jest.fn(),
+    AIError: class AIError extends Error {
+        code: string;
+
+        constructor(code: string, message: string) {
+            super(message);
+            this.code = code;
+        }
+    },
 }));
 
 const mockedCreateChatCompletion = jest.mocked(createChatCompletion);
@@ -115,6 +123,6 @@ describe("AI lyric translation helpers", () => {
 
         await expect(
             translateLyric("[00:01.00]Hello\n[00:02.00]World", "简体中文"),
-        ).rejects.toThrow("AI 未返回完整歌词翻译");
+        ).rejects.toMatchObject({ code: "incomplete-translation" });
     });
 });

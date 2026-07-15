@@ -71,6 +71,7 @@ test-assets/
 test_*.png
 current.png
 screen1.png
+device-*.png
 plugin.png
 plugin_test.png
 profile.png

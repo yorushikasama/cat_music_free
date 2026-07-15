@@ -37,8 +37,8 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
-def appVersion = "8.0.0"
-def appVersionCode = 400034
+def appVersion = "8.1.0"
+def appVersionCode = 400037
 
 
 android {
@@ -77,6 +77,8 @@ android {
             storePassword keystoreProperties['RELEASE_STORE_PASSWORD']
             keyAlias keystoreProperties['RELEASE_KEY_ALIAS']
             keyPassword keystoreProperties['RELEASE_KEY_PASSWORD']
+            enableV2Signing true
+            enableV3Signing true
         }
     }
     splits {
@@ -103,6 +105,11 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
 }
 
 dependencies {
@@ -117,7 +124,7 @@ dependencies {
 
     // !! Add lines
     implementation project(':react-native-fs')
-    implementation 'com.facebook.fresco:animated-gif:2.5.0'
+    implementation 'com.facebook.fresco:animated-gif:3.6.0'
     // https://mvnrepository.com/artifact/net.jthink/jaudiotagger
     implementation 'net.jthink:jaudiotagger:2.2.5'
     implementation 'androidx.core:core-splashscreen:1.0.0'

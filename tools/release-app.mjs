@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
-import { cleanBundleOutputs, verifyApkVersion } from "./release/apk.mjs";
+import { cleanBundleOutputs, verifyReleaseApk } from "./release/apk.mjs";
 import {
     run,
     runCapture,
@@ -23,6 +23,12 @@ const DEFAULT_GITEE_REPO = "cat_music_free";
 const DEFAULT_GITEA_BASE_URL = "https://gitea.com";
 const DEFAULT_GITEA_OWNER = "yorushikasama";
 const DEFAULT_GITEA_REPO = "cat_music_free";
+const ALLOWED_UNTRACKED_PATHS = [
+    /^(?:src|tools|docs|release|generator)\//,
+    /^android\/app\/src\//,
+    /^android\/(?:app\/build\.gradle|build\.gradle|gradle\.properties)$/,
+    /^(?:package\.json|package-lock\.json|\.gitignore)$/,
+];
 
 function parseArgs(argv) {
     const args = {};
@@ -490,12 +496,18 @@ async function resolveGitRevision(revision) {
 
 async function commitRelease(version) {
     const untracked = await getUntrackedFiles();
-    if (untracked.length) {
+    const unknown = untracked.filter(
+        file => !ALLOWED_UNTRACKED_PATHS.some(pattern => pattern.test(file)),
+    );
+    if (unknown.length) {
         throw new Error(
-            `Untracked files must be staged or removed before release:\n${untracked.map(file => `- ${file}`).join("\n")}`,
+            `Unknown untracked files block the release:\n${unknown.map(file => `- ${file}`).join("\n")}`,
         );
     }
     await run("git", ["add", "-u"]);
+    if (untracked.length) {
+        await run("git", ["add", "--", ...untracked], { shell: false });
+    }
     const staged = await runCaptureAllowFailure("git", ["diff", "--cached", "--quiet"]);
     if (staged.code === 0) {
         const currentVersion = (await readJson(path.resolve("package.json"))).version;
@@ -679,7 +691,7 @@ async function main() {
             await validateReleaseCredentials();
         }
         if (shouldRelease && !shouldBuild) {
-            await verifyApkVersion(apkPath, version, versionCode);
+            await verifyReleaseApk(apkPath, version, versionCode);
         }
 
         await updatePackageVersion(version);
@@ -691,13 +703,23 @@ async function main() {
                 path.resolve("node_modules/typescript/bin/tsc"),
                 "--noEmit",
             ], { shell: false });
+            await run(process.execPath, [
+                path.resolve("node_modules/eslint/bin/eslint.js"),
+                ".",
+                "--ext", ".js,.jsx,.ts,.tsx",
+                "src",
+                "--max-warnings=0",
+            ], { shell: false });
+            await run(process.platform === "win32" ? "npm.cmd" : "npm", ["test"]);
             await run("git", ["diff", "--check"]);
         }
 
         if (shouldBuild) {
             await cleanBundleOutputs();
             if (shouldClean) {
-                await run(path.join(".", "android", "gradlew.bat"), ["-p", "android", "clean"]);
+                await run(path.join(".", "android", "gradlew.bat"), ["-p", "android", "clean"], {
+                    env: { ...process.env, NODE_ENV: "production" },
+                });
             }
             await run(path.join(".", "android", "gradlew.bat"), [
                 "-p", "android",
@@ -705,11 +727,13 @@ async function main() {
                 "-PreactNativeArchitectures=arm64-v8a",
                 "-PreleaseArchitectures=arm64-v8a",
                 "-PuniversalApk=false",
-            ]);
+            ], {
+                env: { ...process.env, NODE_ENV: "production" },
+            });
         }
 
         if (shouldBuild) {
-            await verifyApkVersion(apkPath, version, versionCode);
+            await verifyReleaseApk(apkPath, version, versionCode);
         }
 
         if (shouldCommit) {

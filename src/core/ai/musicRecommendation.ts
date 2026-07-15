@@ -1,4 +1,4 @@
-import { createChatCompletion } from "./client";
+import { AIError, createChatCompletion } from "./client";
 import { getMediaUniqueKey } from "@/utils/mediaUtils";
 
 export interface IAIRecommendedMusic {
@@ -19,7 +19,7 @@ function parseRecommendationResponse(content: string) {
     const parsed = JSON.parse(normalized);
     const recommendations = parsed?.recommendations;
     if (!Array.isArray(recommendations)) {
-        throw new Error("AI 推荐结果格式无效");
+        throw new AIError("invalid-response", "Invalid AI recommendation response");
     }
     return recommendations.filter(
         (item): item is IRecommendationResponseItem =>
@@ -44,10 +44,11 @@ export async function recommendMusicWithAI(params: {
     candidates: IMusic.IMusicItem[];
     history: IMusic.IMusicItem[];
     limit?: number;
+    signal?: AbortSignal;
 }): Promise<IAIRecommendedMusic[]> {
-    const { prompt, candidates, history, limit = 12 } = params;
+    const { prompt, candidates, history, limit = 12, signal } = params;
     if (!candidates.length) {
-        throw new Error("没有可播放的候选歌曲");
+        throw new AIError("no-candidates", "No matching candidate songs were found");
     }
 
     const candidateMap = new Map(
@@ -79,7 +80,7 @@ export async function recommendMusicWithAI(params: {
                 }),
             },
         ],
-        { temperature: 0.55, maxTokens: 1400 },
+        { temperature: 0.55, maxTokens: 1400, signal },
     );
     const selected = parseRecommendationResponse(response);
     const uniqueIds = new Set<string>();
@@ -100,7 +101,10 @@ export async function recommendMusicWithAI(params: {
         });
 
     if (!recommendations.length) {
-        throw new Error("AI 没有从可播放歌曲中给出有效推荐");
+        throw new AIError(
+            "invalid-response",
+            "AI did not return a valid candidate recommendation",
+        );
     }
     return recommendations;
 }

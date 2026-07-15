@@ -15,7 +15,11 @@ import useOrientation from "@/hooks/useOrientation";
 import Toast from "@/utils/toast";
 import PersistStatus from "@/utils/persistStatus";
 import HeartIcon from "../heartIcon";
-import { isAIConfigured } from "@/core/ai";
+import {
+    ensureAIDataSharingConsent,
+    getLocalizedAIErrorMessage,
+    isAIConfigured,
+} from "@/core/ai";
 import { useI18N } from "@/core/i18n";
 
 interface ILyricOperationsProps {
@@ -119,8 +123,11 @@ export default function LyricOperations(props: ILyricOperationsProps) {
                         return;
                     }
 
-                    if (!isAIConfigured()) {
+                    if (!(await isAIConfigured())) {
                         Toast.warn(t("aiTranslation.configureFirst"));
+                        return;
+                    }
+                    if (!(await ensureAIDataSharingConsent("translation"))) {
                         return;
                     }
 
@@ -139,7 +146,7 @@ export default function LyricOperations(props: ILyricOperationsProps) {
                     } catch (error: any) {
                         Toast.warn(
                             t("aiTranslation.failed", {
-                                reason: error?.message ?? error,
+                                reason: getLocalizedAIErrorMessage(error),
                             }),
                         );
                     } finally {
