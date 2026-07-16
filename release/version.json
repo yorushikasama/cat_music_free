@@ -1,15 +1,12 @@
 {
-  "version": "8.1.2",
+  "version": "8.1.3",
   "changeLog": [
-    "新增安全的 AI 歌词翻译与音乐推荐，API Key 迁移到系统安全存储",
-    "下载、备份、恢复、本地音乐和插件导入全面迁移到 SAF 与 MediaStore",
-    "升级 Android 35 与 16 KB page-size 兼容并重构下载队列",
-    "完善发布脚本的签名、体积、MP4、ELF 对齐和三端直链校验",
-    "修复搜索标签、权限体验并清零 TypeScript 与 ESLint 问题"
+    "Store AI API keys in application config",
+    "Improve AI connection test compatibility"
   ],
   "download": [
-    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.2/app-arm64-v8a-release.apk",
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.2/app-arm64-v8a-release.apk",
-    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.2/app-arm64-v8a-release.apk"
+    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.3/app-arm64-v8a-release.apk",
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.3/app-arm64-v8a-release.apk",
+    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.3/app-arm64-v8a-release.apk"
   ]
 }

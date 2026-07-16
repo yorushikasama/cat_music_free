@@ -217,7 +217,7 @@ export async function testAIConnection(
                 content: "Reply with OK only.",
             },
         ],
-        { temperature: 0, maxTokens: 8 },
+        { temperature: 0, maxTokens: 64 },
         configOverrides,
     );
     return content.length > 0;

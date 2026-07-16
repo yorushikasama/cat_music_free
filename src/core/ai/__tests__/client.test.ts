@@ -15,13 +15,6 @@ jest.mock("axios", () => ({
     },
 }));
 
-jest.mock("expo-secure-store", () => ({
-    getItemAsync: require("@jest/globals").jest.fn(async () => ""),
-    setItemAsync: require("@jest/globals").jest.fn(async () => undefined),
-    deleteItemAsync: require("@jest/globals").jest.fn(async () => undefined),
-    WHEN_UNLOCKED_THIS_DEVICE_ONLY: "WHEN_UNLOCKED_THIS_DEVICE_ONLY",
-}));
-
 jest.mock("../../appConfig", () => ({
     __esModule: true,
     default: {
