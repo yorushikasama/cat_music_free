@@ -85,4 +85,40 @@ describe("AI music recommendation", () => {
             }),
         ).rejects.toMatchObject({ code: "invalid-response" });
     });
+
+    it("sends the current mix and a refinement instruction to the AI", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            JSON.stringify({
+                recommendations: [
+                    { id: "source-a@one", reason: "节奏更轻快" },
+                ],
+            }),
+        );
+
+        await recommendMusicWithAI({
+            prompt: "通勤时想听轻松的歌",
+            candidates,
+            history: [],
+            refinement: "节奏再快一点",
+            likedMusicIds: ["source-a@one"],
+            previousRecommendations: [
+                { music: candidates[1], reason: "适合通勤" },
+            ],
+        });
+
+        const request = JSON.parse(
+            mockedCreateChatCompletion.mock.calls.at(-1)?.[0][1]
+                .content as string,
+        );
+        expect(request.refinement).toBe("节奏再快一点");
+        expect(request.likedCandidateIds).toEqual(["source-a@one"]);
+        expect(request.currentRecommendations).toEqual([
+            {
+                id: "source-a@two",
+                title: "Song Two",
+                artist: "Artist Two",
+                reason: "适合通勤",
+            },
+        ]);
+    });
 });

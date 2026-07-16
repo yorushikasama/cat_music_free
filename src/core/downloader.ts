@@ -490,6 +490,24 @@ export class Downloader extends EventEmitter<IEvents> implements IInjectable {
         return false;
     }
 
+    retry(musicItem: IMusic.IMusicItem) {
+        const task = downloadTasks.get(getMediaUniqueKey(musicItem));
+        if (task?.status !== DownloadStatus.Error) {
+            return false;
+        }
+
+        this.updateDownloadTask(musicItem, {
+            status: DownloadStatus.Pending,
+            errorReason: undefined,
+            downloadedSize: 0,
+            fileSize: undefined,
+            jobId: undefined,
+        });
+        this.queueCompletionEmitted = false;
+        this.pumpDownloadQueue();
+        return true;
+    }
+
     getTaskStatus(musicItem: IMusic.IMusicItem) {
         return downloadTasks.get(getMediaUniqueKey(musicItem))?.status;
     }

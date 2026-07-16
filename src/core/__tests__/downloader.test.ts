@@ -157,4 +157,38 @@ describe("download queue pump", () => {
         expect(mockedStopDownload).toHaveBeenCalledWith(7);
         expect(taskError).not.toHaveBeenCalled();
     });
+
+    it("requeues a failed task when retried", async () => {
+        mockedDownloadFile.mockImplementation((options: any) => {
+            options.begin?.({ jobId: 8, contentLength: 10 });
+            return {
+                jobId: 8,
+                promise: Promise.resolve({ statusCode: 200 }),
+            } as any;
+        });
+        const publish = jest
+            .fn<() => Promise<string>>()
+            .mockRejectedValueOnce(new Error("temporary failure"))
+            .mockResolvedValueOnce("content://media/retried-song");
+        mockedGetDestination.mockReturnValue({ publish } as any);
+
+        const downloader = new Downloader();
+        downloader.injectDependencies(config, pluginManager);
+        const item = music("retry");
+        const failed = new Promise<void>(resolve => {
+            downloader.once(DownloaderEvent.DownloadTaskError, () => resolve());
+        });
+
+        downloader.download(item);
+        await failed;
+        expect(downloader.retry(item)).toBe(true);
+
+        const completed = new Promise<void>(resolve => {
+            downloader.once(DownloaderEvent.DownloadQueueCompleted, resolve);
+        });
+        await completed;
+
+        expect(publish).toHaveBeenCalledTimes(2);
+        expect(downloader.retry(item)).toBe(false);
+    });
 });

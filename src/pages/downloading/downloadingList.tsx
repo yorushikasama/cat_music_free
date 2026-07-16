@@ -114,7 +114,18 @@ function DownloadingListItem(props: DownloadingListItemProps) {
                     </View>
                 )}
             />
-            {status === DownloadStatus.Error || status === DownloadStatus.Pending ? (
+            {status === DownloadStatus.Error ? (
+                <Pressable
+                    hitSlop={spacing.sm}
+                    onPress={() => downloader.retry(musicItem)}
+                    style={styles.removeButton}>
+                    <Icon
+                        name="arrow-path"
+                        size={rpx(28)}
+                        color={colors.primary}
+                    />
+                </Pressable>
+            ) : status === DownloadStatus.Pending ? (
                 <Pressable
                     hitSlop={spacing.sm}
                     onPress={() => downloader.remove(musicItem)}

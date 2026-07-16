@@ -43,10 +43,22 @@ export async function recommendMusicWithAI(params: {
     prompt: string;
     candidates: IMusic.IMusicItem[];
     history: IMusic.IMusicItem[];
+    previousRecommendations?: IAIRecommendedMusic[];
+    refinement?: string;
+    likedMusicIds?: string[];
     limit?: number;
     signal?: AbortSignal;
 }): Promise<IAIRecommendedMusic[]> {
-    const { prompt, candidates, history, limit = 12, signal } = params;
+    const {
+        prompt,
+        candidates,
+        history,
+        previousRecommendations = [],
+        refinement,
+        likedMusicIds = [],
+        limit = 12,
+        signal,
+    } = params;
     if (!candidates.length) {
         throw new AIError("no-candidates", "No matching candidate songs were found");
     }
@@ -68,8 +80,18 @@ export async function recommendMusicWithAI(params: {
                 role: "user",
                 content: JSON.stringify({
                     request: prompt.trim() || "根据我的口味推荐一组可以探索的新歌",
+                    refinement: refinement?.trim() || undefined,
                     limit,
                     tasteProfile: buildMusicTasteSummary(history),
+                    currentRecommendations: previousRecommendations.map(
+                        ({ music, reason }) => ({
+                            id: getMediaUniqueKey(music),
+                            title: music.title,
+                            artist: music.artist,
+                            reason,
+                        }),
+                    ),
+                    likedCandidateIds: likedMusicIds.filter(id => candidateMap.has(id)),
                     candidates: candidates.map(music => ({
                         id: getMediaUniqueKey(music),
                         title: music.title,

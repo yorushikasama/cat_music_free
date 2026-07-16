@@ -54,6 +54,33 @@ function _PluginItem(props: IPluginItemProps) {
             show: !!plugin.instance.srcUrl,
         },
         {
+            title: t("pluginSetting.pluginItem.options.testSearch"),
+            icon: "magnifying-glass",
+            async onPress() {
+                try {
+                    const searchType =
+                        plugin.instance.defaultSearchType ?? "music";
+                    const result = await plugin.methods.search(
+                        "周杰伦",
+                        1,
+                        searchType,
+                    );
+                    Toast.success(
+                        t("pluginSetting.pluginItem.testResponded", {
+                            count: result?.data?.length ?? 0,
+                        }),
+                    );
+                } catch (error: any) {
+                    Toast.warn(
+                        t("pluginSetting.pluginItem.testFailed", {
+                            reason: error?.message ?? error,
+                        }),
+                    );
+                }
+            },
+            show: !!plugin.supportedMethods.has("search"),
+        },
+        {
             title: t("pluginSetting.pluginItem.options.sharePlugin"),
             icon: "share",
             async onPress() {

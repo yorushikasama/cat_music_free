@@ -204,6 +204,9 @@ export interface ILanguageData {
 
     // 插件设置相关
     "pluginSetting.pluginItem.options.updatePlugin": string; // 更新插件
+    "pluginSetting.pluginItem.options.testSearch": string;
+    "pluginSetting.pluginItem.testResponded": string;
+    "pluginSetting.pluginItem.testFailed": string;
     "pluginSetting.pluginItem.options.sharePlugin": string; // 分享插件
     "pluginSetting.pluginItem.options.uninstallPlugin": string; // 卸载插件
     "pluginSetting.pluginItem.options.uninstallPluginContent": string; // 确定卸载该插件吗？
@@ -765,11 +768,20 @@ export interface ILanguageData {
     "aiRecommend.emptyDescription": string;
     "aiRecommend.setupTitle": string;
     "aiRecommend.setupDescription": string;
-    "aiSettings.apiKeyStored": string;
-    "aiSettings.showApiKey": string;
-    "aiSettings.hideApiKey": string;
-    "aiSettings.clearApiKey": string;
-    "aiSettings.apiKeyCleared": string;
+    "aiRecommend.refineTitle": string;
+    "aiRecommend.refinePlaceholder": string;
+    "aiRecommend.refineGenerate": string;
+    "aiRecommend.refineFaster": string;
+    "aiRecommend.refineFewerVocals": string;
+    "aiRecommend.refineCantonese": string;
+    "aiRecommend.refineDifferentArtists": string;
+    "aiRecommend.refresh": string;
+    "aiRecommend.historyTitle": string;
+    "aiRecommend.clearHistory": string;
+    "aiRecommend.moreLikeThis": string;
+    "aiRecommend.liked": string;
+    "aiRecommend.clearPreferences": string;
+    "aiRecommend.preferencesCleared": string;
     "aiSettings.dataPrivacy": string;
     "aiSettings.dataPrivacyDescription": string;
     "aiSettings.revokeConsent": string;

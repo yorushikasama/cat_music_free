@@ -1,12 +1,14 @@
 {
-  "version": "8.1.3",
+  "version": "8.1.4",
   "changeLog": [
-    "Store AI API keys in application config",
-    "Improve AI connection test compatibility"
+    "AI 推荐支持连续调整、换一批、历史与偏好反馈",
+    "下载失败后可直接重试",
+    "插件管理新增搜索测试与诊断优化",
+    "修复 AI 推荐页窄屏操作布局和 API Key 文案"
   ],
   "download": [
-    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.3/app-arm64-v8a-release.apk",
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.3/app-arm64-v8a-release.apk",
-    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.3/app-arm64-v8a-release.apk"
+    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.4/app-arm64-v8a-release.apk",
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.4/app-arm64-v8a-release.apk",
+    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.4/app-arm64-v8a-release.apk"
   ]
 }
