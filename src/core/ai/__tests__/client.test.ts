@@ -90,4 +90,28 @@ describe("AI client model discovery", () => {
             ),
         ).rejects.toMatchObject({ code: "aborted" });
     });
+
+    it("requests JSON-object mode when the caller requires structured output", async () => {
+        mockedPost.mockResolvedValueOnce({
+            data: { choices: [{ message: { content: "{}" } }] },
+        });
+
+        await createChatCompletion(
+            [{ role: "user", content: "hello" }],
+            { responseFormat: "json_object" },
+            {
+                baseUrl: "https://example.com/v1",
+                apiKey: "secret",
+                model: "model",
+            },
+        );
+
+        expect(mockedPost).toHaveBeenCalledWith(
+            "https://example.com/v1/chat/completions",
+            expect.objectContaining({
+                response_format: { type: "json_object" },
+            }),
+            expect.any(Object),
+        );
+    });
 });

@@ -16,8 +16,27 @@ function parseRecommendationResponse(content: string) {
         .replace(/^```(?:json)?\s*/i, "")
         .replace(/\s*```$/, "")
         .trim();
-    const parsed = JSON.parse(normalized);
-    const recommendations = parsed?.recommendations;
+    if (!normalized) {
+        throw new AIError("invalid-response", "AI returned an empty recommendation response");
+    }
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(normalized);
+    } catch (error) {
+        const appearsTruncated =
+            normalized.startsWith("{") &&
+            !normalized.endsWith("}");
+        throw new AIError(
+            "invalid-response",
+            appearsTruncated
+                ? "AI recommendation response was incomplete; try again or select a faster model"
+                : "AI recommendation response was not valid JSON",
+            { cause: error },
+        );
+    }
+    const recommendations = (parsed as { recommendations?: unknown })
+        .recommendations;
     if (!Array.isArray(recommendations)) {
         throw new AIError("invalid-response", "Invalid AI recommendation response");
     }
@@ -102,7 +121,12 @@ export async function recommendMusicWithAI(params: {
                 }),
             },
         ],
-        { temperature: 0.55, maxTokens: 1400, signal },
+        {
+            temperature: 0.55,
+            maxTokens: 1400,
+            responseFormat: "json_object",
+            signal,
+        },
     );
     const selected = parseRecommendationResponse(response);
     const uniqueIds = new Set<string>();

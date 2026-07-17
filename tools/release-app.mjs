@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { cleanBundleOutputs, verifyReleaseApk } from "./release/apk.mjs";
 import {
@@ -252,6 +253,43 @@ async function verifyDownloadUrl(url) {
     throw new Error(`Download URL is not available: ${url} (${lastError?.message || lastError})`);
 }
 
+async function getFileSha256(filePath) {
+    return crypto
+        .createHash("sha256")
+        .update(await fs.readFile(filePath))
+        .digest("hex");
+}
+
+async function getRemoteFileSha256(url) {
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+            const response = await fetch(url, { redirect: "follow" });
+            if (!response.ok) {
+                throw new Error(`Cannot download release asset: ${response.status} ${response.statusText}`);
+            }
+            return crypto
+                .createHash("sha256")
+                .update(Buffer.from(await response.arrayBuffer()))
+                .digest("hex");
+        } catch (error) {
+            lastError = error;
+            if (attempt < 2) {
+                await delay(1000 * (attempt + 1));
+            }
+        }
+    }
+    throw lastError;
+}
+
+async function isCurrentReleaseAsset(asset, expectedSha256) {
+    if (!asset?.browser_download_url) {
+        return false;
+    }
+    const actualSha256 = await getRemoteFileSha256(asset.browser_download_url);
+    return actualSha256 === expectedSha256;
+}
+
 function delay(ms) {
     return new Promise(resolve => {
         setTimeout(resolve, ms);
@@ -295,7 +333,7 @@ async function ensureGithubRelease({ version, tagName, body }) {
     });
 }
 
-async function uploadGithubAsset(release, apkPath, assetName) {
+async function uploadGithubAsset(release, apkPath, assetName, expectedSha256) {
     const token = await getGithubToken();
     if (!token) {
         throw new Error("Missing GitHub release credential.");
@@ -315,8 +353,15 @@ async function uploadGithubAsset(release, apkPath, assetName) {
     const assets = await requestJson(`${api}/releases/${release.id}/assets?per_page=100`, { headers });
     const existing = assets.find(asset => asset.name === assetName);
     if (existing) {
-        console.log(`Reuse existing GitHub Release asset: ${existing.browser_download_url}`);
-        return existing.browser_download_url;
+        if (await isCurrentReleaseAsset(existing, expectedSha256)) {
+            console.log(`Reuse matching GitHub Release asset: ${existing.browser_download_url}`);
+            return existing.browser_download_url;
+        }
+        await requestJson(`${api}/releases/assets/${existing.id}`, {
+            method: "DELETE",
+            headers,
+        });
+        console.log(`Deleted outdated GitHub Release asset: ${existing.name}`);
     }
     const uploadUrl = `https://uploads.github.com/repos/${owner}/${repo}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
     const asset = await runCurlJson(
@@ -370,7 +415,7 @@ async function ensureGiteeRelease({ version, tagName, body }) {
     });
 }
 
-async function uploadGiteeAsset(release, apkPath, assetName) {
+async function uploadGiteeAsset(release, apkPath, assetName, expectedSha256, downloadUrl, context) {
     const token = await getGiteeToken();
     if (!token) {
         throw new Error("Missing Gitee release credential.");
@@ -382,8 +427,24 @@ async function uploadGiteeAsset(release, apkPath, assetName) {
     const repo = getEnv("GITEE_REPO", DEFAULT_GITEE_REPO);
     const existing = release.assets?.find(asset => asset.name === assetName);
     if (existing?.browser_download_url) {
-        console.log(`Reuse existing Gitee Release asset: ${existing.browser_download_url}`);
-        return existing.browser_download_url;
+        if (await isCurrentReleaseAsset({ browser_download_url: downloadUrl }, expectedSha256)) {
+            console.log(`Reuse matching Gitee Release asset: ${existing.browser_download_url}`);
+            return existing.browser_download_url;
+        }
+        console.log(`Replacing outdated Gitee Release asset with fields: ${JSON.stringify({
+            id: existing.id,
+            name: existing.name,
+        })}`);
+        await requestJson(
+            `https://gitee.com/api/v5/repos/${owner}/${repo}/releases/${release.id}?access_token=${encodeURIComponent(token)}`,
+            { method: "DELETE" },
+        );
+        console.log(`Deleted Gitee Release so its outdated asset can be replaced: ${existing.name}`);
+        release = await ensureGiteeRelease({
+            version: context.version,
+            tagName: context.tagName,
+            body: context.body,
+        });
     }
     const file = await fs.readFile(apkPath);
     const form = new FormData();
@@ -436,7 +497,7 @@ async function ensureGiteaRelease({ version, tagName, body }) {
     });
 }
 
-async function uploadGiteaAsset(release, apkPath, assetName) {
+async function uploadGiteaAsset(release, apkPath, assetName, expectedSha256) {
     const baseUrl = getEnv("GITEA_BASE_URL", DEFAULT_GITEA_BASE_URL).replace(/\/$/, "");
     const token = await getGiteaToken(baseUrl);
     if (!token) {
@@ -455,8 +516,15 @@ async function uploadGiteaAsset(release, apkPath, assetName) {
     const assets = await requestJson(`${api}/releases/${release.id}/assets`, { headers });
     const existing = assets.find(asset => asset.name === assetName);
     if (existing) {
-        console.log(`Reuse existing Gitea Release asset: ${existing.browser_download_url}`);
-        return existing.browser_download_url;
+        if (await isCurrentReleaseAsset(existing, expectedSha256)) {
+            console.log(`Reuse matching Gitea Release asset: ${existing.browser_download_url}`);
+            return existing.browser_download_url;
+        }
+        await requestJson(`${api}/releases/${release.id}/assets/${existing.id}`, {
+            method: "DELETE",
+            headers,
+        });
+        console.log(`Deleted outdated Gitea Release asset: ${existing.name}`);
     }
     const uploadUrl = `${api}/releases/${release.id}/assets?name=${encodeURIComponent(assetName)}`;
     const asset = await runCurlJson(
@@ -539,6 +607,7 @@ async function publishReleaseAssets(version, changeLog, apkPath, assetName) {
     const tagName = `v${version}`;
     const body = getReleaseBody(version, changeLog);
     const downloadUrls = getReleaseDownloadUrls(version, assetName);
+    const expectedSha256 = await getFileSha256(apkPath);
     await ensureGitTag(tagName, version);
 
     const results = [];
@@ -570,6 +639,8 @@ async function publishReleaseAssets(version, changeLog, apkPath, assetName) {
             body,
             apkPath,
             assetName,
+            expectedSha256,
+            downloadUrl: target.downloadUrl,
         }));
     }
 
@@ -592,7 +663,14 @@ async function publishReleaseTarget(target, context) {
             tagName: context.tagName,
             body: context.body,
         });
-        const url = await target.upload(release, context.apkPath, context.assetName);
+        const url = await target.upload(
+            release,
+            context.apkPath,
+            context.assetName,
+            context.expectedSha256,
+            context.downloadUrl,
+            context,
+        );
         if (!url) {
             throw new Error(`${target.name} asset upload returned no download URL.`);
         }
@@ -667,7 +745,7 @@ async function main() {
     const shouldPush = args.push !== "false";
     const shouldRelease = args.release !== "false";
     const shouldBuild = args.build !== "false";
-    const shouldClean = args.clean !== "false";
+    const shouldClean = args.clean === "true";
     const shouldCheck = args.check !== "false";
     const apkPath = path.resolve(args.apk || getEnv("APK_PATH", DEFAULT_APK_PATH));
     const assetName = args.assetName || getEnv("APK_ASSET_NAME", DEFAULT_ASSET_NAME);

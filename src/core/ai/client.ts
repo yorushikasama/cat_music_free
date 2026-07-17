@@ -136,6 +136,7 @@ export async function createChatCompletion(
         temperature?: number;
         maxTokens?: number;
         signal?: AbortSignal;
+        responseFormat?: "json_object";
     },
     configOverrides?: Partial<IAIClientConfig>,
 ) {
@@ -156,6 +157,9 @@ export async function createChatCompletion(
                 temperature: options?.temperature ?? 0.2,
                 ...(options?.maxTokens
                     ? { max_tokens: options.maxTokens }
+                    : {}),
+                ...(options?.responseFormat
+                    ? { response_format: { type: options.responseFormat } }
                     : {}),
             },
             {

@@ -38,7 +38,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 def appVersion = "8.1.4"
-def appVersionCode = 400041
+def appVersionCode = 400042
 
 
 android {

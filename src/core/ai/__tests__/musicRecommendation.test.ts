@@ -68,6 +68,10 @@ describe("AI music recommendation", () => {
         expect(result).toEqual([
             { music: candidates[1], reason: "适合夜晚散步" },
         ]);
+        expect(mockedCreateChatCompletion).toHaveBeenLastCalledWith(
+            expect.any(Array),
+            expect.objectContaining({ responseFormat: "json_object" }),
+        );
     });
 
     it("rejects an AI response that contains no valid candidate id", async () => {
@@ -84,6 +88,24 @@ describe("AI music recommendation", () => {
                 history: [],
             }),
         ).rejects.toMatchObject({ code: "invalid-response" });
+    });
+
+    it("reports a truncated recommendation response without leaking a JSON parser error", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            "{\"recommendations\":[{\"id\":\"source-a@one\"",
+        );
+
+        await expect(
+            recommendMusicWithAI({
+                prompt: "随便听听",
+                candidates,
+                history: [],
+            }),
+        ).rejects.toMatchObject({
+            code: "invalid-response",
+            message:
+                "AI recommendation response was incomplete; try again or select a faster model",
+        });
     });
 
     it("sends the current mix and a refinement instruction to the AI", async () => {
