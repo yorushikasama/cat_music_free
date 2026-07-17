@@ -37,8 +37,8 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
-def appVersion = "8.1.5"
-def appVersionCode = 400043
+def appVersion = "8.1.6"
+def appVersionCode = 400044
 
 
 android {

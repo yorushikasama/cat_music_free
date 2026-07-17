@@ -636,7 +636,15 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                         />
                         <TouchableOpacity
                             accessibilityRole="button"
-                            accessibilityLabel={t("aiRecommend.refineGenerate")}
+                            accessibilityLabel={
+                                loading
+                                    ? t("aiRecommend.generating")
+                                    : t("aiRecommend.refineGenerate")
+                            }
+                            accessibilityState={{
+                                disabled: loading || !refinement.trim(),
+                                busy: loading,
+                            }}
                             disabled={loading || !refinement.trim()}
                             activeOpacity={0.72}
                             onPress={() => generate(refinement)}
@@ -646,13 +654,25 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                 (loading || !refinement.trim()) &&
                                     styles.loadingButton,
                             ]}>
-                            <Icon
-                                name="arrow-path"
-                                size={rpx(20)}
-                                color={colors.primary}
-                            />
-                            <ThemeText fontSize="description" fontWeight="semibold" color={colors.primary}>
-                                {t("aiRecommend.refineGenerate")}
+                            {loading ? (
+                                <ActivityIndicator
+                                    size="small"
+                                    color={colors.primary}
+                                />
+                            ) : (
+                                <Icon
+                                    name="arrow-path"
+                                    size={rpx(20)}
+                                    color={colors.primary}
+                                />
+                            )}
+                            <ThemeText
+                                fontSize="description"
+                                fontWeight="semibold"
+                                color={colors.primary}>
+                                {loading
+                                    ? t("aiRecommend.generating")
+                                    : t("aiRecommend.refineGenerate")}
                             </ThemeText>
                         </TouchableOpacity>
                     </View>
