@@ -74,10 +74,166 @@ describe("AI music recommendation", () => {
         );
     });
 
+    it("accepts common response wrappers and resolves a bare candidate music id", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            JSON.stringify({
+                tracks: [
+                    { musicId: "two", reason: "雨天里温柔安静" },
+                ],
+            }),
+        );
+
+        await expect(
+            recommendMusicWithAI({
+                prompt: "下雨天想听安静的日语女声",
+                candidates,
+                history: [],
+            }),
+        ).resolves.toEqual([
+            { music: candidates[1], reason: "雨天里温柔安静" },
+        ]);
+    });
+
+    it("accepts a title and artist match when the model omits the candidate id", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            JSON.stringify([
+                { title: "Song One", artist: "Artist One" },
+            ]),
+        );
+
+        await expect(
+            recommendMusicWithAI({
+                prompt: "下雨天想听安静的日语女声",
+                candidates,
+                history: [],
+            }),
+        ).resolves.toEqual([
+            { music: candidates[0], reason: "与当前想听的氛围相配" },
+        ]);
+    });
+
+    it("extracts a JSON response wrapped in explanatory text", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            "推荐如下：{\"data\":{\"results\":[{\"songId\":\"one\",\"description\":\"适合雨声伴随的安静时刻\"}]}}",
+        );
+
+        await expect(
+            recommendMusicWithAI({
+                prompt: "下雨天想听安静的日语女声",
+                candidates,
+                history: [],
+            }),
+        ).resolves.toEqual([
+            { music: candidates[0], reason: "适合雨声伴随的安静时刻" },
+        ]);
+    });
+
+    it("falls back to a supplied song id when the provider id is not a candidate", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            JSON.stringify({
+                recommendations: [
+                    {
+                        id: "provider-record-123",
+                        songId: "two",
+                        reason: "和当前的聆听偏好相近",
+                    },
+                ],
+            }),
+        );
+
+        await expect(
+            recommendMusicWithAI({
+                prompt: "想听相近风格的歌",
+                candidates,
+                history: [],
+            }),
+        ).resolves.toEqual([
+            { music: candidates[1], reason: "和当前的聆听偏好相近" },
+        ]);
+    });
+
+    it("resolves a nested song object from a provider-specific response", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            JSON.stringify({
+                recommendations: [
+                    {
+                        song: {
+                            id: "two",
+                            title: "Song Two",
+                            artist: "Artist Two",
+                        },
+                        why: "女声柔和，适合雨天独处",
+                    },
+                ],
+            }),
+        );
+
+        await expect(
+            recommendMusicWithAI({
+                prompt: "下雨天想听安静的日语女声",
+                candidates,
+                history: [],
+            }),
+        ).resolves.toEqual([
+            { music: candidates[1], reason: "女声柔和，适合雨天独处" },
+        ]);
+    });
+
+    it("accepts a single recommendation object in a provider data wrapper", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            JSON.stringify({
+                data: {
+                    recommendation: {
+                        id: "two",
+                        reason: "节奏舒缓，适合作为工作背景",
+                    },
+                },
+            }),
+        );
+
+        await expect(
+            recommendMusicWithAI({
+                prompt: "工作时想听节奏舒缓的音乐",
+                candidates,
+                history: [],
+            }),
+        ).resolves.toEqual([
+            { music: candidates[1], reason: "节奏舒缓，适合作为工作背景" },
+        ]);
+    });
+
     it("rejects an AI response that contains no valid candidate id", async () => {
         mockedCreateChatCompletion.mockResolvedValueOnce(
             JSON.stringify({
                 recommendations: [{ id: "invented", reason: "不存在" }],
+            }),
+        );
+
+        await expect(
+            recommendMusicWithAI({
+                prompt: "随便听听",
+                candidates,
+                history: [],
+            }),
+        ).rejects.toMatchObject({ code: "invalid-response" });
+    });
+
+    it("maps non-container JSON responses to the standard invalid-response error", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce("null");
+
+        await expect(
+            recommendMusicWithAI({
+                prompt: "随便听听",
+                candidates,
+                history: [],
+            }),
+        ).rejects.toMatchObject({ code: "invalid-response" });
+    });
+
+    it("rejects an AI response whose otherwise valid recommendations have empty reasons", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            JSON.stringify({
+                recommendations: [{ id: "source-a@one", reason: "   " }],
             }),
         );
 
@@ -122,6 +278,7 @@ describe("AI music recommendation", () => {
             candidates,
             history: [],
             refinement: "节奏再快一点",
+            exploration: "explore",
             likedMusicIds: ["source-a@one"],
             previousRecommendations: [
                 { music: candidates[1], reason: "适合通勤" },
@@ -133,6 +290,7 @@ describe("AI music recommendation", () => {
                 .content as string,
         );
         expect(request.refinement).toBe("节奏再快一点");
+        expect(request.exploration).toBe("explore");
         expect(request.likedCandidateIds).toEqual(["source-a@one"]);
         expect(request.currentRecommendations).toEqual([
             {

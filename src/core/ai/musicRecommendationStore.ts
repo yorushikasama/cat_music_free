@@ -1,6 +1,9 @@
 import getOrCreateMMKV from "@/utils/getOrCreateMMKV";
 import { safeParse, safeStringify } from "@/utils/jsonUtil";
-import type { IAIRecommendedMusic } from "./musicRecommendation";
+import type {
+    IAIRecommendedMusic,
+    MusicRecommendationExplorationLevel,
+} from "./musicRecommendation";
 
 const store = getOrCreateMMKV("ai.MusicRecommendation");
 const CACHE_KEY = "latest";
@@ -13,6 +16,7 @@ export interface IAIRecommendationCache {
     prompt: string;
     createdAt: number;
     recommendations: IAIRecommendedMusic[];
+    exploration?: MusicRecommendationExplorationLevel;
 }
 
 export interface IAIRecommendationHistoryEntry extends IAIRecommendationCache {
@@ -27,6 +31,10 @@ function isRecommendationCache(value: unknown): value is IAIRecommendationCache 
     return (
         typeof cache.prompt === "string" &&
         typeof cache.createdAt === "number" &&
+        (cache.exploration === undefined ||
+            cache.exploration === "familiar" ||
+            cache.exploration === "balanced" ||
+            cache.exploration === "explore") &&
         Array.isArray(cache.recommendations) &&
         cache.recommendations.every(
             item =>

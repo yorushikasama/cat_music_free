@@ -744,6 +744,13 @@ export interface ILanguageData {
     "aiRecommend.title": string;
     "aiRecommend.headline": string;
     "aiRecommend.placeholder": string;
+    "aiRecommend.explorationTitle": string;
+    "aiRecommend.explorationFamiliar": string;
+    "aiRecommend.explorationFamiliarDescription": string;
+    "aiRecommend.explorationBalanced": string;
+    "aiRecommend.explorationBalancedDescription": string;
+    "aiRecommend.explorationExplore": string;
+    "aiRecommend.explorationExploreDescription": string;
     "aiRecommend.promptCommute": string;
     "aiRecommend.promptWalk": string;
     "aiRecommend.promptFocus": string;
@@ -755,6 +762,8 @@ export interface ILanguageData {
     "aiRecommend.generate": string;
     "aiRecommend.generating": string;
     "aiRecommend.forYou": string;
+    "aiRecommend.playAll": string;
+    "aiRecommend.saveToPlaylist": string;
     "aiRecommend.cached": string;
     "aiRecommend.resetIgnored": string;
     "aiRecommend.ignoredReset": string;

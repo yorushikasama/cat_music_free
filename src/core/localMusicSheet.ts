@@ -9,6 +9,10 @@ import {
     getLocalPath,
     isSameMediaItem,
 } from "@/utils/mediaUtils";
+import {
+    collectLocalMediaPaths,
+    mergeUniqueLocalMusic,
+} from "./localMusicUtils";
 import StateMapper from "@/utils/stateMapper";
 import { getStorage, setStorage } from "@/utils/storage";
 import asyncFilterInBatches from "@/utils/asyncFilterInBatches";
@@ -59,12 +63,7 @@ export async function addMusic(
     if (!Array.isArray(musicItem)) {
         musicItem = [musicItem];
     }
-    let newSheet = [...localSheet];
-    musicItem.forEach(mi => {
-        if (localSheet.findIndex(_ => isSameMediaItem(mi, _)) === -1) {
-            newSheet.push(mi);
-        }
-    });
+    const newSheet = mergeUniqueLocalMusic(localSheet, musicItem);
     await setStorage(StorageKeys.LocalMusicSheet, newSheet);
     localSheet = newSheet;
     localSheetStateMapper.notify();
@@ -74,12 +73,7 @@ function addMusicDraft(musicItem: IMusic.IMusicItem | IMusic.IMusicItem[]) {
     if (!Array.isArray(musicItem)) {
         musicItem = [musicItem];
     }
-    let newSheet = [...localSheet];
-    musicItem.forEach(mi => {
-        if (localSheet.findIndex(_ => isSameMediaItem(mi, _)) === -1) {
-            newSheet.push(mi);
-        }
-    });
+    const newSheet = mergeUniqueLocalMusic(localSheet, musicItem);
     localSheet = newSheet;
     localSheetStateMapper.notify();
 }
@@ -147,28 +141,12 @@ let importToken: string | null = null;
 async function getMusicStats(folderPaths: string[]) {
     const _importToken = nanoid();
     importToken = _importToken;
-    const musicList: string[] = [];
-    let peek: string | undefined;
-    let dirFiles: ReadDirItem[] = [];
-    while (folderPaths.length !== 0) {
-        if (importToken !== _importToken) {
-            throw new Error("Import Broken");
-        }
-        peek = folderPaths.shift() as string;
-        try {
-            dirFiles = await readDir(peek);
-        } catch {
-            dirFiles = [];
-        }
-
-        dirFiles.forEach(item => {
-            if (item.isDirectory() && !folderPaths.includes(item.path)) {
-                folderPaths.push(item.path);
-            } else if (localMediaFilter(item.path)) {
-                musicList.push(item.path);
-            }
-        });
-    }
+    const musicList = await collectLocalMediaPaths(
+        folderPaths,
+        path => readDir(path) as Promise<ReadDirItem[]>,
+        localMediaFilter,
+        () => importToken === _importToken,
+    );
 
     return { musicList, token: _importToken };
 }
@@ -198,8 +176,8 @@ async function importLocal(_folderPaths: string[]) {
     if (token !== importToken) {
         throw new Error("Import Broken");
     }
-    const musicItems: IMusic.IMusicItem[] = await Promise.all(
-        musicList.map(async (musicPath, index) => {
+    const musicItems: IMusic.IMusicItem[] = musicList.map(
+        (musicPath, index) => {
             let { platform, id, title, artist } =
                 parseFilename(getFileName(musicPath, true)) ?? {};
             const meta = metas[index];
@@ -219,7 +197,7 @@ async function importLocal(_folderPaths: string[]) {
                     localPath: musicPath,
                 },
             } as IMusic.IMusicItem;
-        }),
+        },
     );
     if (token !== importToken) {
         throw new Error("Import Broken");

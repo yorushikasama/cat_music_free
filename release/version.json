@@ -1,14 +1,13 @@
 {
-  "version": "8.1.6",
+  "version": "8.1.7",
   "changeLog": [
-    "AI 推荐支持连续调整、换一批、历史与偏好反馈",
-    "下载失败后可直接重试",
-    "插件管理新增搜索测试与诊断优化",
-    "修复 AI 推荐页窄屏操作布局和 API Key 文案"
+    "AI 推荐增强响应解析、隐藏歌曲恢复与候选排序",
+    "支持本地 AI 翻译歌词读取和本地音乐扫描去重",
+    "优化输入交互、插件搜索容错与推荐页体验"
   ],
   "download": [
-    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.6/app-arm64-v8a-release.apk",
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.6/app-arm64-v8a-release.apk",
-    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.6/app-arm64-v8a-release.apk"
+    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.7/app-arm64-v8a-release.apk",
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.7/app-arm64-v8a-release.apk",
+    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.7/app-arm64-v8a-release.apk"
   ]
 }

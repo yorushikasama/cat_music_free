@@ -5,6 +5,7 @@ import Input from "@/components/base/input";
 import PageShell, { pageShellInsets } from "@/components/base/pageShell";
 import ThemeText from "@/components/base/themeText";
 import MusicItem from "@/components/mediaItem/musicItem";
+import { showPanel } from "@/components/panels/usePanel";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 import {
@@ -24,6 +25,7 @@ import {
     ignoreMusicRecommendation,
     isAIConfigured,
     likeMusicRecommendation,
+    MusicRecommendationExplorationLevel,
     recommendMusicWithAI,
     setMusicRecommendationCache,
     unlikeMusicRecommendation,
@@ -102,8 +104,18 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
     );
     const [prompt, setPrompt] = useState(() => quickPrompts[0].text);
     const initialCacheRef = useRef(getMusicRecommendationCache());
-    const [recommendations, setRecommendations] = useState(
-        initialCacheRef.current?.recommendations ?? [],
+    const [allRecommendations, setAllRecommendations] = useState(
+        () => initialCacheRef.current?.recommendations ?? [],
+    );
+    const [ignoredMusicIds, setIgnoredMusicIds] = useState(() =>
+        getIgnoredMusicRecommendationIds(),
+    );
+    const recommendations = useMemo(
+        () =>
+            allRecommendations.filter(
+                ({ music }) => !ignoredMusicIds.has(getMediaUniqueKey(music)),
+            ),
+        [allRecommendations, ignoredMusicIds],
     );
     const [generatedPrompt, setGeneratedPrompt] = useState(
         initialCacheRef.current?.prompt ?? "",
@@ -111,6 +123,10 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
     const [cachedAt, setCachedAt] = useState(
         initialCacheRef.current?.createdAt,
     );
+    const [exploration, setExploration] =
+        useState<MusicRecommendationExplorationLevel>(
+            initialCacheRef.current?.exploration ?? "balanced",
+        );
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [refinement, setRefinement] = useState("");
@@ -126,6 +142,32 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
             t("aiRecommend.refineFewerVocals"),
             t("aiRecommend.refineCantonese"),
             t("aiRecommend.refineDifferentArtists"),
+        ],
+        [t],
+    );
+    const explorationOptions = useMemo<
+        Array<{
+            value: MusicRecommendationExplorationLevel;
+            label: string;
+            description: string;
+        }>
+    >(
+        () => [
+            {
+                value: "familiar",
+                label: t("aiRecommend.explorationFamiliar"),
+                description: t("aiRecommend.explorationFamiliarDescription"),
+            },
+            {
+                value: "balanced",
+                label: t("aiRecommend.explorationBalanced"),
+                description: t("aiRecommend.explorationBalancedDescription"),
+            },
+            {
+                value: "explore",
+                label: t("aiRecommend.explorationExplore"),
+                description: t("aiRecommend.explorationExploreDescription"),
+            },
         ],
         [t],
     );
@@ -146,6 +188,25 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
         () => navigate(ROUTE_PATH.SETTING, { type: "ai" }),
         [navigate],
     );
+    const playRecommendations = useCallback(() => {
+        if (!recommendations.length) {
+            return;
+        }
+        TrackPlayer.playWithReplacePlayList(
+            recommendations[0].music,
+            recommendations.map(item => item.music),
+        );
+    }, [recommendations]);
+    const saveRecommendationsToPlaylist = useCallback(() => {
+        if (!recommendations.length) {
+            return;
+        }
+        showPanel("AddToMusicSheet", {
+            musicItem: recommendations.map(item => item.music),
+            newSheetDefaultName:
+                generatedPrompt || prompt.trim() || t("aiRecommend.title"),
+        });
+    }, [generatedPrompt, prompt, recommendations, t]);
 
     useEffect(() => {
         let active = true;
@@ -197,6 +258,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                 await collectMusicRecommendationCandidates(
                     prompt.trim(),
                     history,
+                    exploration,
                 );
             if (activeRequestRef.current?.id !== request.id) {
                 return;
@@ -225,12 +287,13 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     : undefined,
                 refinement: refinementInstruction,
                 likedMusicIds: Array.from(likedMusicIds),
+                exploration,
                 signal: request.controller.signal,
             });
             if (activeRequestRef.current?.id !== request.id) {
                 return;
             }
-            setRecommendations(next);
+            setAllRecommendations(next);
             setGeneratedPrompt(
                 refinementInstruction
                     ? `${prompt.trim()} · ${refinementInstruction}`
@@ -244,6 +307,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     : prompt.trim(),
                 createdAt,
                 recommendations: next,
+                exploration,
             };
             setMusicRecommendationCache(cache);
             addMusicRecommendationHistory(cache);
@@ -261,7 +325,15 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                 setLoading(false);
             }
         }
-    }, [history, likedMusicIds, openSettings, prompt, recommendations, t]);
+    }, [
+        exploration,
+        history,
+        likedMusicIds,
+        openSettings,
+        prompt,
+        recommendations,
+        t,
+    ]);
 
     return (
         <PageShell
@@ -359,11 +431,67 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     <Input
                         value={prompt}
                         onChangeText={setPrompt}
+                        onClear={() => setPrompt("")}
+                        clearAccessibilityLabel={t("common.clear")}
                         multiline
                         placeholder={t("aiRecommend.placeholder")}
                         variant="outlined"
                         style={styles.promptInput}
                     />
+                    <View style={styles.explorationSection}>
+                        <ThemeText fontSize="description" fontWeight="semibold">
+                            {t("aiRecommend.explorationTitle")}
+                        </ThemeText>
+                        <View
+                            style={[
+                                styles.explorationControl,
+                                { backgroundColor: colors.surfaceSecondary },
+                            ]}>
+                            {explorationOptions.map(option => {
+                                const active = exploration === option.value;
+                                return (
+                                    <TouchableOpacity
+                                        key={option.value}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={option.label}
+                                        accessibilityHint={option.description}
+                                        accessibilityState={{ selected: active }}
+                                        activeOpacity={0.72}
+                                        onPress={() => setExploration(option.value)}
+                                        style={[
+                                            styles.explorationOption,
+                                            active && {
+                                                backgroundColor:
+                                                    Color(colors.primary)
+                                                        .alpha(0.12)
+                                                        .string(),
+                                            },
+                                        ]}>
+                                        <ThemeText
+                                            fontSize="tag"
+                                            fontWeight={
+                                                active ? "semibold" : "regular"
+                                            }
+                                            color={
+                                                active
+                                                    ? colors.primary
+                                                    : colors.textSecondary
+                                            }
+                                            numberOfLines={1}>
+                                            {option.label}
+                                        </ThemeText>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        <ThemeText fontSize="tag" fontColor="textSecondary">
+                            {
+                                explorationOptions.find(
+                                    option => option.value === exploration,
+                                )?.description
+                            }
+                        </ThemeText>
+                    </View>
                     <View style={styles.promptGrid}>
                         {quickPrompts.map(item => {
                             const active = prompt === item.text;
@@ -476,8 +604,11 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     onPress={() => {
                                         setPrompt(entry.prompt.split(" · ")[0]);
                                         setGeneratedPrompt(entry.prompt);
-                                        setRecommendations(entry.recommendations);
+                                        setAllRecommendations(entry.recommendations);
                                         setCachedAt(entry.createdAt);
+                                        setExploration(
+                                            entry.exploration ?? "balanced",
+                                        );
                                     }}
                                     style={[
                                         styles.historyOption,
@@ -521,17 +652,65 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     </View>
                     <View style={styles.listHeaderActions}>
                         {recommendations.length ? (
-                            <TouchableOpacity
-                                accessibilityRole="button"
-                                accessibilityLabel={t("aiRecommend.refresh")}
-                                activeOpacity={0.7}
-                                disabled={loading}
-                                style={styles.headerAction}
-                                onPress={() => generate(undefined, true)}>
-                                <ThemeText fontSize="tag" color={colors.primary}>
-                                    {t("aiRecommend.refresh")}
-                                </ThemeText>
-                            </TouchableOpacity>
+                            <>
+                                <TouchableOpacity
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t("aiRecommend.playAll")}
+                                    accessibilityState={{ disabled: loading }}
+                                    activeOpacity={0.7}
+                                    disabled={loading}
+                                    style={[
+                                        styles.headerIconAction,
+                                        {
+                                            backgroundColor: colors.surfaceSecondary,
+                                            borderColor:
+                                                colors.controlBorder ?? colors.divider,
+                                        },
+                                        loading && styles.loadingButton,
+                                    ]}
+                                    onPress={playRecommendations}>
+                                    <Icon
+                                        name="motion-play"
+                                        size={rpx(20)}
+                                        color={colors.primary}
+                                    />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t(
+                                        "aiRecommend.saveToPlaylist",
+                                    )}
+                                    accessibilityState={{ disabled: loading }}
+                                    activeOpacity={0.7}
+                                    disabled={loading}
+                                    style={[
+                                        styles.headerIconAction,
+                                        {
+                                            backgroundColor: colors.surfaceSecondary,
+                                            borderColor:
+                                                colors.controlBorder ?? colors.divider,
+                                        },
+                                        loading && styles.loadingButton,
+                                    ]}
+                                    onPress={saveRecommendationsToPlaylist}>
+                                    <Icon
+                                        name="folder-plus"
+                                        size={rpx(20)}
+                                        color={colors.primary}
+                                    />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t("aiRecommend.refresh")}
+                                    activeOpacity={0.7}
+                                    disabled={loading}
+                                    style={styles.headerAction}
+                                    onPress={() => generate(undefined, true)}>
+                                    <ThemeText fontSize="tag" color={colors.primary}>
+                                        {t("aiRecommend.refresh")}
+                                    </ThemeText>
+                                </TouchableOpacity>
+                            </>
                         ) : null}
                         <TouchableOpacity
                             accessibilityRole="button"
@@ -540,6 +719,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                             style={styles.headerAction}
                             onPress={() => {
                                 clearIgnoredMusicRecommendationIds();
+                                setIgnoredMusicIds(new Set());
                                 Toast.success(t("aiRecommend.ignoredReset"));
                             }}>
                             <ThemeText fontSize="tag" color={colors.primary}>
@@ -555,6 +735,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                 onPress={() => {
                                     clearIgnoredMusicRecommendationIds();
                                     clearLikedMusicRecommendationIds();
+                                    setIgnoredMusicIds(new Set());
                                     setLikedMusicIds(new Set());
                                     Toast.success(
                                         t("aiRecommend.preferencesCleared"),
@@ -575,7 +756,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                 style={styles.headerAction}
                                 onPress={() => {
                                     clearMusicRecommendationCache();
-                                    setRecommendations([]);
+                                    setAllRecommendations([]);
                                     setGeneratedPrompt("");
                                     setCachedAt(undefined);
                                 }}>
@@ -765,19 +946,16 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     style={styles.ignoreButton}
                                     onPress={() => {
                                         ignoreMusicRecommendation(musicId);
-                                        setRecommendations(current => {
-                                            const next = current.filter(
-                                                item =>
-                                                    getMediaUniqueKey(
-                                                        item.music,
-                                                    ) !== musicId,
-                                            );
-                                            setMusicRecommendationCache({
-                                                prompt: generatedPrompt,
-                                                createdAt: cachedAt ?? Date.now(),
-                                                recommendations: next,
-                                            });
+                                        setIgnoredMusicIds(current => {
+                                            const next = new Set(current);
+                                            next.add(musicId);
                                             return next;
+                                        });
+                                        setMusicRecommendationCache({
+                                            prompt: generatedPrompt,
+                                            createdAt: cachedAt ?? Date.now(),
+                                            recommendations: allRecommendations,
+                                            exploration,
                                         });
                                     }}>
                                     <ThemeText
@@ -867,6 +1045,24 @@ const styles = StyleSheet.create({
         maxHeight: rpx(112),
         textAlignVertical: "top",
     },
+    explorationSection: {
+        gap: spacing.xs,
+    },
+    explorationControl: {
+        minHeight: rpx(50),
+        flexDirection: "row",
+        borderRadius: radius.sm,
+        padding: rpx(3),
+    },
+    explorationOption: {
+        flex: 1,
+        minWidth: 0,
+        minHeight: rpx(44),
+        borderRadius: radius.xs,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: spacing.xs,
+    },
     promptGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
@@ -916,6 +1112,14 @@ const styles = StyleSheet.create({
     },
     headerAction: {
         minHeight: rpx(44),
+        justifyContent: "center",
+    },
+    headerIconAction: {
+        width: rpx(44),
+        height: rpx(44),
+        borderRadius: radius.sm,
+        borderWidth: StyleSheet.hairlineWidth,
+        alignItems: "center",
         justifyContent: "center",
     },
     historySection: {

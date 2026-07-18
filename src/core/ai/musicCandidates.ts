@@ -1,11 +1,13 @@
 import PluginManager from "@/core/pluginManager";
 import { getMediaUniqueKey } from "@/utils/mediaUtils";
 import { AIError } from "./client";
+import type { MusicRecommendationExplorationLevel } from "./musicRecommendation";
 
 const MAX_PLUGINS = 3;
-const MAX_QUERIES_PER_PLUGIN = 2;
+const MAX_QUERIES_PER_PLUGIN = 3;
 const MAX_PER_REQUEST = 10;
 const MAX_CANDIDATES = 48;
+const DISCOVERY_QUERIES = ["独立 新歌", "热门新歌"];
 
 const SCENE_QUERIES: Array<[RegExp, string]> = [
     [/通勤|commut/i, "轻快 节奏"],
@@ -24,15 +26,30 @@ function normalizeQuery(value: string) {
 export function extractMusicSearchQueries(
     prompt: string,
     history: IMusic.IMusicItem[] = [],
+    exploration: MusicRecommendationExplorationLevel = "balanced",
 ) {
     const normalized = normalizeQuery(prompt);
     const queries: string[] = [];
+    const historyArtists = history
+        .map(item => item.artist?.trim())
+        .filter((artist): artist is string => !!artist)
+        .slice(0, 2);
     const add = (value?: string) => {
         const query = value?.trim();
         if (query && !queries.includes(query)) {
             queries.push(query);
         }
     };
+
+    if (normalized.length > 0) {
+        add(normalized.slice(0, 80));
+    }
+
+    if (exploration === "familiar") {
+        historyArtists.forEach(add);
+    } else if (exploration === "balanced") {
+        add(historyArtists[0]);
+    }
 
     for (const [pattern, query] of SCENE_QUERIES) {
         if (pattern.test(normalized)) {
@@ -46,17 +63,13 @@ export function extractMusicSearchQueries(
     );
     quoted.forEach(add);
 
-    if (normalized.length > 0 && normalized.length <= 24) {
-        add(normalized);
+    if (exploration === "explore") {
+        add(DISCOVERY_QUERIES[0]);
     }
 
-    history
-        .map(item => item.artist?.trim())
-        .filter(Boolean)
-        .slice(0, 2)
-        .forEach(add);
-
-    add("热门新歌");
+    if (!queries.length) {
+        add("热门新歌");
+    }
     return queries.slice(0, 3);
 }
 
@@ -94,6 +107,7 @@ export function normalizeMusicRecommendationCandidate(
 export async function collectMusicRecommendationCandidates(
     prompt: string,
     history: IMusic.IMusicItem[] = [],
+    exploration: MusicRecommendationExplorationLevel = "balanced",
 ): Promise<IMusic.IMusicItem[]> {
     const plugins = PluginManager.getSortedSearchablePlugins("music").slice(
         0,
@@ -103,7 +117,7 @@ export async function collectMusicRecommendationCandidates(
         throw new AIError("no-plugins", "No enabled music search plugin");
     }
 
-    const queries = extractMusicSearchQueries(prompt, history).slice(
+    const queries = extractMusicSearchQueries(prompt, history, exploration).slice(
         0,
         MAX_QUERIES_PER_PLUGIN,
     );

@@ -132,7 +132,6 @@ export default function LyricOperations(props: ILyricOperationsProps) {
                     }
 
                     setTranslating(true);
-                    Toast.success(t("aiTranslation.started"));
                     try {
                         const result =
                             await lyricManager.translateCurrentLyricWithAI();

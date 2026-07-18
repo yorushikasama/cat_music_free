@@ -29,6 +29,7 @@ import * as webdav from "webdav";
 import { devLog, errorLog, trace } from "../../utils/log";
 import Network from "../../utils/network";
 import MediaCache from "../mediaCache";
+import { readLocalLyricFiles } from "../localLyricFiles";
 import _internalPluginMeta from "./meta";
 import { IPluginManager } from "@/types/core/pluginManager";
 
@@ -396,43 +397,13 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
         let translation: string | null = null;
 
         // 2. 本地手动设置的歌词
-        const platformHash = CryptoJs.MD5(musicItem.platform).toString(
-            CryptoJs.enc.Hex,
-        );
-        const idHash = CryptoJs.MD5(musicItem.id).toString(CryptoJs.enc.Hex);
-        if (
-            await RNFS.exists(
-                pathConst.localLrcPath + platformHash + "/" + idHash + ".lrc",
-            )
-        ) {
-            rawLrc = await RNFS.readFile(
-                pathConst.localLrcPath + platformHash + "/" + idHash + ".lrc",
-                "utf8",
-            );
-
-            if (
-                await RNFS.exists(
-                    pathConst.localLrcPath +
-                    platformHash +
-                    "/" +
-                    idHash +
-                    ".tran.lrc",
-                )
-            ) {
-                translation =
-                    (await RNFS.readFile(
-                        pathConst.localLrcPath +
-                        platformHash +
-                        "/" +
-                        idHash +
-                        ".tran.lrc",
-                        "utf8",
-                    )) || null;
-            }
+        const localLyricFiles = await readLocalLyricFiles(musicItem, RNFS);
+        if (localLyricFiles.rawLrc) {
+            rawLrc = localLyricFiles.rawLrc;
 
             return {
                 rawLrc,
-                translation: translation || undefined,
+                translation: localLyricFiles.translation,
             };
         }
 
@@ -449,7 +420,8 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
             if (cacheLyric?.rawLrc || cacheLyric?.translation) {
                 return {
                     rawLrc: cacheLyric?.rawLrc,
-                    translation: cacheLyric?.translation,
+                    translation:
+                        localLyricFiles.translation || cacheLyric?.translation,
                 };
             }
 
@@ -476,10 +448,18 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 if (!needRefetch && (rawLrc || translation)) {
                     return {
                         rawLrc: rawLrc || undefined,
-                        translation: translation || undefined,
+                        translation:
+                            localLyricFiles.translation || translation || undefined,
                     };
                 }
             }
+        }
+
+        if (rawLrc && localLyricFiles.translation) {
+            return {
+                rawLrc,
+                translation: localLyricFiles.translation,
+            };
         }
 
         // 3. 无缓存歌词/无自带歌词/无本地歌词
@@ -501,7 +481,8 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
 
         if (lrcSource) {
             rawLrc = lrcSource?.rawLrc || rawLrc;
-            translation = lrcSource?.translation || null;
+            translation =
+                localLyricFiles.translation || lrcSource?.translation || null;
 
             const deprecatedLrcUrl = lrcSource?.lrc || musicItem.lrc;
 
