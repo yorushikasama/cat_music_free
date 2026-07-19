@@ -18,6 +18,8 @@
     "connect-mumu": "adb kill-server & adb connect localhost:7555",
     "build-android": "cd .\\android\\ && .\\gradlew assembleRelease",
     "release:app": "node tools/release-app.mjs",
+    "release:resume": "node tools/release-app.mjs --resume",
+    "release:check": "node tools/release-app.mjs --dry-run",
     "generate-assets": "node ./generator/generate-assets.mjs",
     "prepare": "husky"
   },

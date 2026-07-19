@@ -53,6 +53,7 @@ yarn-error.log
 keystore.properties
 build-config.json
 release/v*/
+.release-state.json
 .VSCodeCounter/
 
 .vscode/
