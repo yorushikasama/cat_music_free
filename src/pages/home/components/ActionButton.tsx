@@ -39,7 +39,11 @@ export default function ActionButton(props: IActionButtonProps) {
 
     return (
         <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={title}
+            accessibilityState={{ disabled: !action }}
             onPress={action}
+            disabled={!action}
             activeOpacity={0.7}
             style={[
                 styles.wrapper,
@@ -55,11 +59,7 @@ export default function ActionButton(props: IActionButtonProps) {
                 reducedTransparencyFallbackColor={colors.surfaceSecondary}
             />
             <View style={styles.content}>
-                <View
-                    style={[
-                        styles.iconContainer,
-                        iconContainerColorStyle,
-                    ]}>
+                <View style={[styles.iconContainer, iconContainerColorStyle]}>
                     {showAcgMascot ? (
                         <Image
                             source={acgMascot}

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Toast from "@/utils/toast";
 import { StyleSheet, View } from "react-native";
 import rpx, { vmax, vw } from "@/utils/rpx";
 
@@ -13,6 +14,7 @@ import NoPlugin from "@/components/base/noPlugin";
 import { useI18N } from "@/core/i18n";
 import SearchInput from "@/components/base/searchInput";
 import SourceTabBar from "@/components/base/sourceTabBar";
+import searchResultStore from "./searchResultStore";
 
 interface INewMusicSheetProps {
     musicItem?: IMusic.IMusicItem | null;
@@ -26,18 +28,45 @@ export default function SearchLrc(props: INewMusicSheetProps) {
     const { t } = useI18N();
 
     const searchLrc = useSearchLrc();
+    const [searching, setSearching] = useState(false);
+    const searchLockRef = useRef(false);
+    const activeQueryRef = useRef("");
+
+    const handleSearch = useCallback(async (query: string) => {
+        if (searchLockRef.current) {
+            return;
+        }
+
+        searchLockRef.current = true;
+        setSearching(true);
+        activeQueryRef.current = query;
+        try {
+            await searchLrc(query, 1);
+            const results = searchResultStore.getValue().data;
+            const hasResult = Object.values(results).some(
+                result => result?.data?.length,
+            );
+            if (activeQueryRef.current === query && !hasResult) {
+                Toast.warn(t("common.emptyListDescription"));
+            }
+        } finally {
+            searchLockRef.current = false;
+            setSearching(false);
+        }
+    }, [searchLrc, t]);
 
     useEffect(() => {
         if (musicItem) {
-            searchLrc(musicItem.alias || musicItem.title, 1);
+            handleSearch(musicItem.alias || musicItem.title);
         }
-    }, [musicItem, searchLrc]);
+    }, [handleSearch, musicItem]);
 
     return (
         <PanelBase
             keyboardAvoidBehavior="none"
             height={vmax(80)}
             positionMethod='top'
+            dismissDisabled={searching}
             renderBody={() => (
                 <View style={style.wrapper}>
                     <View style={style.titleContainer}>
@@ -46,20 +75,26 @@ export default function SearchLrc(props: INewMusicSheetProps) {
                             onChangeText={_ => {
                                 setInput(_);
                             }}
+                            editable={!searching}
                             onSubmitEditing={() => {
-                                searchLrc(input, 1);
+                                handleSearch(input);
                             }}
                             containerStyle={style.input}
                             placeholder={t("panel.searchLrc.inputPlaceholder")}
                             maxLength={80}
                             onClear={() => {
+                                if (searching) {
+                                    return;
+                                }
                                 setInput("");
                             }}
                         />
                         <Button
                             style={style.searchBtn}
+                            loading={searching}
+                            disabled={searching}
                             onPress={() => {
-                                searchLrc(input, 1);
+                                handleSearch(input);
                             }}>
                             {t("common.search")}
                         </Button>

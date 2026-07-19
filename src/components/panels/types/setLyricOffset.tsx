@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import ThemeText from "@/components/base/themeText";
 
 import PanelBase from "../base/panelBase";
 import { iconSizeConst } from "@/constants/uiConst";
 import PanelHeader from "../base/panelHeader";
-import { TouchableOpacity } from "react-native-gesture-handler";
 import { hidePanel } from "../usePanel";
 import useColors from "@/hooks/useColors";
 import Icon from "@/components/base/icon.tsx";
@@ -24,7 +23,7 @@ export default function SetLyricOffset(props: IProps) {
     const { t } = useI18N();
 
     const [offset, setOffset] = useState(
-        getMediaExtraProperty(musicItem, "lyricOffset") ?? 0
+        getMediaExtraProperty(musicItem, "lyricOffset") ?? 0,
     );
 
     const colors = useColors();
@@ -43,15 +42,23 @@ export default function SetLyricOffset(props: IProps) {
             renderBody={() => (
                 <>
                     <PanelHeader
-                        title={t("panel.setLyricOffset.title", { status: titleStr })}
+                        title={t("panel.setLyricOffset.title", {
+                            status: titleStr,
+                        })}
                         onOk={() => {
                             onSubmit?.(offset);
                         }}
                         onCancel={hidePanel}
                     />
                     <View style={styles.container}>
-                        <TouchableOpacity
-                            style={styles.btn}
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="-0.2s"
+                            android_ripple={{ color: colors.pressedOverlay }}
+                            style={({ pressed }) => [
+                                styles.btn,
+                                pressed ? styles.btnPressed : null,
+                            ]}
                             onPress={() => {
                                 setOffset(prev => prev - 0.2);
                             }}>
@@ -61,9 +68,15 @@ export default function SetLyricOffset(props: IProps) {
                                 color={colors.text}
                             />
                             <ThemeText>-0.2s</ThemeText>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.btn}
+                        </Pressable>
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("panel.setLyricOffset.reset")}
+                            android_ripple={{ color: colors.pressedOverlay }}
+                            style={({ pressed }) => [
+                                styles.btn,
+                                pressed ? styles.btnPressed : null,
+                            ]}
                             onPress={() => {
                                 setOffset(0);
                             }}>
@@ -72,10 +85,18 @@ export default function SetLyricOffset(props: IProps) {
                                 size={iconSizeConst.big}
                                 color={colors.text}
                             />
-                            <ThemeText>{t("panel.setLyricOffset.reset")}</ThemeText>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.btn}
+                            <ThemeText>
+                                {t("panel.setLyricOffset.reset")}
+                            </ThemeText>
+                        </Pressable>
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="+0.2s"
+                            android_ripple={{ color: colors.pressedOverlay }}
+                            style={({ pressed }) => [
+                                styles.btn,
+                                pressed ? styles.btnPressed : null,
+                            ]}
                             onPress={() => {
                                 setOffset(prev => prev + 0.2);
                             }}>
@@ -85,7 +106,7 @@ export default function SetLyricOffset(props: IProps) {
                                 color={colors.text}
                             />
                             <ThemeText>+0.2s</ThemeText>
-                        </TouchableOpacity>
+                        </Pressable>
                     </View>
                 </>
             )}
@@ -113,5 +134,8 @@ const styles = StyleSheet.create({
         height: rpx(144),
         alignItems: "center",
         justifyContent: "space-around",
+    },
+    btnPressed: {
+        opacity: 0.68,
     },
 });

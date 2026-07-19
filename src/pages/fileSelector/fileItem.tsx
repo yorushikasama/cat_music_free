@@ -17,6 +17,7 @@ interface IProps {
     checked?: boolean;
     onItemPress: (currentChecked?: boolean) => void;
     onCheckedChange: (checked: boolean) => void;
+    disabled?: boolean;
 }
 
 function FileItem(props: IProps) {
@@ -27,6 +28,7 @@ function FileItem(props: IProps) {
         checked,
         onItemPress,
         onCheckedChange: onCheckChange,
+        disabled = false,
     } = props;
 
     const colors = useColors();
@@ -47,6 +49,7 @@ function FileItem(props: IProps) {
             heightType="small"
             withHorizontalPadding
             selected={checked}
+            disabled={disabled}
             style={styles.container}
             onPress={() => {
                 onItemPress(checked);
@@ -85,6 +88,11 @@ function FileItem(props: IProps) {
                 </ThemeText>
             </View>
             <TouchableOpacity
+                accessibilityRole="checkbox"
+                accessibilityLabel={title}
+                accessibilityState={{ checked: !!checked, disabled }}
+                disabled={disabled}
+                activeOpacity={0.68}
                 onPress={() => {
                     onCheckChange(!checked);
                 }}
@@ -99,6 +107,7 @@ export default memo(
     FileItem,
     (prev, curr) =>
         prev.checked === curr.checked &&
+        prev.disabled === curr.disabled &&
         prev.parentPath === curr.parentPath &&
         prev.path === curr.path,
 );

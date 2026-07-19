@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import React, { useMemo, useRef, useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet } from "react-native";
 import rpx, { vmax } from "@/utils/rpx";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PanelBase from "../base/panelBase";
@@ -10,6 +10,7 @@ import Icon, { IIconName } from "@/components/base/icon";
 import useColors from "@/hooks/useColors";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
+import Toast from "@/utils/toast";
 
 interface ICandidateItem {
     title?: string;
@@ -22,7 +23,7 @@ interface ISimpleSelectProps {
     height?: number;
     header?: string;
     candidates?: Array<ICandidateItem>;
-    onPress?: (item: ICandidateItem) => void;
+    onPress?: (item: ICandidateItem) => void | Promise<void>;
 }
 
 export default function SimpleSelect(props: ISimpleSelectProps) {
@@ -35,6 +36,8 @@ export default function SimpleSelect(props: ISimpleSelectProps) {
 
     const safeAreaInsets = useSafeAreaInsets();
     const colors = useColors();
+    const [selectingIndex, setSelectingIndex] = useState<number | null>(null);
+    const selectionLockRef = useRef(false);
     const panelHeight = useMemo(() => {
         if (height) {
             return height;
@@ -51,6 +54,7 @@ export default function SimpleSelect(props: ISimpleSelectProps) {
     return (
         <PanelBase
             height={panelHeight}
+            dismissDisabled={selectingIndex !== null}
             renderBody={() => (
                 <>
                     <PanelHeader title={header} hideButtons />
@@ -77,9 +81,27 @@ export default function SimpleSelect(props: ISimpleSelectProps) {
                                         },
                                     ]}
                                     onPress={() => {
-                                        onPress?.(it);
-                                        hidePanel();
-                                    }}>
+                                        if (selectionLockRef.current) {
+                                            return;
+                                        }
+                                        selectionLockRef.current = true;
+                                        setSelectingIndex(index);
+                                        Promise.resolve(onPress?.(it))
+                                            .then(() => {
+                                                hidePanel();
+                                            })
+                                            .catch((error: any) => {
+                                                Toast.warn(
+                                                    error?.message ??
+                                                        "操作失败，请稍后重试",
+                                                );
+                                            })
+                                            .finally(() => {
+                                                selectionLockRef.current = false;
+                                                setSelectingIndex(null);
+                                            });
+                                    }}
+                                    disabled={selectingIndex !== null}>
                                     {it.icon ? (
                                         <ListItem.ListItemIcon
                                             icon={it.icon}
@@ -90,11 +112,18 @@ export default function SimpleSelect(props: ISimpleSelectProps) {
                                         title={it.title ?? it.value}
                                         description={it.description}
                                     />
-                                    <Icon
-                                        name="chevron-right"
-                                        size={rpx(28)}
-                                        color={colors.textSecondary}
-                                    />
+                                    {selectingIndex === index ? (
+                                        <ActivityIndicator
+                                            color={colors.primary}
+                                            size="small"
+                                        />
+                                    ) : (
+                                        <Icon
+                                            name="chevron-right"
+                                            size={rpx(28)}
+                                            color={colors.textSecondary}
+                                        />
+                                    )}
                                 </ListItem>
                             );
                         })}

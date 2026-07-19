@@ -30,6 +30,26 @@ export interface ILanguageData {
     "common.confirm": string; // 确认
     "common.view": string; // 查看
     "common.open": string; // 打开
+    "a11y.add": string;
+    "a11y.addToPlaylist": string;
+    "a11y.back": string;
+    "a11y.favorite": string;
+    "a11y.fontSize": string;
+    "a11y.help": string;
+    "a11y.lyricOffset": string;
+    "a11y.lyricOptions": string;
+    "a11y.locateCurrentTrack": string;
+    "a11y.moreOptions": string;
+    "a11y.pause": string;
+    "a11y.refresh": string;
+    "a11y.remove": string;
+    "a11y.searchLyrics": string;
+    "a11y.seekToLyric": string;
+    "a11y.share": string;
+    "a11y.next": string;
+    "a11y.previous": string;
+    "a11y.repeatMode": string;
+    "a11y.unfavorite": string;
     "common.username": string; // 用户名
     "common.password": string; // 密码
     "common.cover": string; // 封面
@@ -107,6 +127,7 @@ export interface ILanguageData {
     "toast.commmentNotAvaliableForCurrentMusic": string; // 当前音乐无法进行评论
     "toast.addToNextPlay": string; // 添加到下一曲
     "toast.beginDownload": string; // 开始下载
+    "toast.downloadAlreadyQueued": string; // 已下载或已在下载队列
     "toast.rememberToSave": string; // 请记得保存
 
     // 本地音乐相关
@@ -517,6 +538,7 @@ export interface ILanguageData {
     "dialog.setScheduleCloseTime.placeholder": string; // 请输入时间
     "dialog.setScheduleCloseTime.unit": string; // 分钟
     "dialog.setScheduleCloseTime.hint": string; // 最长支持设置24小时（1440分钟）
+    "dialog.setScheduleCloseTime.invalid": string;
 
     // 提示消息相关 - 缓存和日志
     "toast.cacheSetSuccess": string; // 设置成功
@@ -670,7 +692,11 @@ export interface ILanguageData {
     "panel.timingClose.minute": string; // 分钟
     "panel.timingClose.customize": string; // 自定义
     "panel.timingClose.cancelScheduleClose": string; // 取消定时关闭
+    "panel.timingClose.scheduleCancelled": string;
+    "panel.timingClose.scheduleSet": string;
     "panel.timingClose.closeAfterPlay": string; // 播放完歌曲再关闭
+    "panel.timingClose.closeAfterPlayDisabled": string;
+    "panel.timingClose.closeAfterPlayEnabled": string;
     "panel.timingClose.closeAfterPlayDesc": string; // 倒计时结束后等待当前歌曲播放完
 
     // 面板相关 - 播放速度

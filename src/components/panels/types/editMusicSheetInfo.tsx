@@ -14,8 +14,15 @@ import { addFileScheme, addRandomHash } from "@/utils/fileUtils.ts";
 import rpx, { vmax } from "@/utils/rpx";
 import Toast from "@/utils/toast.ts";
 import { readAsStringAsync } from "expo-file-system";
-import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import {
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import { exists, unlink, writeFile } from "react-native-fs";
 import { launchImageLibrary } from "react-native-image-picker";
 import { radius } from "@/constants/borderRadius";
@@ -23,7 +30,7 @@ import { spacing } from "@/constants/spacing";
 import Color from "color";
 
 interface IEditSheetDetailProps {
-  musicSheet: IMusic.IMusicSheetItem;
+    musicSheet: IMusic.IMusicSheetItem;
 }
 
 export default function EditMusicSheetInfo(props: IEditSheetDetailProps) {
@@ -33,8 +40,15 @@ export default function EditMusicSheetInfo(props: IEditSheetDetailProps) {
 
     const [coverImg, setCoverImg] = useState(musicSheet?.coverImg);
     const [title, setTitle] = useState(musicSheet?.title);
+    const [selectingCover, setSelectingCover] = useState(false);
+    const [saving, setSaving] = useState(false);
 
-    const onChangeCoverPress = async () => {
+    const onChangeCoverPress = useCallback(async () => {
+        if (selectingCover) {
+            return;
+        }
+
+        setSelectingCover(true);
         try {
             const result = await launchImageLibrary({
                 mediaType: "photo",
@@ -43,36 +57,42 @@ export default function EditMusicSheetInfo(props: IEditSheetDetailProps) {
             if (!uri) {
                 return;
             }
-            console.log(uri);
             setCoverImg(uri);
-        } catch (e) {
-            console.log(e);
+        } catch (e: any) {
+            Toast.warn(t("toast.unknownError", { reason: e?.message ?? "" }));
+        } finally {
+            setSelectingCover(false);
         }
-    };
+    }, [selectingCover, t]);
 
     function onTitleChange(_: string) {
         setTitle(_);
     }
 
-    async function onConfirm() {
-    // 判断是否相同
-        if (
-            coverImg === musicSheet?.coverImg &&
-      title === musicSheet?.title
-        ) {
-            hidePanel();
+    const onConfirm = useCallback(async () => {
+        if (saving) {
             return;
         }
 
-        let newCoverImg = coverImg;
-        if (coverImg && coverImg !== musicSheet?.coverImg) {
-            newCoverImg = addFileScheme(
-                `${pathConst.dataPath}sheet${musicSheet.id}${coverImg.substring(
-                    coverImg.lastIndexOf("."),
-                )}`,
-            );
-            try {
-                if ((await exists(newCoverImg))) {
+        setSaving(true);
+        try {
+            // 判断是否相同
+            if (
+                coverImg === musicSheet?.coverImg &&
+                title === musicSheet?.title
+            ) {
+                hidePanel();
+                return;
+            }
+
+            let newCoverImg = coverImg;
+            if (coverImg && coverImg !== musicSheet?.coverImg) {
+                newCoverImg = addFileScheme(
+                    `${pathConst.dataPath}sheet${
+                        musicSheet.id
+                    }${coverImg.substring(coverImg.lastIndexOf("."))}`,
+                );
+                if (await exists(newCoverImg)) {
                     await unlink(newCoverImg);
                 }
 
@@ -81,33 +101,40 @@ export default function EditMusicSheetInfo(props: IEditSheetDetailProps) {
                     encoding: "base64",
                 });
                 await writeFile(newCoverImg, rawImage, "base64");
-            } catch (e) {
-                console.log(e);
             }
-        }
-        let _title = title;
-        if (!_title?.length) {
-            _title = musicSheet.title;
-        }
-        // 更新歌单信息
-        MusicSheet.updateMusicSheetBase(musicSheet.id, {
-            coverImg: newCoverImg ? addRandomHash(newCoverImg) : undefined,
-            title: _title,
-        }).then(() => {
+
+            let _title = title;
+            if (!_title?.length) {
+                _title = musicSheet.title;
+            }
+            // 更新歌单信息
+            await MusicSheet.updateMusicSheetBase(musicSheet.id, {
+                coverImg: newCoverImg ? addRandomHash(newCoverImg) : undefined,
+                title: _title,
+            });
             Toast.success(t("panel.editMusicSheetInfo.toast.updateSuccess"));
-        });
-        hidePanel();
-    }
+            hidePanel();
+        } catch (e: any) {
+            Toast.warn(t("toast.unknownError", { reason: e?.message ?? "" }));
+        } finally {
+            setSaving(false);
+        }
+    }, [coverImg, musicSheet, saving, t, title]);
 
     return (
         <PanelBase
             keyboardAvoidBehavior="height"
             height={vmax(58)}
+            dismissDisabled={selectingCover || saving}
             renderBody={() => (
                 <>
                     <PanelHeader
                         title={t("panel.editMusicSheetInfo.title")}
-                        onCancel={hidePanel}
+                        onCancel={() => {
+                            if (!selectingCover && !saving) {
+                                hidePanel();
+                            }
+                        }}
                         onOk={onConfirm}
                     />
                     <ScrollView
@@ -123,20 +150,34 @@ export default function EditMusicSheetInfo(props: IEditSheetDetailProps) {
                                 },
                             ]}>
                             <TouchableOpacity
+                                accessibilityRole="button"
+                                accessibilityLabel={t("common.cover")}
+                                accessibilityState={{ busy: selectingCover }}
                                 activeOpacity={0.82}
+                                disabled={selectingCover || saving}
                                 onPress={onChangeCoverPress}
                                 onLongPress={() => {
+                                    if (selectingCover || saving) {
+                                        return;
+                                    }
                                     setCoverImg(undefined);
                                 }}
                                 style={[
                                     style.coverButton,
                                     { shadowColor: colors.shadow },
                                 ]}>
-                                <Image
-                                    style={style.coverImg}
-                                    uri={coverImg}
-                                    emptySrc={ImgAsset.albumDefault}
-                                />
+                                {selectingCover ? (
+                                    <ActivityIndicator
+                                        color={colors.primary}
+                                        size="small"
+                                    />
+                                ) : (
+                                    <Image
+                                        style={style.coverImg}
+                                        uri={coverImg}
+                                        emptySrc={ImgAsset.albumDefault}
+                                    />
+                                )}
                             </TouchableOpacity>
                             <View style={style.coverCopy}>
                                 <ThemeText
@@ -171,6 +212,7 @@ export default function EditMusicSheetInfo(props: IEditSheetDetailProps) {
                             <Input
                                 numberOfLines={1}
                                 value={title}
+                                editable={!selectingCover && !saving}
                                 hasHorizontalPadding={false}
                                 onChangeText={onTitleChange}
                                 style={[
@@ -188,20 +230,31 @@ export default function EditMusicSheetInfo(props: IEditSheetDetailProps) {
 
                         <Pressable
                             accessibilityRole="button"
+                            accessibilityLabel={t("common.confirm")}
+                            accessibilityState={{ busy: saving }}
+                            android_ripple={{ color: "rgba(255,255,255,0.22)" }}
+                            disabled={saving}
                             onPress={onConfirm}
                             style={({ pressed }) => [
                                 style.primaryButton,
                                 {
                                     backgroundColor: colors.primary,
-                                    opacity: pressed ? 0.82 : 1,
+                                    opacity: saving ? 0.62 : pressed ? 0.82 : 1,
                                 },
                             ]}>
-                            <ThemeText
-                                fontSize="subTitle"
-                                fontWeight="semibold"
-                                color="#ffffff">
-                                {t("common.confirm")}
-                            </ThemeText>
+                            {saving ? (
+                                <ActivityIndicator
+                                    color="#ffffff"
+                                    size="small"
+                                />
+                            ) : (
+                                <ThemeText
+                                    fontSize="subTitle"
+                                    fontWeight="semibold"
+                                    color="#ffffff">
+                                    {t("common.confirm")}
+                                </ThemeText>
+                            )}
                         </Pressable>
                     </ScrollView>
                 </>

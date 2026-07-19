@@ -30,7 +30,13 @@ export default function TypeTag(props: ITypeTagProps) {
     } = props;
     const colors = useColors();
     return (
-        <TouchableOpacity onPress={onPress}>
+        <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={title}
+            accessibilityState={{ selected, disabled: !onPress }}
+            activeOpacity={0.72}
+            disabled={!onPress}
+            onPress={onPress}>
             <View
                 style={[
                     style.wrapper,

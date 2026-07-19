@@ -19,11 +19,18 @@ export default function Chip(props: IChipProps) {
 
     return (
         <Pressable
+            accessibilityRole={onPress ? "button" : undefined}
+            android_ripple={
+                onPress ? { color: colors.pressedOverlay } : undefined
+            }
+            disabled={!onPress}
             onPress={onPress}
-            style={[
+            style={({ pressed }) => [
                 styles.container,
                 {
-                    backgroundColor: colors.placeholder,
+                    backgroundColor: pressed
+                        ? colors.pressedOverlay
+                        : colors.placeholder,
                 },
                 containerStyle,
             ]}>
@@ -39,6 +46,7 @@ export default function Chip(props: IChipProps) {
                 name="x-mark"
                 sizeType="small"
                 style={styles.icon}
+                disabled={!onClose}
             />
         </Pressable>
     );

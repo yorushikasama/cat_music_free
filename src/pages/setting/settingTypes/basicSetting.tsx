@@ -27,7 +27,14 @@ import Clipboard from "@react-native-clipboard/clipboard";
 import Slider from "@react-native-community/slider";
 import Color from "color";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, SectionList, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+    ActivityIndicator,
+    AppState,
+    SectionList,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import type { ViewToken } from "react-native";
 import { FlatList, ScrollView } from "react-native-gesture-handler";
 import { requestNotificationPermission } from "@/utils/notificationPermission";
@@ -94,16 +101,20 @@ function useCacheSize() {
     });
 
     const refreshCacheSize = useCallback(async () => {
-        const [musicCache, lyricCache, imageCache] = await Promise.all([
-            getCacheSize("music"),
-            getCacheSize("lyric"),
-            getCacheSize("image"),
-        ]);
-        setCacheSize({
-            music: musicCache,
-            lyric: lyricCache,
-            image: imageCache,
-        });
+        try {
+            const [musicCache, lyricCache, imageCache] = await Promise.all([
+                getCacheSize("music"),
+                getCacheSize("lyric"),
+                getCacheSize("image"),
+            ]);
+            setCacheSize({
+                music: musicCache,
+                lyric: lyricCache,
+                image: imageCache,
+            });
+        } catch {
+            // 缓存容量读取失败不应影响设置页的其它操作。
+        }
     }, []);
 
     return [cacheSize, refreshCacheSize] as const;
@@ -537,7 +548,7 @@ export default function BasicSetting() {
                             async onOk() {
                                 await clearCache("music");
                                 Toast.success(t("toast.musicCacheCleared"));
-                                refreshCacheSize();
+                                await refreshCacheSize();
                             },
                         });
                     },
@@ -556,7 +567,7 @@ export default function BasicSetting() {
                             async onOk() {
                                 await clearCache("lyric");
                                 Toast.success(t("toast.lyricCacheCleared"));
-                                refreshCacheSize();
+                                await refreshCacheSize();
                             },
                         });
                     },
@@ -575,7 +586,7 @@ export default function BasicSetting() {
                             async onOk() {
                                 await clearCache("image");
                                 Toast.success(t("toast.imageCacheCleared"));
-                                refreshCacheSize();
+                                await refreshCacheSize();
                             },
                         });
                     },
@@ -604,23 +615,31 @@ export default function BasicSetting() {
                     title: t("basicSettings.developer.viewErrorLog"),
                     right: undefined,
                     async onPress() {
-                        const errorLogContent = await getErrorLogContent();
-                        showDialog("SimpleDialog", {
-                            title: t("dialog.errorLogTitle"),
-                            content: (
-                                <ScrollView>
-                                    <Paragraph>
-                                        {errorLogContent || t("dialog.errorLogNoRecord")}
-                                    </Paragraph>
-                                </ScrollView>
-                            ),
-                            cancelText: t("dialog.errorLogKnow"),
-                            okText: t("dialog.errorLogCopy"),
-                            onOk() {
-                                Clipboard.setString(errorLogContent);
-                                Toast.success(t("toast.copiedToClipboard"));
-                            },
-                        });
+                        try {
+                            const errorLogContent = await getErrorLogContent();
+                            showDialog("SimpleDialog", {
+                                title: t("dialog.errorLogTitle"),
+                                content: (
+                                    <ScrollView>
+                                        <Paragraph>
+                                            {errorLogContent || t("dialog.errorLogNoRecord")}
+                                        </Paragraph>
+                                    </ScrollView>
+                                ),
+                                cancelText: t("dialog.errorLogKnow"),
+                                okText: t("dialog.errorLogCopy"),
+                                onOk() {
+                                    Clipboard.setString(errorLogContent);
+                                    Toast.success(t("toast.copiedToClipboard"));
+                                },
+                            });
+                        } catch (error: any) {
+                            Toast.warn(
+                                t("toast.unknownError", {
+                                    reason: error?.message ?? error,
+                                }),
+                            );
+                        }
                     },
                 },
                 {
@@ -630,7 +649,13 @@ export default function BasicSetting() {
                         try {
                             await clearLog();
                             Toast.success(t("toast.logCleared"));
-                        } catch { }
+                        } catch (error: any) {
+                            Toast.warn(
+                                t("toast.unknownError", {
+                                    reason: error?.message ?? error,
+                                }),
+                            );
+                        }
                     },
                 },
             ],
@@ -841,29 +866,44 @@ function LyricSetting() {
 
     const { t } = useI18N();
     const pendingOpenStatusBarLyricRef = useRef(false);
+    const lyricRequestAppStateRef = useRef(AppState.currentState);
+    const [desktopLyricBusy, setDesktopLyricBusy] = useState(false);
 
     useEffect(() => {
         const subscription = AppState.addEventListener("change", async state => {
             if (
+                !lyricRequestAppStateRef.current.match(/inactive|background/) ||
                 state !== "active" ||
                 !pendingOpenStatusBarLyricRef.current
             ) {
+                lyricRequestAppStateRef.current = state;
                 return;
             }
 
             pendingOpenStatusBarLyricRef.current = false;
-            const hasPermission = await LyricUtil.checkSystemAlertPermission();
-            if (hasPermission) {
-                await LyricUtil.showStatusBarLyric(
-                    "CatMusicFree",
-                    getStatusBarLyricConfig(),
-                );
-                Config.setConfig("lyric.showStatusBarLyric", true);
+            lyricRequestAppStateRef.current = state;
+            try {
+                const hasPermission =
+                    await LyricUtil.checkSystemAlertPermission();
+                if (hasPermission) {
+                    await LyricUtil.showStatusBarLyric(
+                        "CatMusicFree",
+                        getStatusBarLyricConfig(),
+                    );
+                    Config.setConfig("lyric.showStatusBarLyric", true);
+                    Toast.success(t("toast.settingSuccess"));
+                } else {
+                    Toast.warn(t("toast.noFloatWindowPermission"));
+                }
+            } catch (error: any) {
+                Toast.warn(error?.message ?? t("toast.noFloatWindowPermission"));
+            } finally {
+                setDesktopLyricBusy(false);
             }
         });
 
         return () => subscription.remove();
-    }, []);
+    }, [t]);
 
     const autoSearchLyric = createSwitch(
         t("basicSettings.lyric.autoSearchLyric"),
@@ -876,6 +916,11 @@ function LyricSetting() {
         "lyric.showStatusBarLyric",
         showStatusBarLyric ?? false,
         async newValue => {
+            if (desktopLyricBusy) {
+                return;
+            }
+
+            setDesktopLyricBusy(true);
             try {
                 if (newValue) {
                     if (!(await requestNotificationPermission())) {
@@ -886,22 +931,29 @@ function LyricSetting() {
                         await LyricUtil.checkSystemAlertPermission();
 
                     if (hasPermission) {
-                        LyricUtil.showStatusBarLyric(
+                        await LyricUtil.showStatusBarLyric(
                             "CatMusicFree",
                             getStatusBarLyricConfig(),
                         );
                         Config.setConfig("lyric.showStatusBarLyric", true);
+                        Toast.success(t("toast.settingSuccess"));
                     } else {
                         pendingOpenStatusBarLyricRef.current = true;
-                        LyricUtil.requestSystemAlertPermission().finally(() => {
-                            Toast.warn(t("toast.noFloatWindowPermission"));
-                        });
+                        await LyricUtil.requestSystemAlertPermission();
+                        return;
                     }
                 } else {
-                    LyricUtil.hideStatusBarLyric();
+                    await LyricUtil.hideStatusBarLyric();
                     Config.setConfig("lyric.showStatusBarLyric", false);
+                    Toast.success(t("toast.settingSuccess"));
                 }
-            } catch { }
+            } catch (error: any) {
+                Toast.warn(error?.message ?? t("toast.noFloatWindowPermission"));
+            } finally {
+                if (!pendingOpenStatusBarLyricRef.current) {
+                    setDesktopLyricBusy(false);
+                }
+            }
         },
     );
 
@@ -1019,9 +1071,14 @@ function LyricSetting() {
             <ListItem
                 withHorizontalPadding
                 heightType="small"
+                disabled={desktopLyricBusy}
                 onPress={openStatusBarLyric.onPress}>
                 <ListItem.Content title={openStatusBarLyric.title} />
-                {openStatusBarLyric.right}
+                {desktopLyricBusy ? (
+                    <ActivityIndicator color={colors.primary} size="small" />
+                ) : (
+                    openStatusBarLyric.right
+                )}
             </ListItem>
             <ListItem
                 withHorizontalPadding

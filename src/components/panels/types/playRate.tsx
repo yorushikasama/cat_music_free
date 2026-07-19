@@ -1,5 +1,5 @@
-import React, { Fragment } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import React, { Fragment, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import rpx from "@/utils/rpx";
 import ThemeText from "@/components/base/themeText";
 
@@ -10,10 +10,11 @@ import { hidePanel } from "../usePanel";
 import Divider from "@/components/base/divider";
 import PanelHeader from "../base/panelHeader";
 import { useI18N } from "@/core/i18n";
+import useColors from "@/hooks/useColors";
 
 interface IPlayRateProps {
     /** 点击回调 */
-    onRatePress: (rate: number) => void;
+    onRatePress: (rate: number) => void | Promise<void>;
 }
 
 const rates = [50, 75, 100, 125, 150, 175, 200];
@@ -21,15 +22,38 @@ const rates = [50, 75, 100, 125, 150, 175, 200];
 export default function PlayRate(props: IPlayRateProps) {
     const { onRatePress } = props ?? {};
     const i18n = useI18N();
+    const colors = useColors();
 
     const safeAreaInsets = useSafeAreaInsets();
+    const [selectingRate, setSelectingRate] = useState<number | null>(null);
+    const selectionLockRef = useRef(false);
+
+    const handleRatePress = async (rate: number) => {
+        if (selectionLockRef.current) {
+            return;
+        }
+
+        selectionLockRef.current = true;
+        setSelectingRate(rate);
+        try {
+            await onRatePress(rate);
+            hidePanel();
+        } finally {
+            selectionLockRef.current = false;
+            setSelectingRate(null);
+        }
+    };
 
     return (
         <PanelBase
             height={rpx(520)}
+            dismissDisabled={selectingRate !== null}
             renderBody={() => (
                 <>
-                    <PanelHeader title={i18n.t("panel.playRate.title")} hideButtons />
+                    <PanelHeader
+                        title={i18n.t("panel.playRate.title")}
+                        hideButtons
+                    />
                     <ScrollView
                         style={[
                             style.body,
@@ -40,12 +64,29 @@ export default function PlayRate(props: IPlayRateProps) {
                                 <Fragment key={`frag-${key}`}>
                                     <Pressable
                                         key={`btn-${key}`}
-                                        style={style.item}
-                                        onPress={() => {
-                                            onRatePress(key);
-                                            hidePanel();
-                                        }}>
-                                        <ThemeText>{key / 100}x</ThemeText>
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`${key / 100}x`}
+                                        accessibilityState={{
+                                            busy: selectingRate === key,
+                                            disabled: selectingRate !== null,
+                                        }}
+                                        android_ripple={{
+                                            color: colors.pressedOverlay,
+                                        }}
+                                        disabled={selectingRate !== null}
+                                        style={({ pressed }) => [
+                                            style.item,
+                                            pressed ? style.itemPressed : null,
+                                        ]}
+                                        onPress={() => handleRatePress(key)}>
+                                        {selectingRate === key ? (
+                                            <ActivityIndicator
+                                                color={colors.primary}
+                                                size="small"
+                                            />
+                                        ) : (
+                                            <ThemeText>{key / 100}x</ThemeText>
+                                        )}
                                     </Pressable>
                                 </Fragment>
                             );
@@ -71,5 +112,8 @@ const style = StyleSheet.create({
     item: {
         height: rpx(96),
         justifyContent: "center",
+    },
+    itemPressed: {
+        opacity: 0.72,
     },
 });

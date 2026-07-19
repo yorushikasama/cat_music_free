@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import { SkeletonBlock } from "@/components/base/skeleton";
@@ -25,6 +25,7 @@ import { useI18N } from "@/core/i18n";
 import useColors from "@/hooks/useColors";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
+import Toast from "@/utils/toast";
 
 export default function () {
     const [history, setHistory] = useState<string[] | null>(null);
@@ -35,6 +36,8 @@ export default function () {
     const setSearchResultsState = useSetAtom(searchResultsAtom);
     const { t } = useI18N();
     const colors = useColors();
+    const [clearing, setClearing] = useState(false);
+    const clearLockRef = useRef(false);
 
     useEffect(() => {
         getHistory().then(setHistory);
@@ -72,9 +75,29 @@ export default function () {
                                 },
                             ]}
                             fontColor="textSecondary"
+                            loading={clearing}
+                            disabled={clearing}
                             onPress={async () => {
-                                await removeAllHistory();
-                                getHistory().then(setHistory);
+                                if (clearLockRef.current) {
+                                    return;
+                                }
+
+                                clearLockRef.current = true;
+                                setClearing(true);
+                                try {
+                                    await removeAllHistory();
+                                    setHistory(await getHistory());
+                                    Toast.success(t("toast.deleteSuccess"));
+                                } catch (error: any) {
+                                    Toast.warn(
+                                        t("toast.unknownError", {
+                                            reason: error?.message ?? error,
+                                        }),
+                                    );
+                                } finally {
+                                    clearLockRef.current = false;
+                                    setClearing(false);
+                                }
                             }}>
                             {t("common.clear")}
                         </Button>

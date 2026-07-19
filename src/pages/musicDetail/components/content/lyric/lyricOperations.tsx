@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 
 import TranslationIcon from "@/assets/icons/translation.svg";
 import { iconSizeConst } from "@/constants/uiConst";
-import Icon from "@/components/base/icon.tsx";
 import { hidePanel, showPanel } from "@/components/panels/usePanel";
 import { useAppConfig } from "@/core/appConfig";
 import lyricManager, { useLyricState } from "@/core/lyricManager";
@@ -21,6 +20,9 @@ import {
     isAIConfigured,
 } from "@/core/ai";
 import { useI18N } from "@/core/i18n";
+import { radius } from "@/constants/borderRadius";
+import { getDetailControlPalette } from "../../controlPalette";
+import IconButton from "@/components/base/iconButton";
 
 interface ILyricOperationsProps {
     scrollToCurrentLrcItem: () => void;
@@ -39,25 +41,28 @@ export default function LyricOperations(props: ILyricOperationsProps) {
         false,
     );
     const colors = useColors();
+    const palette = getDetailControlPalette(colors);
     const orientation = useOrientation();
     const theme = Theme.useTheme();
     const isRetro = theme.id === "p-retro";
     const isAcg = theme.id.startsWith("p-acg");
     const isEmeraldNight = theme.id === "p-emerald-night";
 
-    const iconColor = isEmeraldNight
-        ? colors.textSecondary
-        : (isAcg
-            ? colors.text
-            : (isRetro ? colors.text : "white"));
+    let iconColor: string | undefined = "white";
+    if (isEmeraldNight) {
+        iconColor = colors.textSecondary;
+    } else if (isAcg || isRetro) {
+        iconColor = colors.text;
+    }
 
     return (
         <View style={styles.container}>
             {orientation === "vertical" ? <HeartIcon /> : null}
-            <Icon
+            <IconButton
                 name="font-size"
-                size={iconSizeConst.normal}
+                sizeType="normal"
                 color={iconColor}
+                accessibilityLabel={t("a11y.fontSize")}
                 onPress={() => {
                     showPanel("SetFontSize", {
                         defaultSelect: detailFontSize ?? 1,
@@ -68,10 +73,11 @@ export default function LyricOperations(props: ILyricOperationsProps) {
                     });
                 }}
             />
-            <Icon
+            <IconButton
                 name="arrows-left-right"
-                size={iconSizeConst.normal}
+                sizeType="normal"
                 color={iconColor}
+                accessibilityLabel={t("a11y.lyricOffset")}
                 onPress={() => {
                     const currentMusicItem = TrackPlayer.currentMusic;
 
@@ -79,7 +85,10 @@ export default function LyricOperations(props: ILyricOperationsProps) {
                         showPanel("SetLyricOffset", {
                             musicItem: currentMusicItem,
                             onSubmit(offset) {
-                                lyricManager.updateLyricOffset(currentMusicItem, offset);
+                                lyricManager.updateLyricOffset(
+                                    currentMusicItem,
+                                    offset,
+                                );
                                 scrollToCurrentLrcItem();
                                 hidePanel();
                             },
@@ -88,10 +97,11 @@ export default function LyricOperations(props: ILyricOperationsProps) {
                 }}
             />
 
-            <Icon
+            <IconButton
                 name="magnifying-glass"
-                size={iconSizeConst.normal}
+                sizeType="normal"
                 color={iconColor}
+                accessibilityLabel={t("a11y.searchLyrics")}
                 onPress={() => {
                     const currentMusic = TrackPlayer.currentMusic;
                     if (!currentMusic) {
@@ -102,18 +112,27 @@ export default function LyricOperations(props: ILyricOperationsProps) {
                     });
                 }}
             />
-            <TranslationIcon
-                width={iconSizeConst.normal}
-                height={iconSizeConst.normal}
-                opacity={translating ? 0.35 : !hasTranslation ? 0.55 : showTranslation ? 1 : 0.5}
-                color={
-                    showTranslation && hasTranslation ? colors.primary : iconColor
-                }
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t(
+                    translating
+                        ? "aiTranslation.started"
+                        : "aiSettings.lyricTranslation",
+                )}
+                accessibilityState={{
+                    busy: translating,
+                    disabled: translating,
+                    selected: Boolean(hasTranslation && showTranslation),
+                }}
+                disabled={translating}
+                hitSlop={rpx(12)}
+                style={({ pressed }) => [
+                    styles.translationButton,
+                    pressed
+                        ? { backgroundColor: palette.pressedOverlay }
+                        : null,
+                ]}
                 onPress={async () => {
-                    if (translating) {
-                        return;
-                    }
-
                     if (hasTranslation) {
                         PersistStatus.set(
                             "lyric.showTranslation",
@@ -123,16 +142,19 @@ export default function LyricOperations(props: ILyricOperationsProps) {
                         return;
                     }
 
-                    if (!(await isAIConfigured())) {
-                        Toast.warn(t("aiTranslation.configureFirst"));
-                        return;
-                    }
-                    if (!(await ensureAIDataSharingConsent("translation"))) {
-                        return;
-                    }
-
                     setTranslating(true);
                     try {
+                        if (!(await isAIConfigured())) {
+                            Toast.warn(t("aiTranslation.configureFirst"));
+                            return;
+                        }
+                        if (
+                            !(await ensureAIDataSharingConsent("translation"))
+                        ) {
+                            return;
+                        }
+
+                        Toast.success(t("aiTranslation.started"));
                         const result =
                             await lyricManager.translateCurrentLyricWithAI();
                         if (result === "already-target") {
@@ -151,12 +173,30 @@ export default function LyricOperations(props: ILyricOperationsProps) {
                     } finally {
                         setTranslating(false);
                     }
-                }}
-            />
-            <Icon
+                }}>
+                {translating ? (
+                    <ActivityIndicator
+                        animating
+                        color={colors.primary}
+                        size="small"
+                    />
+                ) : (
+                    <TranslationIcon
+                        width={iconSizeConst.normal}
+                        height={iconSizeConst.normal}
+                        color={
+                            showTranslation && hasTranslation
+                                ? colors.primary
+                                : iconColor
+                        }
+                    />
+                )}
+            </Pressable>
+            <IconButton
                 name="ellipsis-vertical"
-                size={iconSizeConst.normal}
+                sizeType="normal"
                 color={iconColor}
+                accessibilityLabel={t("a11y.lyricOptions")}
                 onPress={() => {
                     const currentMusic = TrackPlayer.currentMusic;
                     if (currentMusic) {
@@ -171,6 +211,13 @@ export default function LyricOperations(props: ILyricOperationsProps) {
 }
 
 const styles = StyleSheet.create({
+    translationButton: {
+        width: iconSizeConst.normal,
+        height: iconSizeConst.normal,
+        borderRadius: radius.pill,
+        alignItems: "center",
+        justifyContent: "center",
+    },
     container: {
         height: rpx(88),
         marginBottom: rpx(16),

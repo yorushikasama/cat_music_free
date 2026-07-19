@@ -10,7 +10,13 @@ import { radius } from "@/constants/borderRadius";
 import rpx from "@/utils/rpx";
 import { ParticleEffectType } from "@/components/base/particleEffect";
 
-const EFFECT_OPTIONS: ParticleEffectType[] = ["none", "sakura", "snow", "star", "firefly"];
+const EFFECT_OPTIONS: ParticleEffectType[] = [
+    "none",
+    "sakura",
+    "snow",
+    "star",
+    "firefly",
+];
 
 const EFFECT_I18N_KEYS: Record<ParticleEffectType, string> = {
     none: "particleEffectNone",
@@ -26,8 +32,15 @@ export default function ParticleEffectSelector() {
     const currentEffect = useAppConfig("theme.particleEffect") ?? "none";
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.surfacePrimary }]}>
-            <ThemeText fontSize="subTitle" fontWeight="bold" style={styles.title}>
+        <View
+            style={[
+                styles.container,
+                { backgroundColor: colors.surfacePrimary },
+            ]}>
+            <ThemeText
+                fontSize="subTitle"
+                fontWeight="bold"
+                style={styles.title}>
                 {t("particleEffect")}
             </ThemeText>
             <View style={styles.optionList}>
@@ -44,23 +57,35 @@ export default function ParticleEffectSelector() {
                     return (
                         <TouchableOpacity
                             key={option}
+                            accessibilityRole="radio"
+                            accessibilityLabel={t(
+                                EFFECT_I18N_KEYS[option] as any,
+                            )}
+                            accessibilityState={{ selected: isSelected }}
                             activeOpacity={0.7}
-                            style={[
-                                styles.optionItem,
-                                optionStyle,
-                            ]}
+                            style={[styles.optionItem, optionStyle]}
                             onPress={() => {
-                                Config.setConfig("theme.particleEffect", option);
+                                Config.setConfig(
+                                    "theme.particleEffect",
+                                    option,
+                                );
                             }}>
-                            <View style={[
-                                styles.radioOuter,
-                                { borderColor: isSelected ? colors.primary : colors.divider },
-                            ]}>
+                            <View
+                                style={[
+                                    styles.radioOuter,
+                                    {
+                                        borderColor: isSelected
+                                            ? colors.primary
+                                            : colors.divider,
+                                    },
+                                ]}>
                                 {isSelected && (
-                                    <View style={[
-                                        styles.radioInner,
-                                        { backgroundColor: colors.primary },
-                                    ]} />
+                                    <View
+                                        style={[
+                                            styles.radioInner,
+                                            { backgroundColor: colors.primary },
+                                        ]}
+                                    />
                                 )}
                             </View>
                             <ThemeText
@@ -68,7 +93,11 @@ export default function ParticleEffectSelector() {
                                 fontWeight={isSelected ? "bold" : "regular"}
                                 style={[
                                     styles.optionLabel,
-                                    { color: isSelected ? colors.primary : colors.text },
+                                    {
+                                        color: isSelected
+                                            ? colors.primary
+                                            : colors.text,
+                                    },
                                 ]}>
                                 {t(EFFECT_I18N_KEYS[option] as any)}
                             </ThemeText>

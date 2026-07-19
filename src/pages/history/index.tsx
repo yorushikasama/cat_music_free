@@ -14,6 +14,7 @@ import rpx from "@/utils/rpx";
 import { getMediaUniqueKey } from "@/utils/mediaUtils";
 import ThemeText from "@/components/base/themeText";
 import Icon from "@/components/base/icon.tsx";
+import IconButton from "@/components/base/iconButton";
 import FastImage from "@/components/base/fastImage";
 import TrackPlayer from "@/core/trackPlayer";
 import { showPanel } from "@/components/panels/usePanel";
@@ -21,14 +22,23 @@ import { showDialog } from "@/components/dialogs/useDialog";
 import TitleAndTag from "@/components/mediaItem/titleAndTag";
 import LocalMusicSheet from "@/core/localMusicSheet";
 import ListEmpty from "@/components/base/listEmpty";
-import { RequestStateCode, internalSerializeKey, musicHistorySheetId } from "@/constants/commonConst";
+import {
+    RequestStateCode,
+    internalSerializeKey,
+    musicHistorySheetId,
+} from "@/constants/commonConst";
 import PageShell from "@/components/base/pageShell";
 import dayjs from "dayjs";
 
 const ITEM_HEIGHT = rpx(152);
 type HistoryRow =
     | { type: "section"; id: string; title: string }
-    | { type: "music"; id: string; musicItem: IMusic.IMusicItem; index: number };
+    | {
+          type: "music";
+          id: string;
+          musicItem: IMusic.IMusicItem;
+          index: number;
+      };
 
 interface IHistoryItemProps {
     musicItem: IMusic.IMusicItem;
@@ -39,6 +49,7 @@ interface IHistoryItemProps {
 const HistoryItem = memo(function HistoryItem(props: IHistoryItemProps) {
     const { musicItem, index, musicSheet } = props;
     const colors = useColors();
+    const { t } = useI18N();
 
     const handlePress = useCallback(() => {
         TrackPlayer.play(musicItem);
@@ -65,10 +76,7 @@ const HistoryItem = memo(function HistoryItem(props: IHistoryItemProps) {
                 placeholderSource={ImgAsset.albumDefault}
             />
             <View style={styles.itemContent}>
-                <TitleAndTag
-                    title={musicItem.title}
-                    tag={musicItem.platform}
-                />
+                <TitleAndTag title={musicItem.title} tag={musicItem.platform} />
                 <View style={styles.itemDescRow}>
                     {LocalMusicSheet.isLocalMusic(musicItem) && (
                         <Icon
@@ -87,12 +95,13 @@ const HistoryItem = memo(function HistoryItem(props: IHistoryItemProps) {
                     </ThemeText>
                 </View>
             </View>
-            <Icon
+            <IconButton
                 name="ellipsis-vertical"
-                size={rpx(28)}
+                sizeType="normal"
                 color={colors.textSecondary}
-                onPress={handleMore}
                 style={styles.itemMore}
+                accessibilityLabel={t("a11y.moreOptions")}
+                onPress={handleMore}
             />
         </TouchableOpacity>
     );
@@ -144,7 +153,9 @@ function HistoryHeader({ count }: { count: number }) {
 }
 
 function getPlayedAt(musicItem: IMusic.IMusicItem) {
-    return (musicItem as any)[internalSerializeKey]?.playedAt as number | undefined;
+    return (musicItem as any)[internalSerializeKey]?.playedAt as
+        | number
+        | undefined;
 }
 
 function getHistorySectionTitle(
@@ -177,7 +188,7 @@ export default function History() {
                 id: musicHistorySheetId,
                 title: t("history.title"),
                 musicList: musicHistoryList,
-            }) as IMusic.IMusicSheetItem,
+            } as IMusic.IMusicSheetItem),
         [t, musicHistoryList],
     );
 
@@ -234,7 +245,7 @@ export default function History() {
 
     return (
         <PageShell
-            appBar={(
+            appBar={
                 <AppBar
                     menu={[
                         {
@@ -244,7 +255,9 @@ export default function History() {
                                 if (musicHistoryList.length) {
                                     showDialog("SimpleDialog", {
                                         title: t("history.clearHistory"),
-                                        content: t("history.clearHistoryConfirm"),
+                                        content: t(
+                                            "history.clearHistoryConfirm",
+                                        ),
                                         async onOk() {
                                             musicHistory.clearMusic();
                                         },
@@ -268,7 +281,7 @@ export default function History() {
                     ]}>
                     {t("history.title")}
                 </AppBar>
-            )}
+            }
             musicBar>
             {musicHistoryList.length > 0 ? (
                 <FlashList
@@ -283,9 +296,7 @@ export default function History() {
                 />
             ) : (
                 <View style={globalStyle.fwflex1}>
-                    <ListEmpty
-                        state={RequestStateCode.FINISHED}
-                    />
+                    <ListEmpty state={RequestStateCode.FINISHED} />
                     <ThemeText
                         fontColor="textSecondary"
                         style={styles.emptyGuide}>

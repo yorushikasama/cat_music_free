@@ -10,6 +10,7 @@ import PanelBase from "../base/panelBase";
 import PanelHeader from "../base/panelHeader";
 import { hidePanel } from "../usePanel";
 import { useI18N } from "@/core/i18n";
+import Toast from "@/utils/toast";
 
 interface ICreateMusicSheetProps {
     defaultName?: string;
@@ -20,28 +21,52 @@ interface ICreateMusicSheetProps {
 export default function CreateMusicSheet(props: ICreateMusicSheetProps) {
     const { t } = useI18N();
 
-    const { onSheetCreated, onCancel, defaultName = t("panel.createMusicSheet.title") } = props;
+    const {
+        onSheetCreated,
+        onCancel,
+        defaultName = t("panel.createMusicSheet.title"),
+    } = props;
 
     const [input, setInput] = useState("");
+    const [creating, setCreating] = useState(false);
     const colors = useColors();
 
     return (
         <PanelBase
             height={vmax(30)}
             keyboardAvoidBehavior="height"
+            dismissDisabled={creating}
             renderBody={() => (
                 <>
                     <PanelHeader
                         title={t("panel.createMusicSheet.title")}
                         onCancel={() => {
+                            if (creating) {
+                                return;
+                            }
                             onCancel ? onCancel() : hidePanel();
                         }}
                         onOk={async () => {
-                            const sheetId = await MusicSheet.addSheet(
-                                input || defaultName,
-                            );
-                            onSheetCreated?.(sheetId);
-                            hidePanel();
+                            if (creating) {
+                                return;
+                            }
+
+                            setCreating(true);
+                            try {
+                                const sheetId = await MusicSheet.addSheet(
+                                    input || defaultName,
+                                );
+                                await onSheetCreated?.(sheetId);
+                                hidePanel();
+                            } catch (e: any) {
+                                Toast.warn(
+                                    t("toast.unknownError", {
+                                        reason: e?.message ?? "",
+                                    }),
+                                );
+                            } finally {
+                                setCreating(false);
+                            }
                         }}
                     />
                     <TextInput
@@ -49,9 +74,12 @@ export default function CreateMusicSheet(props: ICreateMusicSheetProps) {
                         onChangeText={_ => {
                             setInput(_);
                         }}
+                        editable={!creating}
                         autoFocus
                         accessible
-                        accessibilityLabel={t("panel.createMusicSheet.inputLabel")}
+                        accessibilityLabel={t(
+                            "panel.createMusicSheet.inputLabel",
+                        )}
                         accessibilityHint={t("panel.createMusicSheet.title")}
                         style={[
                             style.input,

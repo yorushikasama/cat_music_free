@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import ListItem from "@/components/base/listItem";
 import ThemeText from "@/components/base/themeText";
@@ -32,6 +32,7 @@ import { getMediaExtraProperty } from "@/utils/mediaExtra";
 import lyricManager from "@/core/lyricManager";
 import { useI18N } from "@/core/i18n";
 import pluginManager from "@/core/pluginManager";
+import useColors from "@/hooks/useColors";
 
 interface IMusicItemOptionsProps {
     /** 歌曲信息 */
@@ -47,7 +48,8 @@ const ITEM_HEIGHT = rpx(96);
 interface IOption {
     icon: IIconName;
     title: string;
-    onPress?: () => void;
+    action?: string;
+    onPress?: () => void | Promise<void>;
     show?: boolean;
 }
 
@@ -56,6 +58,24 @@ export default function MusicItemOptions(props: IMusicItemOptionsProps) {
     const { t } = useI18N();
 
     const safeAreaInsets = useSafeAreaInsets();
+    const colors = useColors();
+    const [busyAction, setBusyAction] = useState<string | null>(null);
+    const actionLockRef = useRef(false);
+
+    const runAction = async (action: string, task: () => Promise<void>) => {
+        if (actionLockRef.current) {
+            return;
+        }
+
+        actionLockRef.current = true;
+        setBusyAction(action);
+        try {
+            await task();
+        } finally {
+            actionLockRef.current = false;
+            setBusyAction(null);
+        }
+    };
 
     const downloaded = LocalMusicSheet.isLocalMusic(musicItem);
     const associatedLrc = getMediaExtraProperty(musicItem, "associatedLrc");
@@ -128,7 +148,12 @@ export default function MusicItemOptions(props: IMusicItemOptionsProps) {
                     musicItem,
                     type: "download",
                     async onQualityPress(quality) {
-                        downloader.download(musicItem, quality);
+                        const result = downloader.download(musicItem, quality);
+                        if (result.enqueuedCount > 0) {
+                            Toast.success(t("toast.beginDownload"));
+                        } else if (!result.rejectionReason) {
+                            Toast.warn(t("toast.downloadAlreadyQueued"));
+                        }
                     },
                 });
             },
@@ -143,16 +168,31 @@ export default function MusicItemOptions(props: IMusicItemOptionsProps) {
             title: t("common.delete"),
             show: !!musicSheet,
             onPress: async () => {
-                if (musicSheet?.id === localMusicSheetId) {
-                    await LocalMusicSheet.removeMusic(musicItem);
-                } else if (musicSheet?.id === musicHistorySheetId) {
-                    await musicHistory.removeMusic(musicItem);
-                } else {
-                    await MusicSheet.removeMusic(musicSheet!.id, musicItem);
-                }
-                Toast.success(t("toast.deleteSuccess"));
-                hidePanel();
+                await runAction("removeFromSheet", async () => {
+                    try {
+                        if (musicSheet?.id === localMusicSheetId) {
+                            await LocalMusicSheet.removeMusic(musicItem);
+                        } else if (musicSheet?.id === musicHistorySheetId) {
+                            await musicHistory.removeMusic(musicItem);
+                        } else {
+                            await MusicSheet.removeMusic(
+                                musicSheet!.id,
+                                musicItem,
+                            );
+                        }
+                        Toast.success(t("toast.deleteSuccess"));
+                        hidePanel();
+                    } catch (error: any) {
+                        Toast.warn(
+                            t("panel.musicItemOptions.deleteFailed") +
+                                (error?.message
+                                    ? `: ${error.message}`
+                                    : ""),
+                        );
+                    }
+                });
             },
+            action: "removeFromSheet",
         },
         {
             icon: "trash-outline",
@@ -236,6 +276,7 @@ export default function MusicItemOptions(props: IMusicItemOptionsProps) {
 
     return (
         <PanelBase
+            dismissDisabled={busyAction !== null}
             renderBody={() => (
                 <>
                     <View style={style.header}>
@@ -279,6 +320,7 @@ export default function MusicItemOptions(props: IMusicItemOptionsProps) {
                                     <ListItem
                                         withHorizontalPadding
                                         heightType="small"
+                                        disabled={busyAction !== null}
                                         onPress={item.onPress}>
                                         <ListItem.ListItemIcon
                                             width={rpx(48)}
@@ -286,6 +328,12 @@ export default function MusicItemOptions(props: IMusicItemOptionsProps) {
                                             iconSize={iconSizeConst.light}
                                         />
                                         <ListItem.Content title={item.title} />
+                                        {item.action && busyAction === item.action ? (
+                                            <ActivityIndicator
+                                                color={colors.primary}
+                                                size="small"
+                                            />
+                                        ) : null}
                                     </ListItem>
                                 ) : null
                             }

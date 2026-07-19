@@ -13,7 +13,7 @@ import { useI18N } from "@/core/i18n";
 
 interface ISimpleInputProps {
     title?: string;
-    onOk: (text: string, closePanel: () => void) => void;
+    onOk: (text: string, closePanel: () => void) => void | Promise<void>;
     hints?: string[];
     onCancel?: () => void;
     maxLength?: number;
@@ -34,12 +34,14 @@ export default function SimpleInput(props: ISimpleInputProps) {
     } = props;
 
     const [input, setInput] = useState("");
+    const [submitting, setSubmitting] = useState(false);
     const colors = useColors();
 
     return (
         <PanelBase
             keyboardAvoidBehavior="height"
             height={vmax(30)}
+            dismissDisabled={submitting}
             renderBody={() => (
                 <>
                     <PanelHeader
@@ -49,7 +51,12 @@ export default function SimpleInput(props: ISimpleInputProps) {
                             hidePanel();
                         }}
                         onOk={async () => {
-                            onOk(input, hidePanel);
+                            setSubmitting(true);
+                            try {
+                                await onOk(input, hidePanel);
+                            } finally {
+                                setSubmitting(false);
+                            }
                         }}
                     />
 
@@ -62,6 +69,7 @@ export default function SimpleInput(props: ISimpleInputProps) {
                         onChangeText={_ => {
                             setInput(_);
                         }}
+                        editable={!submitting}
                         style={[
                             style.input,
                             {

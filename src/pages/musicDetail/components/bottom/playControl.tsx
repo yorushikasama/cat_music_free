@@ -1,5 +1,5 @@
-import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 
 import repeatModeConst from "@/constants/repeatModeConst";
@@ -13,6 +13,8 @@ import { musicIsPaused } from "@/utils/trackUtils";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import { getDetailControlPalette } from "../controlPalette";
+import { useI18N } from "@/core/i18n";
+import Toast from "@/utils/toast";
 
 /**
  * 播放控制组件
@@ -22,6 +24,8 @@ import { getDetailControlPalette } from "../controlPalette";
 export default function PlayControl() {
     const repeatMode = useRepeatMode();
     const musicState = useMusicState();
+    const { t } = useI18N();
+    const [togglingPlayback, setTogglingPlayback] = useState(false);
 
     const orientation = useOrientation();
     const theme = Theme.useTheme();
@@ -57,6 +61,9 @@ export default function PlayControl() {
                 ]}>
                 {/* 循环模式按钮 */}
                 <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.repeatMode")}
+                    android_ripple={{ color: pressedOverlay }}
                     style={({ pressed }) => [
                         style.sideButton,
                         {
@@ -77,6 +84,9 @@ export default function PlayControl() {
                     />
                 </Pressable>
                 <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.previous")}
+                    android_ripple={{ color: pressedOverlay }}
                     style={({ pressed }) => [
                         style.skipButton,
                         pressed ? { backgroundColor: pressedOverlay } : null,
@@ -92,6 +102,20 @@ export default function PlayControl() {
                 </Pressable>
                 {/* 播放/暂停按钮 */}
                 <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                        togglingPlayback
+                            ? t("common.loading")
+                            : isPaused
+                                ? t("common.play")
+                                : t("a11y.pause")
+                    }
+                    accessibilityState={{
+                        busy: togglingPlayback,
+                        disabled: togglingPlayback,
+                    }}
+                    android_ripple={{ color: pressedOverlay }}
+                    disabled={togglingPlayback}
                     style={({ pressed }) => [
                         style.playBtnWrapper,
                         isSpecialTheme && style.specialPlayBtn,
@@ -103,21 +127,43 @@ export default function PlayControl() {
                         },
                         pressed ? style.playBtnPressed : null,
                     ]}
-                    onPress={() => {
-                        if (musicIsPaused(musicState)) {
-                            TrackPlayer.play();
-                        } else {
-                            TrackPlayer.pause();
+                    onPress={async () => {
+                        setTogglingPlayback(true);
+                        try {
+                            if (isPaused) {
+                                await TrackPlayer.play();
+                            } else {
+                                await TrackPlayer.pause();
+                            }
+                        } catch (error: any) {
+                            Toast.warn(
+                                t("toast.unknownError", {
+                                    reason: error?.message ?? error,
+                                }),
+                            );
+                        } finally {
+                            setTogglingPlayback(false);
                         }
                     }}>
-                    <Icon
-                        color={playBtnColor}
-                        name={isPaused ? "play" : "pause"}
-                        size={isPaused ? rpx(56) : rpx(52)}
-                    />
+                    {togglingPlayback ? (
+                        <ActivityIndicator
+                            animating
+                            color={playBtnColor}
+                            size="small"
+                        />
+                    ) : (
+                        <Icon
+                            color={playBtnColor}
+                            name={isPaused ? "play" : "pause"}
+                            size={isPaused ? rpx(56) : rpx(52)}
+                        />
+                    )}
                 </Pressable>
                 {/* 下一曲 */}
                 <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.next")}
+                    android_ripple={{ color: pressedOverlay }}
                     style={({ pressed }) => [
                         style.skipButton,
                         pressed ? { backgroundColor: pressedOverlay } : null,
@@ -133,6 +179,9 @@ export default function PlayControl() {
                 </Pressable>
                 {/* 播放列表 */}
                 <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("panel.playList.title")}
+                    android_ripple={{ color: pressedOverlay }}
                     style={({ pressed }) => [
                         style.sideButton,
                         {

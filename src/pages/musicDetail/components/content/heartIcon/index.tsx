@@ -1,38 +1,56 @@
-import React from "react";
+import React, { useState } from "react";
 
-import { iconSizeConst } from "@/constants/uiConst";
-import Icon from "@/components/base/icon.tsx";
+import IconButton from "@/components/base/iconButton";
 import MusicSheet, { useFavorite } from "@/core/musicSheet";
+import { useI18N } from "@/core/i18n";
 import { useCurrentMusic } from "@/core/trackPlayer";
 import useColors from "@/hooks/useColors";
+import Toast from "@/utils/toast";
 
 export default function HeartIconButton() {
     const musicItem = useCurrentMusic();
     const colors = useColors();
     const iconColor = colors.text;
+    const { t } = useI18N();
+    const [updatingFavorite, setUpdatingFavorite] = useState(false);
 
     const isFavorite = useFavorite(musicItem);
 
-    return isFavorite ? (
-        <Icon
-            name="heart"
-            size={iconSizeConst.normal}
-            color={colors.danger ?? colors.primary}
-            onPress={() => {
-                if (!musicItem) {
+    return (
+        <IconButton
+            accessibilityLabel={
+                isFavorite ? t("a11y.unfavorite") : t("a11y.favorite")
+            }
+            color={isFavorite ? colors.danger ?? colors.primary : iconColor}
+            loading={updatingFavorite}
+            name={isFavorite ? "heart" : "heart-outline"}
+            sizeType="normal"
+            onPress={async () => {
+                if (!musicItem || updatingFavorite) {
                     return;
                 }
-                MusicSheet.removeMusic(MusicSheet.defaultSheet.id, musicItem);
-            }}
-        />
-    ) : (
-        <Icon
-            name="heart-outline"
-            size={iconSizeConst.normal}
-            color={iconColor}
-            onPress={() => {
-                if (musicItem) {
-                    MusicSheet.addMusic(MusicSheet.defaultSheet.id, musicItem);
+
+                setUpdatingFavorite(true);
+                try {
+                    if (isFavorite) {
+                        await MusicSheet.removeMusic(
+                            MusicSheet.defaultSheet.id,
+                            musicItem,
+                        );
+                    } else {
+                        await MusicSheet.addMusic(
+                            MusicSheet.defaultSheet.id,
+                            musicItem,
+                        );
+                    }
+                } catch (error: any) {
+                    Toast.warn(
+                        t("toast.unknownError", {
+                            reason: error?.message ?? error,
+                        }),
+                    );
+                } finally {
+                    setUpdatingFavorite(false);
                 }
             }}
         />

@@ -24,6 +24,7 @@ export default function AssociateLrc(props: INewMusicSheetProps) {
     const { musicItem } = props;
 
     const [input, setInput] = useState("");
+    const [associating, setAssociating] = useState(false);
     const colors = useColors();
     const { t } = useI18N();
 
@@ -31,16 +32,26 @@ export default function AssociateLrc(props: INewMusicSheetProps) {
         <PanelBase
             keyboardAvoidBehavior="height"
             height={vmax(30)}
+            dismissDisabled={associating}
             renderBody={() => (
                 <>
                     <PanelHeader
                         title={t("panel.associateLrc.title")}
-                        onCancel={hidePanel}
+                        onCancel={() => {
+                            if (!associating) {
+                                hidePanel();
+                            }
+                        }}
                         onOk={async () => {
-                            const inputValue =
-                                input ?? (await Clipboard.getString());
-                            if (inputValue) {
-                                try {
+                            if (associating) {
+                                return;
+                            }
+
+                            setAssociating(true);
+                            try {
+                                const inputValue =
+                                    input.trim() || (await Clipboard.getString());
+                                if (inputValue) {
                                     const targetMedia = parseMediaUniqueKey(
                                         inputValue.trim(),
                                     );
@@ -49,7 +60,9 @@ export default function AssociateLrc(props: INewMusicSheetProps) {
                                         mediaCache.getMediaCache(targetMedia);
                                     if (!targetCache) {
                                         Toast.warn(
-                                            t("panel.associateLrc.targetExpired"),
+                                            t(
+                                                "panel.associateLrc.targetExpired",
+                                            ),
                                         );
                                         // TODO: ERROR CODE
                                         throw new Error("CLIPBOARD TIMEOUT");
@@ -59,18 +72,26 @@ export default function AssociateLrc(props: INewMusicSheetProps) {
                                         ...targetMedia,
                                         ...targetCache,
                                     });
-                                    Toast.success(t("panel.associateLrc.toast.success"));
+                                    Toast.success(
+                                        t("panel.associateLrc.toast.success"),
+                                    );
                                     hidePanel();
-                                } catch (e: any) {
-                                    if (e.message !== "CLIPBOARD TIMEOUT") {
-                                        Toast.warn(t("panel.associateLrc.toast.fail"));
-                                    }
-                                    errorLog("关联歌词失败", e?.message);
+                                } else {
+                                    lyricManager.unassociateLyric(musicItem);
+                                    Toast.success(
+                                        t("panel.associateLrc.toast.unlinkSuccess"),
+                                    );
+                                    hidePanel();
                                 }
-                            } else {
-                                lyricManager.unassociateLyric(musicItem);
-                                Toast.success(t("panel.associateLrc.toast.unlinkSuccess"));
-                                hidePanel();
+                            } catch (e: any) {
+                                if (e.message !== "CLIPBOARD TIMEOUT") {
+                                    Toast.warn(
+                                        t("panel.associateLrc.toast.fail"),
+                                    );
+                                }
+                                errorLog("关联歌词失败", e?.message);
+                            } finally {
+                                setAssociating(false);
                             }
                         }}
                     />
@@ -80,6 +101,7 @@ export default function AssociateLrc(props: INewMusicSheetProps) {
                         onChangeText={_ => {
                             setInput(_);
                         }}
+                        editable={!associating}
                         style={[
                             style.input,
                             {

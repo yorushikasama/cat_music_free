@@ -1,7 +1,12 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import useColors from "@/hooks/useColors";
 import rpx from "@/utils/rpx";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+    ActivityIndicator,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import ThemeText from "@/components/base/themeText";
 import { ImgAsset } from "@/constants/assetsConst";
 import { launchImageLibrary } from "react-native-image-picker";
@@ -26,13 +31,20 @@ export default function EditSheetDetailDialog(props: IEditSheetDetailProps) {
 
     const [coverImg, setCoverImg] = useState(musicSheet?.coverImg);
     const [title, setTitle] = useState(musicSheet?.title);
+    const [selectingCover, setSelectingCover] = useState(false);
+    const [saving, setSaving] = useState(false);
     const titleInputColorStyle = { borderBottomColor: colors.text };
 
     const { t } = useI18N();
 
     // onCover
 
-    const onChangeCoverPress = async () => {
+    const onChangeCoverPress = useCallback(async () => {
+        if (selectingCover) {
+            return;
+        }
+
+        setSelectingCover(true);
         try {
             const result = await launchImageLibrary({
                 mediaType: "photo",
@@ -41,32 +53,41 @@ export default function EditSheetDetailDialog(props: IEditSheetDetailProps) {
             if (!uri) {
                 return;
             }
-            console.log(uri);
             setCoverImg(uri);
-        } catch (e) {
-            console.log(e);
+        } catch (e: any) {
+            Toast.warn(t("toast.unknownError", { reason: e?.message ?? "" }));
+        } finally {
+            setSelectingCover(false);
         }
-    };
+    }, [selectingCover, t]);
 
     function onTitleChange(_: string) {
         setTitle(_);
     }
 
-    async function onConfirm() {
-        // 判断是否相同
-        if (coverImg === musicSheet?.coverImg && title === musicSheet?.title) {
-            hideDialog();
+    const onConfirm = useCallback(async () => {
+        if (saving) {
             return;
         }
 
-        let newCoverImg = coverImg;
-        if (coverImg && coverImg !== musicSheet?.coverImg) {
-            newCoverImg = addFileScheme(
-                `${pathConst.dataPath}sheet${musicSheet.id}${coverImg.substring(
-                    coverImg.lastIndexOf("."),
-                )}`,
-            );
-            try {
+        setSaving(true);
+        try {
+            // 判断是否相同
+            if (
+                coverImg === musicSheet?.coverImg &&
+                title === musicSheet?.title
+            ) {
+                hideDialog();
+                return;
+            }
+
+            let newCoverImg = coverImg;
+            if (coverImg && coverImg !== musicSheet?.coverImg) {
+                newCoverImg = addFileScheme(
+                    `${pathConst.dataPath}sheet${
+                        musicSheet.id
+                    }${coverImg.substring(coverImg.lastIndexOf("."))}`,
+                );
                 if ((await getInfoAsync(newCoverImg)).exists) {
                     await deleteAsync(newCoverImg, {
                         idempotent: true, // 报错时不抛异常
@@ -76,47 +97,70 @@ export default function EditSheetDetailDialog(props: IEditSheetDetailProps) {
                     from: coverImg,
                     to: newCoverImg,
                 });
-            } catch (e) {
-                console.log(e);
             }
+
+            let _title = title;
+            if (!_title?.length) {
+                _title = musicSheet.title;
+            }
+            // 更新歌单信息
+            await MusicSheet.updateMusicSheetBase(musicSheet.id, {
+                coverImg: newCoverImg ? addRandomHash(newCoverImg) : undefined,
+                title: _title,
+            });
+            Toast.success(t("panel.editMusicSheetInfo.toast.updateSuccess"));
+            hideDialog();
+        } catch (e: any) {
+            Toast.warn(t("toast.unknownError", { reason: e?.message ?? "" }));
+        } finally {
+            setSaving(false);
         }
-        let _title = title;
-        if (!_title?.length) {
-            _title = musicSheet.title;
-        }
-        // 更新歌单信息
-        MusicSheet.updateMusicSheetBase(musicSheet.id, {
-            coverImg: newCoverImg ? addRandomHash(newCoverImg) : undefined,
-            title: _title,
-        }).then(() => {
-            Toast.success("更新歌单信息成功~");
-        });
-        hideDialog();
-    }
+    }, [coverImg, musicSheet, saving, t, title]);
 
     return (
-        <Dialog onDismiss={hideDialog}>
+        <Dialog
+            onDismiss={hideDialog}
+            dismissDisabled={selectingCover || saving}>
             <Dialog.Content>
                 <View style={style.row}>
                     <ThemeText>{t("common.cover")}</ThemeText>
                     <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={t("common.cover")}
+                        accessibilityState={{ busy: selectingCover }}
+                        disabled={selectingCover || saving}
                         onPress={onChangeCoverPress}
                         onLongPress={() => {
+                            if (selectingCover || saving) {
+                                return;
+                            }
                             setCoverImg(undefined);
                         }}>
-                        <Image
-                            style={style.coverImg}
-                            uri={coverImg}
-                            emptySrc={ImgAsset.albumDefault}
-                        />
+                        {selectingCover ? (
+                            <View style={[style.coverImg, style.coverLoading]}>
+                                <ActivityIndicator
+                                    color={colors.primary}
+                                    size="small"
+                                />
+                            </View>
+                        ) : (
+                            <Image
+                                style={style.coverImg}
+                                uri={coverImg}
+                                emptySrc={ImgAsset.albumDefault}
+                            />
+                        )}
                     </TouchableOpacity>
                 </View>
                 <View style={style.row}>
-                    <ThemeText>{t("dialog.editSheetDetail.sheetName")}</ThemeText>
+                    <ThemeText>
+                        {t("dialog.editSheetDetail.sheetName")}
+                    </ThemeText>
                     <Input
                         numberOfLines={1}
                         textAlign="right"
                         value={title}
+                        editable={!selectingCover && !saving}
                         hasHorizontalPadding={false}
                         onChangeText={onTitleChange}
                         style={[style.titleInput, titleInputColorStyle]}
@@ -128,11 +172,13 @@ export default function EditSheetDetailDialog(props: IEditSheetDetailProps) {
                     {
                         title: t("common.cancel"),
                         type: "normal",
+                        disabled: selectingCover || saving,
                         onPress: hideDialog,
                     },
                     {
                         title: t("common.confirm"),
                         type: "primary",
+                        disabled: selectingCover || saving,
                         onPress: onConfirm,
                     },
                 ]}
@@ -155,6 +201,10 @@ const style = StyleSheet.create({
         height: rpx(100),
         borderRadius: rpx(28),
         overflow: "hidden",
+    },
+    coverLoading: {
+        alignItems: "center",
+        justifyContent: "center",
     },
     titleInput: {
         height: fontSizeConst.content * 2.5,

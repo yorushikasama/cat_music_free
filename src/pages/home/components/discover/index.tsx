@@ -7,6 +7,7 @@ import React, {
     useState,
 } from "react";
 import {
+    ActivityIndicator,
     StyleSheet,
     View,
     ScrollView,
@@ -51,6 +52,7 @@ import PluginManager, {
 } from "@/core/pluginManager";
 import { useMusicHistory } from "@/core/musicHistory";
 import TrackPlayer, { useCurrentMusic } from "@/core/trackPlayer";
+import Toast from "@/utils/toast";
 
 import { pluginsTopListAtom } from "@/pages/topList/store/atoms";
 import useGetTopList from "@/pages/topList/hooks/useGetTopList";
@@ -207,15 +209,28 @@ function SheetCard(props: ISheetCardProps) {
 /** 歌曲行 */
 const SongRow = memo(function SongRow(props: ISongRowProps) {
     const { music } = props;
+    const { t } = useI18N();
     const colors = useColors();
     const currentMusic = useCurrentMusic();
+    const [isStarting, setIsStarting] = useState(false);
     const isActive =
         currentMusic &&
         getMediaUniqueKey(currentMusic) === getMediaUniqueKey(music);
 
-    const handlePlay = useCallback(() => {
-        TrackPlayer.play(music);
-    }, [music]);
+    const handlePlay = useCallback(async () => {
+        if (isStarting) {
+            return;
+        }
+
+        setIsStarting(true);
+        try {
+            await TrackPlayer.play(music);
+        } catch (e: any) {
+            Toast.warn(t("toast.unknownError", { reason: e?.message ?? "" }));
+        } finally {
+            setIsStarting(false);
+        }
+    }, [isStarting, music, t]);
 
     const handleMore = useCallback(() => {
         showPanel("MusicItemOptions", {
@@ -232,22 +247,34 @@ const SongRow = memo(function SongRow(props: ISongRowProps) {
     return (
         <TouchableOpacity
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={music.title}
+            accessibilityState={{ busy: isStarting }}
+            disabled={isStarting}
             style={[
                 styles.songRow,
                 { borderBottomColor: colors.divider ?? "rgba(0,0,0,0.06)" },
             ]}
             onPress={handlePlay}>
-            <FastImage
+            <View
                 style={[
                     styles.songImage,
                     isActive && {
                         borderWidth: rpx(4),
                         borderColor: colors.primary,
                     },
-                ]}
-                source={music.artwork}
-                placeholderSource={ImgAsset.albumDefault}
-            />
+                ]}>
+                <FastImage
+                    style={styles.songImageContent}
+                    source={music.artwork}
+                    placeholderSource={ImgAsset.albumDefault}
+                />
+                {isStarting ? (
+                    <View style={styles.songImageLoading}>
+                        <ActivityIndicator color="#ffffff" size="small" />
+                    </View>
+                ) : null}
+            </View>
             <View style={styles.songInfo}>
                 <ThemeText
                     fontSize="content"
@@ -281,6 +308,8 @@ const SongRow = memo(function SongRow(props: ISongRowProps) {
             </View>
             <TouchableOpacity
                 style={styles.songMore}
+                accessibilityRole="button"
+                accessibilityLabel={t("a11y.moreOptions")}
                 onPress={handleMore}
                 hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
                 <Icon
@@ -556,6 +585,10 @@ export default function Discover() {
     );
 
     const handleRefresh = useCallback(async () => {
+        if (refreshing) {
+            return;
+        }
+
         setRefreshing(true);
         try {
             await Promise.all([
@@ -567,7 +600,7 @@ export default function Discover() {
         } finally {
             setRefreshing(false);
         }
-    }, [fetchRecommendSheets, firstTopListPlugin, getTopList]);
+    }, [fetchRecommendSheets, firstTopListPlugin, getTopList, refreshing]);
 
     useEffect(() => {
         fetchRecommendSheets();
@@ -996,6 +1029,19 @@ const styles = StyleSheet.create({
         borderRadius: radius.lg,
         overflow: "hidden",
         marginRight: spacing.md,
+        position: "relative",
+    },
+    songImageContent: {
+        width: "100%",
+        height: "100%",
+        borderRadius: radius.lg,
+    },
+    songImageLoading: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(0,0,0,0.42)",
+        borderRadius: radius.lg,
     },
     songInfo: {
         flex: 1,

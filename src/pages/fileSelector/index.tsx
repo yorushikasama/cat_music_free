@@ -9,8 +9,14 @@ import useColors from "@/hooks/useColors";
 import useHardwareBack from "@/hooks/useHardwareBack";
 import rpx from "@/utils/rpx";
 import { useNavigation } from "@react-navigation/native";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import {
     ExternalStorageDirectoryPath,
     exists,
@@ -23,6 +29,7 @@ import PageShell from "@/components/base/pageShell";
 import SkeletonList from "@/components/base/skeleton";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
+import Toast from "@/utils/toast";
 
 interface IPathItem {
     path: string;
@@ -60,6 +67,8 @@ export default function FileSelector() {
     const navigation = useNavigation();
     const colors = useColors();
     const [loading, setLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
+    const actionLockRef = useRef(false);
     const canGoParent = currentPath.parent !== null;
     const currentLocation =
         currentPath.path === "/"
@@ -149,6 +158,9 @@ export default function FileSelector() {
     }, [currentPath.path, fileType, matchExtension]);
 
     useHardwareBack(() => {
+        if (actionLoading) {
+            return true;
+        }
         // 注意闭包
         const _currentPath = currentPathRef.current;
         if (_currentPath.parent !== null) {
@@ -157,7 +169,7 @@ export default function FileSelector() {
             navigation.goBack();
         }
         return true;
-    });
+    }, [actionLoading, navigation]);
 
     const selectPath = useCallback(
         (item: IFileItem | IFileItem[], nextChecked: boolean) => {
@@ -188,6 +200,7 @@ export default function FileSelector() {
             path={item.path}
             type={item.type}
             parentPath={currentPath.path}
+            disabled={actionLoading || loading}
             onItemPress={currentChecked => {
                 if (item.type === "folder") {
                     setCurrentPath(prev => ({
@@ -253,6 +266,9 @@ export default function FileSelector() {
                     {canGoParent ? (
                         <Button
                             onPress={() => {
+                                if (loading || actionLoading) {
+                                    return;
+                                }
                                 if (currentPath.parent) {
                                     setCurrentPath(currentPath.parent);
                                 }
@@ -264,7 +280,11 @@ export default function FileSelector() {
                 {multi ? (
                     <View style={style.selectAll}>
                         <Button
+                            disabled={loading || actionLoading}
                             onPress={() => {
+                                if (loading || actionLoading) {
+                                    return;
+                                }
                                 if (currentPageAllChecked) {
                                     selectPath(filesData, false);
                                 } else {
@@ -297,7 +317,9 @@ export default function FileSelector() {
                 title={i18n.t("fileSelector.emptyTitle")}
                 description={i18n.t("fileSelector.emptyDescription")}
                 actionText={
-                    canGoParent ? i18n.t("fileSelector.parentFolder") : undefined
+                    canGoParent
+                        ? i18n.t("fileSelector.parentFolder")
+                        : undefined
                 }
                 onAction={
                     canGoParent && currentPath.parent
@@ -325,7 +347,15 @@ export default function FileSelector() {
                 sizeType="small"
                 name="arrow-long-left"
                 color={colors.appBarText}
+                accessibilityLabel={
+                    currentPath.parent !== null
+                        ? i18n.t("fileSelector.parentFolder")
+                        : i18n.t("a11y.back")
+                }
                 onPress={() => {
+                    if (loading || actionLoading) {
+                        return;
+                    }
                     if (currentPath.parent !== null) {
                         setCurrentPath(currentPath.parent);
                     } else {
@@ -347,15 +377,34 @@ export default function FileSelector() {
 
     const bottom = (
         <Pressable
-            disabled={!checkedItems.length}
+            disabled={!checkedItems.length || actionLoading}
             accessibilityRole="button"
-            accessibilityState={{ disabled: !checkedItems.length }}
+            accessibilityLabel={actionText}
+            accessibilityState={{
+                busy: actionLoading,
+                disabled: !checkedItems.length || actionLoading,
+            }}
             onPress={async () => {
-                if (checkedItems.length) {
+                if (!checkedItems.length || actionLoading || actionLockRef.current) {
+                    return;
+                }
+
+                actionLockRef.current = true;
+                setActionLoading(true);
+                try {
                     const shouldBack = await onAction?.(checkedItems);
                     if (shouldBack) {
                         navigation.goBack();
                     }
+                } catch (error: any) {
+                    Toast.warn(
+                        i18n.t("toast.unknownError", {
+                            reason: error?.message ?? error,
+                        }),
+                    );
+                } finally {
+                    actionLockRef.current = false;
+                    setActionLoading(false);
                 }
             }}
             style={({ pressed }) => [
@@ -363,7 +412,10 @@ export default function FileSelector() {
                 {
                     backgroundColor: colors.surfacePrimary,
                     borderTopColor: colors.controlBorder ?? colors.divider,
-                    opacity: pressed && checkedItems.length ? 0.84 : 1,
+                    opacity:
+                        actionLoading || (pressed && checkedItems.length)
+                            ? 0.68
+                            : 1,
                 },
             ]}>
             <View
@@ -378,18 +430,24 @@ export default function FileSelector() {
                             : colors.controlBorder ?? colors.divider,
                     },
                 ]}>
-                <ThemeText
-                    fontWeight="medium"
-                    color={checkedItems.length ? "#fff" : colors.disabledText}>
-                    {multi && checkedItems?.length > 0
-                        ? `${actionText} (${i18n.t(
-                            "fileSelector.selectedCount",
-                            {
-                                count: checkedItems.length,
-                            },
-                        )})`
-                        : actionText}
-                </ThemeText>
+                {actionLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                    <ThemeText
+                        fontWeight="medium"
+                        color={
+                            checkedItems.length ? "#fff" : colors.disabledText
+                        }>
+                        {multi && checkedItems?.length > 0
+                            ? `${actionText} (${i18n.t(
+                                "fileSelector.selectedCount",
+                                {
+                                    count: checkedItems.length,
+                                },
+                            )})`
+                            : actionText}
+                    </ThemeText>
+                )}
             </View>
         </Pressable>
     );

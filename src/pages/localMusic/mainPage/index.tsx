@@ -45,6 +45,15 @@ export default function MainPage() {
                                         Toast.success(t("toast.importSuccess"));
                                         hideDialog();
                                     },
+                                    onReject(reason, hideDialog) {
+                                        Toast.warn(
+                                            t("toast.unknownError", {
+                                                reason:
+                                                    reason?.message ?? reason,
+                                            }),
+                                        );
+                                        hideDialog();
+                                    },
                                     onCancel(hideDialog) {
                                         LocalMusicSheet.cancelImportLocal();
                                         hideDialog();

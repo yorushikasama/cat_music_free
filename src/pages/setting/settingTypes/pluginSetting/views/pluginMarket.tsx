@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     FlatList,
     Pressable,
@@ -95,47 +95,58 @@ export default function PluginMarket() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [installing, setInstalling] = useState(false);
+    const installLockRef = useRef(false);
+    const [installingIds, setInstallingIds] = useState<Record<number, true>>(
+        {},
+    );
     const [progress, setProgress] = useState({ current: 0, total: 0 });
 
     const installedNames = useMemo(() => {
         return new Set(installedPlugins.map(it => normalizeName(it.name)));
     }, [installedPlugins]);
 
-    const loadMarket = useCallback(async (asRefresh = false) => {
-        if (asRefresh) {
-            setRefreshing(true);
-        } else {
-            setLoading(true);
-        }
-        try {
-            const response = await axios.get(MARKET_URL, {
-                timeout: 10_000,
-                headers: {
-                    "Cache-Control": "no-cache",
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            });
-            const nextPlugins = Array.isArray(response.data?.plugins)
-                ? response.data.plugins
-                    .filter((it: any) => it?.name && it?.url)
-                    .map((it: any) => ({
-                        id: Number(it.id),
-                        name: String(it.name),
-                        url: String(it.url),
-                        localFile: it.localFile ? String(it.localFile) : undefined,
-                    }))
-                : [];
-            setPlugins(nextPlugins);
-        } catch (e: any) {
-            Toast.warn(t("pluginSetting.market.loadFailed", {
-                reason: e?.message ?? "",
-            }));
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [t]);
+    const loadMarket = useCallback(
+        async (asRefresh = false) => {
+            if (asRefresh) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
+            }
+            try {
+                const response = await axios.get(MARKET_URL, {
+                    timeout: 10_000,
+                    headers: {
+                        "Cache-Control": "no-cache",
+                        Pragma: "no-cache",
+                        Expires: "0",
+                    },
+                });
+                const nextPlugins = Array.isArray(response.data?.plugins)
+                    ? response.data.plugins
+                        .filter((it: any) => it?.name && it?.url)
+                        .map((it: any) => ({
+                            id: Number(it.id),
+                            name: String(it.name),
+                            url: String(it.url),
+                            localFile: it.localFile
+                                ? String(it.localFile)
+                                : undefined,
+                        }))
+                    : [];
+                setPlugins(nextPlugins);
+            } catch (e: any) {
+                Toast.warn(
+                    t("pluginSetting.market.loadFailed", {
+                        reason: e?.message ?? "",
+                    }),
+                );
+            } finally {
+                setLoading(false);
+                setRefreshing(false);
+            }
+        },
+        [t],
+    );
 
     useEffect(() => {
         loadMarket();
@@ -163,20 +174,23 @@ export default function PluginMarket() {
         return plugins.filter(item => selectedIds[item.id]);
     }, [plugins, selectedIds]);
 
-    const toggleSelected = useCallback((item: IMarketPlugin) => {
-        if (installedNames.has(normalizeName(item.name)) || installing) {
-            return;
-        }
-        setSelectedIds(prev => {
-            const next = { ...prev };
-            if (next[item.id]) {
-                delete next[item.id];
-            } else {
-                next[item.id] = true;
+    const toggleSelected = useCallback(
+        (item: IMarketPlugin) => {
+            if (installedNames.has(normalizeName(item.name)) || installing) {
+                return;
             }
-            return next;
-        });
-    }, [installedNames, installing]);
+            setSelectedIds(prev => {
+                const next = { ...prev };
+                if (next[item.id]) {
+                    delete next[item.id];
+                } else {
+                    next[item.id] = true;
+                }
+                return next;
+            });
+        },
+        [installedNames, installing],
+    );
 
     const selectAllVisible = useCallback(() => {
         const next: Record<number, true> = {};
@@ -188,77 +202,102 @@ export default function PluginMarket() {
         setSelectedIds(next);
     }, [filteredPlugins, installedNames]);
 
-    const showFailedResults = useCallback((failResults: IInstallPluginResult[]) => {
-        showDialog("SimpleDialog", {
-            title: t("pluginSetting.menu.pluginInstallFailedDialogTitle"),
-            content: t("pluginSetting.pluginInstallFailedDialogContent", {
-                detail: failResults
-                    .map(it =>
-                        (it.pluginUrl ?? "") +
-                        "\n" +
-                        t("pluginSetting.failReason", {
-                            reason: it.message ?? "",
-                        }),
-                    )
-                    .join("\n-----\n"),
-            }),
-        });
-    }, [t]);
+    const showFailedResults = useCallback(
+        (failResults: IInstallPluginResult[]) => {
+            showDialog("SimpleDialog", {
+                title: t("pluginSetting.menu.pluginInstallFailedDialogTitle"),
+                content: t("pluginSetting.pluginInstallFailedDialogContent", {
+                    detail: failResults
+                        .map(
+                            it =>
+                                (it.pluginUrl ?? "") +
+                                "\n" +
+                                t("pluginSetting.failReason", {
+                                    reason: it.message ?? "",
+                                }),
+                        )
+                        .join("\n-----\n"),
+                }),
+            });
+        },
+        [t],
+    );
 
-    const installItems = useCallback(async (items: IMarketPlugin[]) => {
-        if (!items.length || installing) {
-            return;
-        }
-        setInstalling(true);
-        setProgress({ current: 0, total: items.length });
-
-        const successResults: IInstallPluginResult[] = [];
-        const failResults: IInstallPluginResult[] = [];
-        for (let index = 0; index < items.length; index++) {
-            setProgress({ current: index + 1, total: items.length });
-            const item = items[index];
-            try {
-                const result = await installMarketPlugin(item);
-                if (result.success) {
-                    successResults.push(result);
-                } else {
-                    failResults.push(result);
-                }
-            } catch (e: any) {
-                failResults.push({
-                    success: false,
-                    pluginUrl: item.url,
-                    message: e?.message ?? "",
-                });
+    const installItems = useCallback(
+        async (items: IMarketPlugin[]) => {
+            if (!items.length || installLockRef.current) {
+                return;
             }
-        }
-
-        setInstalling(false);
-        setSelectedIds({});
-        if (!failResults.length) {
-            Toast.success(t("pluginSetting.batchInstall.allSuccess", {
-                count: successResults.length,
-            }));
-        } else {
-            Toast.warn(
-                successResults.length
-                    ? t("pluginSetting.batchInstall.partialFailed", {
-                        successCount: successResults.length,
-                        failCount: failResults.length,
-                    })
-                    : t("pluginSetting.batchInstall.allFailed"),
-                {
-                    type: "warn",
-                    actionText: t("common.view"),
-                    onActionClick: () => showFailedResults(failResults),
-                },
+            installLockRef.current = true;
+            const itemIds = items.map(item => item.id);
+            setInstalling(true);
+            setInstallingIds(
+                itemIds.reduce<Record<number, true>>((current, id) => {
+                    current[id] = true;
+                    return current;
+                }, {}),
             );
-        }
-    }, [installing, showFailedResults, t]);
+            setProgress({ current: 0, total: items.length });
+
+            try {
+                const successResults: IInstallPluginResult[] = [];
+                const failResults: IInstallPluginResult[] = [];
+                for (let index = 0; index < items.length; index++) {
+                    setProgress({ current: index + 1, total: items.length });
+                    const item = items[index];
+                    try {
+                        const result = await installMarketPlugin(item);
+                        if (result.success) {
+                            successResults.push(result);
+                        } else {
+                            failResults.push(result);
+                        }
+                    } catch (e: any) {
+                        failResults.push({
+                            success: false,
+                            pluginUrl: item.url,
+                            message: e?.message ?? "",
+                        });
+                    }
+                }
+
+                if (!failResults.length) {
+                    Toast.success(
+                        t("pluginSetting.batchInstall.allSuccess", {
+                            count: successResults.length,
+                        }),
+                    );
+                } else {
+                    Toast.warn(
+                        successResults.length
+                            ? t("pluginSetting.batchInstall.partialFailed", {
+                                successCount: successResults.length,
+                                failCount: failResults.length,
+                            })
+                            : t("pluginSetting.batchInstall.allFailed"),
+                        {
+                            type: "warn",
+                            actionText: t("common.view"),
+                            onActionClick: () => showFailedResults(failResults),
+                        },
+                    );
+                }
+            } finally {
+                installLockRef.current = false;
+                setInstalling(false);
+                setInstallingIds({});
+                setSelectedIds({});
+            }
+        },
+        [showFailedResults, t],
+    );
 
     const filterItems: Array<{ key: FilterKey; title: string }> = [
         { key: "all", title: t("pluginSetting.market.filterAll") },
-        { key: "notInstalled", title: t("pluginSetting.market.filterNotInstalled") },
+        {
+            key: "notInstalled",
+            title: t("pluginSetting.market.filterNotInstalled"),
+        },
         { key: "installed", title: t("pluginSetting.market.filterInstalled") },
         { key: "warning", title: t("pluginSetting.market.filterWarning") },
     ];
@@ -282,8 +321,12 @@ export default function PluginMarket() {
                         value={query}
                         onChangeText={setQuery}
                         onClear={() => setQuery("")}
-                        placeholder={t("pluginSetting.market.searchPlaceholder")}
-                        accessibilityLabel={t("pluginSetting.market.searchPlaceholder")}
+                        placeholder={t(
+                            "pluginSetting.market.searchPlaceholder",
+                        )}
+                        accessibilityLabel={t(
+                            "pluginSetting.market.searchPlaceholder",
+                        )}
                     />
                     <FlatList
                         horizontal
@@ -304,14 +347,21 @@ export default function PluginMarket() {
                                                 : colors.controlBackground,
                                             borderColor: active
                                                 ? colors.selectedBorder
-                                                : colors.controlBorder ?? colors.divider,
+                                                : colors.controlBorder ??
+                                                  colors.divider,
                                             opacity: pressed ? 0.82 : 1,
                                         },
                                     ]}>
                                     <ThemeText
                                         fontSize="description"
-                                        fontWeight={active ? "semibold" : "medium"}
-                                        color={active ? colors.primary : colors.text}>
+                                        fontWeight={
+                                            active ? "semibold" : "medium"
+                                        }
+                                        color={
+                                            active
+                                                ? colors.primary
+                                                : colors.text
+                                        }>
                                         {item.title}
                                     </ThemeText>
                                 </Pressable>
@@ -323,7 +373,8 @@ export default function PluginMarket() {
                             styles.notice,
                             {
                                 backgroundColor: colors.surfacePrimary,
-                                borderColor: colors.controlBorder ?? colors.divider,
+                                borderColor:
+                                    colors.controlBorder ?? colors.divider,
                             },
                         ]}>
                         <Icon
@@ -368,14 +419,19 @@ export default function PluginMarket() {
                             <Empty
                                 icon="code-bracket-square"
                                 title={t("pluginSetting.market.emptyTitle")}
-                                description={t("pluginSetting.market.emptyDescription")}
+                                description={t(
+                                    "pluginSetting.market.emptyDescription",
+                                )}
                                 minHeight={rpx(520)}
                             />
                         }
                         renderItem={({ item }) => {
-                            const installed = installedNames.has(normalizeName(item.name));
+                            const installed = installedNames.has(
+                                normalizeName(item.name),
+                            );
                             const selected = !!selectedIds[item.id];
-                            const warning = isHttpUrl(item.url) || isNonJsUrl(item.url);
+                            const warning =
+                                isHttpUrl(item.url) || isNonJsUrl(item.url);
                             return (
                                 <MarketPluginItem
                                     item={item}
@@ -383,6 +439,7 @@ export default function PluginMarket() {
                                     selected={selected}
                                     warning={warning}
                                     installing={installing}
+                                    itemInstalling={!!installingIds[item.id]}
                                     onToggle={() => toggleSelected(item)}
                                     onInstall={() => installItems([item])}
                                 />
@@ -397,25 +454,41 @@ export default function PluginMarket() {
                             styles.bottomBar,
                             {
                                 backgroundColor: colors.surfacePrimary,
-                                borderColor: colors.controlBorder ?? colors.divider,
-                                shadowColor: colors.shadowMedium ?? colors.shadow,
+                                borderColor:
+                                    colors.controlBorder ?? colors.divider,
+                                shadowColor:
+                                    colors.shadowMedium ?? colors.shadow,
                             },
                         ]}>
                         <View style={styles.bottomInfo}>
-                            <ThemeText fontSize="subTitle" fontWeight="semibold">
+                            <ThemeText
+                                fontSize="subTitle"
+                                fontWeight="semibold">
                                 {installing
-                                    ? t("pluginSetting.batchInstall.installing", {
-                                        current: progress.current,
-                                        total: progress.total,
-                                    })
+                                    ? t(
+                                        "pluginSetting.batchInstall.installing",
+                                        {
+                                            current: progress.current,
+                                            total: progress.total,
+                                        },
+                                    )
                                     : t("pluginSetting.market.selectedCount", {
                                         count: selectedPlugins.length,
                                     })}
                             </ThemeText>
                             <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={t("common.selectAll")}
+                                accessibilityState={{ disabled: installing }}
+                                android_ripple={{
+                                    color: colors.pressedOverlay,
+                                }}
                                 hitSlop={spacing.sm}
                                 disabled={installing}
-                                onPress={selectAllVisible}>
+                                onPress={selectAllVisible}
+                                style={({ pressed }) => ({
+                                    opacity: installing || pressed ? 0.68 : 1,
+                                })}>
                                 <ThemeText
                                     fontSize="description"
                                     color={colors.primary}
@@ -441,7 +514,9 @@ export default function PluginMarket() {
                             />
                         </View>
                     </View>
-                ) : <></>}
+                ) : (
+                    <></>
+                )}
             </HorizontalSafeAreaView>
         </>
     );
@@ -453,6 +528,7 @@ interface IMarketPluginItemProps {
     selected: boolean;
     warning: boolean;
     installing: boolean;
+    itemInstalling: boolean;
     onToggle: () => void;
     onInstall: () => void;
 }
@@ -464,6 +540,7 @@ function MarketPluginItem(props: IMarketPluginItemProps) {
         selected,
         warning,
         installing,
+        itemInstalling,
         onToggle,
         onInstall,
     } = props;
@@ -474,6 +551,13 @@ function MarketPluginItem(props: IMarketPluginItemProps) {
 
     return (
         <Pressable
+            accessibilityRole="checkbox"
+            accessibilityLabel={item.name}
+            accessibilityState={{
+                checked: selected || installed,
+                disabled: installing || installed,
+            }}
+            android_ripple={{ color: colors.pressedOverlay }}
             disabled={installing}
             onPress={onToggle}
             style={({ pressed }) => [
@@ -492,18 +576,22 @@ function MarketPluginItem(props: IMarketPluginItemProps) {
                 style={[
                     styles.selectBox,
                     {
-                        backgroundColor: selected || installed
-                            ? colors.primary
-                            : colors.controlBackground,
-                        borderColor: selected || installed
-                            ? colors.primary
-                            : colors.controlBorder ?? colors.divider,
+                        backgroundColor:
+                            selected || installed
+                                ? colors.primary
+                                : colors.controlBackground,
+                        borderColor:
+                            selected || installed
+                                ? colors.primary
+                                : colors.controlBorder ?? colors.divider,
                     },
                 ]}>
                 <Icon
                     name={installed || selected ? "check" : "plus"}
                     size={rpx(24)}
-                    color={installed || selected ? "#ffffff" : colors.textSecondary}
+                    color={
+                        installed || selected ? "#ffffff" : colors.textSecondary
+                    }
                 />
             </View>
             <View style={styles.itemContent}>
@@ -549,10 +637,13 @@ function MarketPluginItem(props: IMarketPluginItemProps) {
             <Button
                 type={installed ? "secondary" : "outline"}
                 size="small"
-                text={installed
-                    ? t("pluginSetting.market.installed")
-                    : t("pluginSetting.batchInstall.install")}
+                text={
+                    installed
+                        ? t("pluginSetting.market.installed")
+                        : t("pluginSetting.batchInstall.install")
+                }
                 disabled={installed || installing}
+                loading={itemInstalling}
                 onPress={event => {
                     event.stopPropagation?.();
                     onInstall();
@@ -570,7 +661,10 @@ function StatusTag(props: { text: string; color: string }) {
             style={[
                 styles.statusTag,
                 {
-                    backgroundColor: Color(props.color).alpha(0.12).rgb().string(),
+                    backgroundColor: Color(props.color)
+                        .alpha(0.12)
+                        .rgb()
+                        .string(),
                     borderColor: Color(props.color).alpha(0.22).rgb().string(),
                 },
             ]}>

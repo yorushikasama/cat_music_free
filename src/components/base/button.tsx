@@ -3,6 +3,7 @@ import {
     Insets,
     StyleProp,
     StyleSheet,
+    ActivityIndicator,
     TouchableOpacity,
     ViewStyle,
 } from "react-native";
@@ -27,16 +28,47 @@ interface IButtonProps {
     disabled?: boolean;
     fontColor?: keyof CustomizedColors | string;
     hitSlop?: Insets;
+    loading?: boolean;
 }
 
-const sizeConfig: Record<ButtonSize, { height: number; paddingHorizontal: number; fontSize: keyof typeof fontSizeConst }> = {
-    small: { height: rpx(56), paddingHorizontal: spacing.md, fontSize: "subTitle" },
-    medium: { height: rpx(72), paddingHorizontal: spacing.lg, fontSize: "content" },
-    large: { height: rpx(88), paddingHorizontal: spacing.xl, fontSize: "title" },
+const sizeConfig: Record<
+    ButtonSize,
+    {
+        height: number;
+        paddingHorizontal: number;
+        fontSize: keyof typeof fontSizeConst;
+    }
+> = {
+    small: {
+        height: rpx(56),
+        paddingHorizontal: spacing.md,
+        fontSize: "subTitle",
+    },
+    medium: {
+        height: rpx(72),
+        paddingHorizontal: spacing.lg,
+        fontSize: "content",
+    },
+    large: {
+        height: rpx(88),
+        paddingHorizontal: spacing.xl,
+        fontSize: "title",
+    },
 };
 
 export function Button(props: IButtonProps) {
-    const { type = "primary", size = "medium", text, style, onPress, disabled = false, fontColor, hitSlop } = props;
+    const {
+        type = "primary",
+        size = "medium",
+        text,
+        style,
+        onPress,
+        disabled = false,
+        fontColor,
+        hitSlop,
+        loading = false,
+    } = props;
+    const isDisabled = disabled || loading;
     const colors = useColors();
     const cfg = sizeConfig[size];
 
@@ -69,14 +101,21 @@ export function Button(props: IButtonProps) {
         ? colors[fontColor as keyof CustomizedColors]
         : undefined;
     const resolvedFontColor = fontColor
-        ? (typeof fontColorValue === "string" ? fontColorValue : fontColor)
+        ? typeof fontColorValue === "string"
+            ? fontColorValue
+            : fontColor
         : textColorMap[type];
 
     return (
         <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={text}
+            accessibilityState={{ busy: loading, disabled: isDisabled }}
             activeOpacity={0.7}
-            onPress={onPress ? () => onPress({} as GestureResponderEvent) : undefined}
-            disabled={disabled}
+            onPress={
+                onPress ? () => onPress({} as GestureResponderEvent) : undefined
+            }
+            disabled={isDisabled}
             hitSlop={hitSlop}
             style={[
                 styles.container,
@@ -88,15 +127,19 @@ export function Button(props: IButtonProps) {
                     borderWidth: border.width,
                     borderColor: border.color,
                 },
-                disabled && styles.disabled,
+                isDisabled && styles.disabled,
                 style,
             ]}>
-            <ThemeText
-                color={resolvedFontColor}
-                fontSize={cfg.fontSize}
-                fontWeight="medium">
-                {text}
-            </ThemeText>
+            {loading ? (
+                <ActivityIndicator color={resolvedFontColor} size="small" />
+            ) : (
+                <ThemeText
+                    color={resolvedFontColor}
+                    fontSize={cfg.fontSize}
+                    fontWeight="medium">
+                    {text}
+                </ThemeText>
+            )}
         </TouchableOpacity>
     );
 }

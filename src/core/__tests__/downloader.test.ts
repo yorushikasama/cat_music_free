@@ -91,6 +91,29 @@ afterEach(() => {
 });
 
 describe("download queue pump", () => {
+    it("reports queueing and skipped items to the caller", () => {
+        mockedDownloadFile.mockImplementation((_options: any) => ({
+            jobId: 1,
+            promise: new Promise(() => undefined),
+        }) as any);
+        mockedGetDestination.mockReturnValue({
+            publish: jest.fn(async () => "content://media/unused"),
+        } as any);
+        const downloader = new Downloader();
+        downloader.injectDependencies(config, pluginManager);
+        const first = music("first");
+        const second = music("second");
+
+        expect(downloader.download([first, second])).toEqual({
+            enqueuedCount: 2,
+            skippedCount: 0,
+        });
+        expect(downloader.download([first, second])).toEqual({
+            enqueuedCount: 0,
+            skippedCount: 2,
+        });
+    });
+
     it("releases the slot after a destination failure and continues", async () => {
         let jobId = 0;
         mockedDownloadFile.mockImplementation((options: any) => {

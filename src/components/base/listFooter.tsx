@@ -5,9 +5,8 @@ import { fontSizeConst } from "@/constants/uiConst";
 import ThemeText from "./themeText";
 import useColors from "@/hooks/useColors";
 import { RequestStateCode } from "@/constants/commonConst";
-import { Pressable } from "react-native-gesture-handler";
+import { Pressable } from "react-native";
 import { useI18N } from "@/core/i18n";
-
 
 interface IProps {
     state: RequestStateCode;
@@ -20,37 +19,60 @@ export default function ListFooter(props: IProps) {
     const colors = useColors();
     const { t } = useI18N();
 
-
     if (state === RequestStateCode.ERROR) {
-        return <View style={style.wrapper} >
-            <Pressable hitSlop={{
-                top: rpx(36),
-                bottom: rpx(36),
-                left: rpx(72),
-                right: rpx(72),
-            }} onPress={props.onRetry}>
-                <ThemeText fontSize="content" fontColor="textSecondary">
-                    {t("common.failToLoad")}<Text style={[style.underline, {
-                        textDecorationColor: colors.textSecondary,
-                    }]}>{" "}{t("common.clickToRetry")}</Text>
+        return (
+            <View style={style.wrapper}>
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.clickToRetry")}
+                    android_ripple={{ color: colors.pressedOverlay }}
+                    hitSlop={{
+                        top: rpx(36),
+                        bottom: rpx(36),
+                        left: rpx(72),
+                        right: rpx(72),
+                    }}
+                    onPress={props.onRetry}>
+                    <ThemeText fontSize="content" fontColor="textSecondary">
+                        {t("common.failToLoad")}
+                        <Text
+                            style={[
+                                style.underline,
+                                {
+                                    textDecorationColor: colors.textSecondary,
+                                },
+                            ]}>
+                            {" "}
+                            {t("common.clickToRetry")}
+                        </Text>
+                    </ThemeText>
+                </Pressable>
+            </View>
+        );
+    } else if (
+        state === RequestStateCode.PENDING_REST_PAGE ||
+        state === RequestStateCode.PARTLY_DONE
+    ) {
+        return (
+            <View style={style.wrapper}>
+                <ActivityIndicator
+                    animating
+                    color={colors.textSecondary}
+                    size={fontSizeConst.appbar}
+                />
+                <ThemeText fontColor="textSecondary">
+                    {t("common.loading")}
                 </ThemeText>
-            </Pressable>
-        </View>;
-    } else if (state === RequestStateCode.PENDING_REST_PAGE || state === RequestStateCode.PARTLY_DONE) {
-        return <View style={style.wrapper}>
-            <ActivityIndicator
-                animating
-                color={colors.textSecondary}
-                size={fontSizeConst.appbar}
-            />
-            <ThemeText fontColor='textSecondary'>{t("common.loading")}</ThemeText>
-        </View>;
+            </View>
+        );
     } else if (state === RequestStateCode.FINISHED) {
-        return <View style={style.wrapper}>
-            <ThemeText fontSize="content" fontColor="textSecondary">
-                {t("common.listReachEnd")}
-            </ThemeText>
-        </View>;
+        return (
+            <View style={style.wrapper}>
+                <ThemeText fontSize="content" fontColor="textSecondary">
+                    {t("common.listReachEnd")}
+                </ThemeText>
+            </View>
+        );
     }
 
     // PENDING_FIRST_PAGE, IDLE
@@ -70,5 +92,4 @@ const style = StyleSheet.create({
         textDecorationLine: "underline",
         textDecorationStyle: "solid",
     },
-
 });

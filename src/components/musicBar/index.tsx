@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import { CircularProgressBase } from "react-native-circular-progress-indicator";
@@ -15,10 +15,11 @@ import TrackPlayer, {
 } from "@/core/trackPlayer";
 import { musicIsPaused } from "@/utils/trackUtils";
 import MusicInfo from "./musicInfo";
-import Icon from "@/components/base/icon.tsx";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 import ThemedBackgroundLayer from "@/components/base/themedBackground";
+import { useI18N } from "@/core/i18n";
+import Toast from "@/utils/toast";
 
 type IMusicBarVariant = "default" | "floating";
 
@@ -30,6 +31,8 @@ function CircularPlayBtn() {
     const progress = useProgress();
     const musicState = useMusicState();
     const colors = useColors();
+    const { t } = useI18N();
+    const [togglingPlayback, setTogglingPlayback] = useState(false);
 
     const isPaused = musicIsPaused(musicState);
 
@@ -52,9 +55,16 @@ function CircularPlayBtn() {
             activeStrokeColor={activeColor}
             inActiveStrokeColor={inactiveColor}>
             <IconButton
-                accessibilityLabel={"播放或暂停歌曲"}
+                accessibilityLabel={
+                    togglingPlayback
+                        ? t("common.loading")
+                        : isPaused
+                            ? t("common.play")
+                            : t("a11y.pause")
+                }
                 name={isPaused ? "play" : "pause"}
                 sizeType={"normal"}
+                loading={togglingPlayback}
                 hitSlop={{
                     top: 10,
                     left: 10,
@@ -63,10 +73,21 @@ function CircularPlayBtn() {
                 }}
                 color={iconColor}
                 onPress={async () => {
-                    if (isPaused) {
-                        await TrackPlayer.play();
-                    } else {
-                        await TrackPlayer.pause();
+                    setTogglingPlayback(true);
+                    try {
+                        if (isPaused) {
+                            await TrackPlayer.play();
+                        } else {
+                            await TrackPlayer.pause();
+                        }
+                    } catch (error: any) {
+                        Toast.warn(
+                            t("toast.unknownError", {
+                                reason: error?.message ?? error,
+                            }),
+                        );
+                    } finally {
+                        setTogglingPlayback(false);
                     }
                 }}
             />
@@ -80,6 +101,7 @@ function MusicBar(props: IMusicBarProps) {
     const colors = useColors();
     const safeAreaInsets = useSafeAreaInsets();
     const theme = Theme.useTheme();
+    const { t } = useI18N();
 
     const isFloating = variant === "floating";
     const barBgColor = colors.musicBar ?? colors.surfacePrimary;
@@ -142,11 +164,10 @@ function MusicBar(props: IMusicBarProps) {
             />
             <View style={[styles.actionGroup, actionGroupVariantStyle]}>
                 <CircularPlayBtn />
-                <Icon
-                    accessible
-                    accessibilityLabel="播放列表"
+                <IconButton
+                    accessibilityLabel={t("panel.playList.title")}
                     name="playlist"
-                    size={rpx(56)}
+                    sizeType="big"
                     onPress={() => {
                         showPanel("PlayList");
                     }}

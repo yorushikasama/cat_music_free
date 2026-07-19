@@ -27,6 +27,7 @@ import ListItem from "./listItem";
 import { IIconName } from "@/components/base/icon.tsx";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
+import i18n from "@/core/i18n";
 
 interface IAppBarProps {
     titleTextOpacity?: number;
@@ -35,6 +36,7 @@ interface IAppBarProps {
     actions?: Array<{
         icon: IIconName;
         onPress?: () => void;
+        accessibilityLabel?: string;
     }>;
     menu?: Array<{
         icon: IIconName;
@@ -129,6 +131,7 @@ export default function AppBar(props: IAppBarProps) {
                     sizeType="normal"
                     color={contentColor}
                     style={[globalStyle.notShrink, styles.iconButton]}
+                    accessibilityLabel={i18n.t("a11y.back")}
                     onPress={
                         onBackPress ||
                         (() => {
@@ -161,7 +164,12 @@ export default function AppBar(props: IAppBarProps) {
                         name={action.icon}
                         sizeType="normal"
                         color={contentColor}
-                        style={[globalStyle.notShrink, styles.rightButton, styles.iconButton]}
+                        style={[
+                            globalStyle.notShrink,
+                            styles.rightButton,
+                            styles.iconButton,
+                        ]}
+                        accessibilityLabel={action.accessibilityLabel}
                         onPress={action.onPress}
                     />
                 ))}
@@ -174,7 +182,12 @@ export default function AppBar(props: IAppBarProps) {
                             setMenuIconLayout(evt.nativeEvent.layout);
                         }}
                         color={contentColor}
-                        style={[globalStyle.notShrink, styles.rightButton, styles.iconButton]}
+                        style={[
+                            globalStyle.notShrink,
+                            styles.rightButton,
+                            styles.iconButton,
+                        ]}
+                        accessibilityLabel={i18n.t("a11y.moreOptions")}
                         onPress={() => {
                             setShowMenu(true);
                         }}
@@ -195,7 +208,8 @@ export default function AppBar(props: IAppBarProps) {
                         pointerEvents={showMenu ? "auto" : "none"}
                         style={[
                             {
-                                borderBottomColor: colors.surfacePrimary ?? colors.background,
+                                borderBottomColor:
+                                    colors.surfacePrimary ?? colors.background,
                                 left:
                                     (menuIconLayout?.x ?? 0) +
                                     (menuIconLayout?.width ?? 0) / 2 -
@@ -215,7 +229,8 @@ export default function AppBar(props: IAppBarProps) {
                         pointerEvents={showMenu ? "auto" : "none"}
                         style={[
                             {
-                                backgroundColor: colors.surfacePrimary ?? colors.background,
+                                backgroundColor:
+                                    colors.surfacePrimary ?? colors.background,
                                 right: rpx(24),
                                 top:
                                     (menuIconLayout?.y ?? 0) +
@@ -224,7 +239,8 @@ export default function AppBar(props: IAppBarProps) {
                                     (menuWithStatusBar
                                         ? OriginalStatusBar.currentHeight ?? 0
                                         : 0),
-                                shadowColor: colors.shadowMedium ?? colors.shadow,
+                                shadowColor:
+                                    colors.shadowMedium ?? colors.shadow,
                             },
                             transformStyle,
                             styles.menu,

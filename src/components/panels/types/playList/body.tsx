@@ -99,7 +99,12 @@ export default function Body(props: IBodyProps) {
         return undefined;
     }, [currentMusicItem, playList]);
 
-    const renderItem = ({ item }: { item: IMusic.IMusicItem; index: number }) => {
+    const renderItem = ({
+        item,
+    }: {
+        item: IMusic.IMusicItem;
+        index: number;
+    }) => {
         return (
             <PlayListItem
                 item={item}

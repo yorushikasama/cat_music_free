@@ -6,6 +6,7 @@ import useColors from "@/hooks/useColors";
 import rpx from "@/utils/rpx";
 import Color from "color";
 import React, { useState } from "react";
+import { useI18N } from "@/core/i18n";
 import {
     Pressable,
     StyleProp,
@@ -35,6 +36,7 @@ export default function SearchInput(props: ISearchInputProps) {
         ...rest
     } = props;
     const colors = useColors();
+    const { t } = useI18N();
     const [focused, setFocused] = useState(false);
 
     const textColor = colors.text;
@@ -42,16 +44,22 @@ export default function SearchInput(props: ISearchInputProps) {
         placeholderTextColor ?? Color(textColor).alpha(0.52).rgb().string();
     const hasValue = typeof value === "string" && value.length > 0;
     const canEdit = editable !== false && !onPress;
+    const canClear = !!onClear && hasValue && canEdit;
 
     const content = (
         <View
             style={[
                 styles.container,
                 {
-                    backgroundColor: colors.controlBackground ?? colors.surfacePrimary ?? colors.card,
+                    backgroundColor:
+                        colors.controlBackground ??
+                        colors.surfacePrimary ??
+                        colors.card,
                     borderColor: focused
                         ? colors.selectedBorder
-                        : colors.controlBorder ?? colors.divider ?? Color(textColor).alpha(0.12).rgb().string(),
+                        : colors.controlBorder ??
+                          colors.divider ??
+                          Color(textColor).alpha(0.12).rgb().string(),
                 },
                 containerStyle,
             ]}>
@@ -83,8 +91,11 @@ export default function SearchInput(props: ISearchInputProps) {
                     style,
                 ]}
             />
-            {onClear && hasValue ? (
+            {canClear ? (
                 <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.clear")}
+                    android_ripple={{ color: colors.pressedOverlay }}
                     hitSlop={rpx(10)}
                     style={styles.clearButton}
                     onPress={onClear}>

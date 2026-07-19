@@ -1,12 +1,26 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import { LayoutRectangle, StyleSheet, Text, View } from "react-native";
 import rpx from "@/utils/rpx";
 import useDelayFalsy from "@/hooks/useDelayFalsy";
-import { FlatList, Gesture, GestureDetector, TapGestureHandler } from "react-native-gesture-handler";
+import {
+    FlatList,
+    Gesture,
+    GestureDetector,
+    TapGestureHandler,
+} from "react-native-gesture-handler";
 import { fontSizeConst } from "@/constants/uiConst";
 import globalStyle from "@/constants/globalStyle";
 import { showPanel } from "@/components/panels/usePanel";
-import TrackPlayer, { useCurrentMusic, useMusicState } from "@/core/trackPlayer";
+import TrackPlayer, {
+    useCurrentMusic,
+    useMusicState,
+} from "@/core/trackPlayer";
 import { musicIsPaused } from "@/utils/trackUtils";
 import delay from "@/utils/delay";
 import DraggingTime from "./draggingTime";
@@ -16,9 +30,13 @@ import LyricOperations from "./lyricOperations";
 import { IParsedLrcItem } from "@/utils/lrcParser";
 import { IconButtonWithGesture } from "@/components/base/iconButton.tsx";
 import { getMediaExtraProperty } from "@/utils/mediaExtra";
-import lyricManager, { useCurrentLyricItem, useLyricState } from "@/core/lyricManager";
+import lyricManager, {
+    useCurrentLyricItem,
+    useLyricState,
+} from "@/core/lyricManager";
 import { useI18N } from "@/core/i18n";
 import { SkeletonBlock } from "@/components/base/skeleton";
+import Toast from "@/utils/toast";
 
 const ITEM_HEIGHT = rpx(92);
 
@@ -62,8 +80,7 @@ function LyricLoadingSkeleton() {
 export default function Lyric(props: IProps) {
     const { onTurnPageClick } = props;
 
-    const { loading, meta, lyrics, hasTranslation } =
-        useLyricState();
+    const { loading, meta, lyrics, hasTranslation } = useLyricState();
     const currentLrcItem = useCurrentLyricItem();
     const showTranslation = PersistStatus.useValue(
         "lyric.showTranslation",
@@ -87,7 +104,10 @@ export default function Lyric(props: IProps) {
     const listRef = useRef<FlatList<IParsedLrcItem> | null>(null);
 
     const currentMusicItem = useCurrentMusic();
-    const associateMusicItem = getMediaExtraProperty(currentMusicItem, "associatedLrc");
+    const associateMusicItem = getMediaExtraProperty(
+        currentMusicItem,
+        "associatedLrc",
+    );
 
     // 是否展示拖拽
     const dragShownRef = useRef(false);
@@ -136,7 +156,10 @@ export default function Lyric(props: IProps) {
             });
         } else {
             listRef.current?.scrollToIndex({
-                index: Math.min(currentLyricItem.index ?? 0, currentLyrics.length - 1),
+                index: Math.min(
+                    currentLyricItem.index ?? 0,
+                    currentLyrics.length - 1,
+                ),
                 viewPosition: 0.5,
             });
         }
@@ -224,9 +247,17 @@ export default function Lyric(props: IProps) {
         if (draggingIndex !== undefined) {
             const time = lyrics[draggingIndex].time + +(meta?.offset ?? 0);
             if (time !== undefined && !isNaN(time)) {
-                await TrackPlayer.seekTo(time);
-                await TrackPlayer.play();
-                setDraggingIndexImmi(undefined);
+                try {
+                    await TrackPlayer.seekTo(time);
+                    await TrackPlayer.play();
+                    setDraggingIndexImmi(undefined);
+                } catch (error: any) {
+                    Toast.warn(
+                        t("toast.unknownError", {
+                            reason: error?.message ?? error,
+                        }),
+                    );
+                }
             }
         }
     };
@@ -288,11 +319,16 @@ export default function Lyric(props: IProps) {
                                                     ]}
                                                     ellipsizeMode="middle"
                                                     numberOfLines={1}>
-                                                    {t("lyric.lyricLinkedFrom", {
-                                                        platform: associateMusicItem.platform,
-                                                        title: associateMusicItem.title || "",
-                                                    })}
-
+                                                    {t(
+                                                        "lyric.lyricLinkedFrom",
+                                                        {
+                                                            platform:
+                                                                associateMusicItem.platform,
+                                                            title:
+                                                                associateMusicItem.title ||
+                                                                "",
+                                                        },
+                                                    )}
                                                 </Text>
 
                                                 <GestureDetector
@@ -348,8 +384,7 @@ export default function Lyric(props: IProps) {
                             <TapGestureHandler
                                 onActivated={() => {
                                     showPanel("SearchLrc", {
-                                        musicItem:
-                                            TrackPlayer.currentMusic,
+                                        musicItem: TrackPlayer.currentMusic,
                                     });
                                 }}>
                                 <Text
@@ -366,7 +401,7 @@ export default function Lyric(props: IProps) {
                                 layout?.height
                                     ? {
                                         top:
-                                            (layout.height - ITEM_HEIGHT) / 2,
+                                              (layout.height - ITEM_HEIGHT) / 2,
                                     }
                                     : null,
                             ]}>
@@ -380,8 +415,9 @@ export default function Lyric(props: IProps) {
 
                             <IconButtonWithGesture
                                 style={styles.playIcon}
-                                sizeType='normal'
+                                sizeType="normal"
                                 name="play"
+                                accessibilityLabel={t("a11y.seekToLyric")}
                                 onPress={onLyricSeekPress}
                             />
                         </View>

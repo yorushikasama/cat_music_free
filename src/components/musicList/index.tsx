@@ -2,8 +2,21 @@ import { RequestStateCode } from "@/constants/commonConst";
 import TrackPlayer from "@/core/trackPlayer";
 import rpx from "@/utils/rpx";
 import { FlashList } from "@shopify/flash-list";
-import React, { useRef, useCallback, useState, useEffect, useMemo } from "react";
-import { FlatListProps, NativeSyntheticEvent, NativeScrollEvent, Pressable, StyleSheet, View } from "react-native";
+import React, {
+    useRef,
+    useCallback,
+    useState,
+    useEffect,
+    useMemo,
+} from "react";
+import {
+    FlatListProps,
+    NativeSyntheticEvent,
+    NativeScrollEvent,
+    Pressable,
+    StyleSheet,
+    View,
+} from "react-native";
 import ListEmpty from "../base/listEmpty";
 import ListFooter from "../base/listFooter";
 import MusicItem from "../mediaItem/musicItem";
@@ -11,6 +24,7 @@ import { isSameMediaItem } from "@/utils/mediaUtils";
 import Icon from "../base/icon";
 import { iconSizeConst } from "@/constants/uiConst";
 import useColors from "@/hooks/useColors";
+import { useI18N } from "@/core/i18n";
 
 interface IMusicListProps {
     /** 顶部 */
@@ -49,8 +63,9 @@ export default function MusicList(props: IMusicListProps) {
         onLoadMore,
         highlightMusicItem,
         onScroll,
-    } = props;    
+    } = props;
     const colors = useColors();
+    const { t } = useI18N();
     const flashListRef = useRef<FlashList<IMusic.IMusicItem>>(null);
     const [showBadge, setShowBadge] = useState(false);
     const hideTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -58,9 +73,11 @@ export default function MusicList(props: IMusicListProps) {
     // 查找高亮项的索引
     const highlightIndex = useMemo(() => {
         if (!highlightMusicItem || !musicList) return -1;
-        return musicList.findIndex(item => isSameMediaItem(item, highlightMusicItem));
-    }, [highlightMusicItem, musicList]);    
-    
+        return musicList.findIndex(item =>
+            isSameMediaItem(item, highlightMusicItem),
+        );
+    }, [highlightMusicItem, musicList]);
+
     // 处理滚动开始
     const handleScrollBegin = useCallback(() => {
         if (highlightIndex !== -1) {
@@ -70,7 +87,7 @@ export default function MusicList(props: IMusicListProps) {
             setShowBadge(true);
         }
     }, [highlightIndex]);
-    
+
     // 处理滚动结束
     const handleScrollEnd = useCallback(() => {
         if (hideTimeoutRef.current) {
@@ -80,8 +97,8 @@ export default function MusicList(props: IMusicListProps) {
         hideTimeoutRef.current = setTimeout(() => {
             setShowBadge(false);
         }, 5000);
-    }, []);    
-    
+    }, []);
+
     // 滚动到高亮项
     const scrollToHighlight = useCallback(() => {
         if (highlightIndex !== -1 && flashListRef.current) {
@@ -96,8 +113,8 @@ export default function MusicList(props: IMusicListProps) {
                 clearTimeout(hideTimeoutRef.current);
             }
         }
-    }, [highlightIndex]);    
-    
+    }, [highlightIndex]);
+
     // 清理定时器
     useEffect(() => {
         return () => {
@@ -105,16 +122,20 @@ export default function MusicList(props: IMusicListProps) {
                 clearTimeout(hideTimeoutRef.current);
             }
         };
-    }, []);    
-    
+    }, []);
+
     return (
         <View style={styles.container}>
             <FlashList
                 ref={flashListRef}
                 ListHeaderComponent={Header}
-                ListEmptyComponent={<ListEmpty state={state} onRetry={onRetry} />}
+                ListEmptyComponent={
+                    <ListEmpty state={state} onRetry={onRetry} />
+                }
                 ListFooterComponent={
-                    musicList?.length ? <ListFooter state={state} onRetry={onRetry} /> : null
+                    musicList?.length ? (
+                        <ListFooter state={state} onRetry={onRetry} />
+                    ) : null
                 }
                 extraData={highlightMusicItem}
                 data={musicList ?? []}
@@ -140,30 +161,44 @@ export default function MusicList(props: IMusicListProps) {
                                 }
                             }}
                             musicSheet={musicSheet}
-                            highlight={isSameMediaItem(musicItem, highlightMusicItem)}
+                            highlight={isSameMediaItem(
+                                musicItem,
+                                highlightMusicItem,
+                            )}
                         />
                     );
                 }}
                 onEndReached={() => {
-                    if (state === RequestStateCode.IDLE || state === RequestStateCode.PARTLY_DONE) {
+                    if (
+                        state === RequestStateCode.IDLE ||
+                        state === RequestStateCode.PARTLY_DONE
+                    ) {
                         onLoadMore?.();
                     }
                 }}
                 onEndReachedThreshold={0.1}
-            />              
+            />
             {showBadge && (
                 <View style={styles.badge} pointerEvents="box-none">
                     <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("a11y.locateCurrentTrack")}
+                        android_ripple={{ color: colors.pressedOverlay }}
                         style={[
                             styles.badgeButton,
                             {
-                                backgroundColor: colors.controlBackground ?? colors.surfacePrimary,
-                                borderColor: colors.selectedBorder ?? colors.primary,
-                                shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000",
+                                backgroundColor:
+                                    colors.controlBackground ??
+                                    colors.surfacePrimary,
+                                borderColor:
+                                    colors.selectedBorder ?? colors.primary,
+                                shadowColor:
+                                    colors.shadowMedium ??
+                                    colors.shadow ??
+                                    "#000",
                             },
                         ]}
-                        onPress={scrollToHighlight}
-                    >
+                        onPress={scrollToHighlight}>
                         <Icon
                             name="crosshair"
                             size={iconSizeConst.normal}

@@ -21,6 +21,7 @@ import { ImageStyle } from "react-native-fast-image";
 import Icon, { IIconName } from "@/components/base/icon.tsx";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
+import { getIconAccessibilityLabel } from "@/utils/iconAccessibility";
 
 interface IListItemProps {
     withHorizontalPadding?: boolean;
@@ -70,9 +71,7 @@ function ListItem(props: IListItemProps) {
     };
 
     const inner = (
-        <View style={[styles.container, defaultStyle, style]}>
-            {children}
-        </View>
+        <View style={[styles.container, defaultStyle, style]}>{children}</View>
     );
 
     if (onPress || onLongPress) {
@@ -148,6 +147,7 @@ interface IListItemIconProps {
     contentStyle?: StyleProp<TextStyle>;
     onPress?: () => void;
     color?: string;
+    accessibilityLabel?: string;
 }
 
 function ListItemIcon(props: IListItemIconProps) {
@@ -161,6 +161,7 @@ function ListItemIcon(props: IListItemIconProps) {
         contentStyle,
         onPress,
         color,
+        accessibilityLabel,
     } = props;
 
     const colors = useColors();
@@ -184,7 +185,16 @@ function ListItemIcon(props: IListItemIconProps) {
     );
 
     return onPress ? (
-        <TouchableOpacity onPress={onPress}>{innerContent}</TouchableOpacity>
+        <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={
+                accessibilityLabel ?? getIconAccessibilityLabel(icon)
+            }
+            activeOpacity={0.7}
+            hitSlop={spacing.sm}
+            onPress={onPress}>
+            {innerContent}
+        </TouchableOpacity>
     ) : (
         innerContent
     );

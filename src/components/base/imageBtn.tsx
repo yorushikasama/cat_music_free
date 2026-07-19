@@ -1,5 +1,10 @@
 import React from "react";
-import { StyleProp, StyleSheet, TouchableOpacity, ViewStyle } from "react-native";
+import {
+    StyleProp,
+    StyleSheet,
+    TouchableOpacity,
+    ViewStyle,
+} from "react-native";
 import rpx from "@/utils/rpx";
 import Image from "./image";
 import { ImgAsset } from "@/constants/assetsConst";
@@ -16,6 +21,8 @@ export default function ImageBtn(props: IImageBtnProps) {
     const { onPress, uri, title, style: _style } = props ?? {};
     return (
         <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={title}
             activeOpacity={0.5}
             onPress={onPress}
             style={[style.wrapper, _style]}>

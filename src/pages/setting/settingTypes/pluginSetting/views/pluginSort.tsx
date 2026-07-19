@@ -63,13 +63,19 @@ export default function PluginSort() {
                             borderColor: colors.selectedBorder,
                         },
                     ]}>
-                    <ThemeText fontSize="description" fontWeight="bold" fontColor="primary">
+                    <ThemeText
+                        fontSize="description"
+                        fontWeight="bold"
+                        fontColor="primary">
                         {index + 1}
                     </ThemeText>
                 </View>
 
                 <View style={styles.itemMain}>
-                    <ThemeText numberOfLines={1} fontSize="title" fontWeight="medium">
+                    <ThemeText
+                        numberOfLines={1}
+                        fontSize="title"
+                        fontWeight="medium">
                         {item.name}
                     </ThemeText>
                     <ThemeText
@@ -77,7 +83,9 @@ export default function PluginSort() {
                         fontSize="description"
                         fontColor="textSecondary"
                         style={styles.itemDesc}>
-                        {item.instance.author || item.instance.version || t("pluginSetting.menu.sort")}
+                        {item.instance.author ||
+                            item.instance.version ||
+                            t("pluginSetting.menu.sort")}
                     </ThemeText>
                 </View>
             </View>
@@ -91,6 +99,9 @@ export default function PluginSort() {
                 actionComponent={
                     <TouchableOpacity
                         activeOpacity={0.72}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("common.done")}
+                        accessibilityState={{ disabled: !hasChanges }}
                         disabled={!hasChanges}
                         style={[
                             styles.doneNavButton,
@@ -108,7 +119,11 @@ export default function PluginSort() {
                         <ThemeText
                             fontSize="subTitle"
                             fontWeight="semibold"
-                            color={hasChanges ? colors.primary : colors.textSecondary}>
+                            color={
+                                hasChanges
+                                    ? colors.primary
+                                    : colors.textSecondary
+                            }>
                             {t("common.done")}
                         </ThemeText>
                     </TouchableOpacity>
@@ -134,9 +149,14 @@ export default function PluginSort() {
                     </ThemeText>
                     <TouchableOpacity
                         activeOpacity={0.72}
+                        accessibilityRole="button"
+                        accessibilityLabel="重置顺序"
                         hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
                         onPress={resetOrder}>
-                        <ThemeText fontSize="description" fontWeight="medium" fontColor="primary">
+                        <ThemeText
+                            fontSize="description"
+                            fontWeight="medium"
+                            fontColor="primary">
                             重置顺序
                         </ThemeText>
                     </TouchableOpacity>
@@ -149,7 +169,9 @@ export default function PluginSort() {
                             renderItem={renderSortingItem}
                             itemHeight={ITEM_HEIGHT}
                             itemJustifyContent="center"
-                            activeBackgroundColor={colors.selectedBackground ?? colors.placeholder}
+                            activeBackgroundColor={
+                                colors.selectedBackground ?? colors.placeholder
+                            }
                             onSortEnd={setSortingPlugins}
                         />
                     ) : (

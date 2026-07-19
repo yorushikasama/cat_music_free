@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import rpx, { vmax } from "@/utils/rpx";
 import ListItem from "@/components/base/listItem";
 import { ImgAsset } from "@/constants/assetsConst";
@@ -13,6 +13,7 @@ import PanelHeader from "../base/panelHeader";
 import MusicSheet, { useSheetsBase } from "@/core/musicSheet";
 import { useI18N } from "@/core/i18n";
 import { getSheetCover } from "@/utils/mediaUtils";
+import useColors from "@/hooks/useColors";
 
 interface IAddToMusicSheetProps {
     musicItem: IMusic.IMusicItem | IMusic.IMusicItem[];
@@ -26,9 +27,32 @@ export default function AddToMusicSheet(props: IAddToMusicSheetProps) {
     const { musicItem = [], newSheetDefaultName } = props ?? {};
     const safeAreaInsets = useSafeAreaInsets();
     const { t } = useI18N();
+    const colors = useColors();
+    const [addingSheetId, setAddingSheetId] = useState<string | null>(null);
+
+    const addMusicToSheet = useCallback(
+        async (sheetId: string) => {
+            if (addingSheetId) {
+                return;
+            }
+
+            setAddingSheetId(sheetId);
+            try {
+                await MusicSheet.addMusic(sheetId, musicItem);
+                hidePanel();
+                Toast.success(t("panel.addToMusicSheet.toast.success"));
+            } catch {
+                Toast.warn(t("panel.addToMusicSheet.toast.fail"));
+            } finally {
+                setAddingSheetId(null);
+            }
+        },
+        [addingSheetId, musicItem, t],
+    );
 
     return (
         <PanelBase
+            dismissDisabled={addingSheetId !== null}
             renderBody={() => (
                 <>
                     <PanelHeader
@@ -50,7 +74,11 @@ export default function AddToMusicSheet(props: IAddToMusicSheetProps) {
                                 <ListItem
                                     withHorizontalPadding
                                     key="new"
+                                    disabled={addingSheetId !== null}
                                     onPress={() => {
+                                        if (addingSheetId) {
+                                            return;
+                                        }
                                         showPanel("CreateMusicSheet", {
                                             defaultName: newSheetDefaultName,
                                             async onSheetCreated(sheetId) {
@@ -86,18 +114,8 @@ export default function AddToMusicSheet(props: IAddToMusicSheetProps) {
                                 <ListItem
                                     withHorizontalPadding
                                     key={`${sheet.id}`}
-                                    onPress={async () => {
-                                        try {
-                                            await MusicSheet.addMusic(
-                                                sheet.id,
-                                                musicItem,
-                                            );
-                                            hidePanel();
-                                            Toast.success(t("panel.addToMusicSheet.toast.success"));
-                                        } catch {
-                                            Toast.warn(t("panel.addToMusicSheet.toast.fail"));
-                                        }
-                                    }}>
+                                    disabled={addingSheetId !== null}
+                                    onPress={() => addMusicToSheet(sheet.id)}>
                                     <ListItem.ListItemImage
                                         uri={getSheetCover(sheet)}
                                         fallbackImg={
@@ -112,6 +130,12 @@ export default function AddToMusicSheet(props: IAddToMusicSheetProps) {
                                             count: sheet.worksNum ?? "-",
                                         })}
                                     />
+                                    {addingSheetId === sheet.id ? (
+                                        <ActivityIndicator
+                                            color={colors.primary}
+                                            size="small"
+                                        />
+                                    ) : null}
                                 </ListItem>
                             )}
                         />

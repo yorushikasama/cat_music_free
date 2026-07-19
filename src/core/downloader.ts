@@ -79,6 +79,15 @@ interface IDownloadTaskInfo {
     errorReason?: DownloadFailReason;
 }
 
+export interface IDownloadEnqueueResult {
+    /** 成功加入下载队列的歌曲数量。 */
+    enqueuedCount: number;
+    /** 因已经下载或已在队列中而跳过的歌曲数量。 */
+    skippedCount: number;
+    /** 本次请求被拒绝的原因；未拒绝时为 undefined。 */
+    rejectionReason?: DownloadFailReason;
+}
+
 
 const downloadQueueAtom = atom<IMusic.IMusicItem[]>([]);
 const downloadTasks = new Map<string, IDownloadTaskInfo>();
@@ -411,21 +420,34 @@ export class Downloader extends EventEmitter<IEvents> implements IInjectable {
         }
     }
 
-    download(musicItems: IMusic.IMusicItem | IMusic.IMusicItem[], quality?: IMusic.IQualityKey) {
+    download(
+        musicItems: IMusic.IMusicItem | IMusic.IMusicItem[],
+        quality?: IMusic.IQualityKey,
+    ): IDownloadEnqueueResult {
         if (network.isOffline) {
             this.emit(DownloaderEvent.DownloadError, DownloadFailReason.NetworkOffline);
-            return;
+            return {
+                enqueuedCount: 0,
+                skippedCount: Array.isArray(musicItems) ? musicItems.length : 1,
+                rejectionReason: DownloadFailReason.NetworkOffline,
+            };
         }
 
         if (network.isCellular && !this.configService.getConfig("basic.useCelluarNetworkDownload")) {
             this.emit(DownloaderEvent.DownloadError, DownloadFailReason.NotAllowToDownloadInCellular);
-            return;
+            return {
+                enqueuedCount: 0,
+                skippedCount: Array.isArray(musicItems) ? musicItems.length : 1,
+                rejectionReason: DownloadFailReason.NotAllowToDownloadInCellular,
+            };
         }
 
         // 整理成数组
         if (!Array.isArray(musicItems)) {
             musicItems = [musicItems];
         }
+
+        const requestedCount = musicItems.length;
 
         // 防止重复下载
         musicItems = musicItems.filter(m => {
@@ -451,7 +473,10 @@ export class Downloader extends EventEmitter<IEvents> implements IInjectable {
         });
 
         if (!musicItems.length) {
-            return;
+            return {
+                enqueuedCount: 0,
+                skippedCount: requestedCount,
+            };
         }
 
         // 添加进任务队列
@@ -461,6 +486,11 @@ export class Downloader extends EventEmitter<IEvents> implements IInjectable {
 
         this.queueCompletionEmitted = false;
         this.pumpDownloadQueue();
+
+        return {
+            enqueuedCount: musicItems.length,
+            skippedCount: requestedCount - musicItems.length,
+        };
     }
 
     remove(musicItem: IMusic.IMusicItem) {

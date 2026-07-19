@@ -1,5 +1,5 @@
-import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import { spacing } from "@/constants/spacing";
 import { iconSizeConst } from "@/constants/uiConst";
@@ -26,39 +26,72 @@ export default function (props: IProps) {
 
     const colors = useColors();
     const { t } = useI18N();
+    const [playAllLoading, setPlayAllLoading] = useState(false);
 
     const starred = useSheetIsStarred(musicSheet);
 
     return (
         <View style={style.topWrapper}>
             <Pressable
-                style={style.playAll}
-                onPress={() => {
+                accessibilityRole="button"
+                accessibilityLabel={
+                    playAllLoading ? t("common.loading") : t("playAllBar.title")
+                }
+                accessibilityState={{
+                    busy: playAllLoading,
+                    disabled: playAllLoading,
+                }}
+                android_ripple={{ color: colors.pressedOverlay }}
+                disabled={playAllLoading}
+                style={({ pressed }) => [
+                    style.playAll,
+                    pressed ? style.playAllPressed : null,
+                ]}
+                onPress={async () => {
                     if (musicList?.length) {
                         let defaultPlayMusic = musicList[0];
                         if (
-                            TrackPlayer.repeatMode ===
-                            MusicRepeatMode.SHUFFLE
+                            TrackPlayer.repeatMode === MusicRepeatMode.SHUFFLE
                         ) {
                             defaultPlayMusic =
                                 musicList[
                                     Math.floor(Math.random() * musicList.length)
                                 ];
                         }
-                        TrackPlayer.playWithReplacePlayList(
-                            defaultPlayMusic,
-                            musicList,
-                        );
+                        setPlayAllLoading(true);
+                        try {
+                            await TrackPlayer.playWithReplacePlayList(
+                                defaultPlayMusic,
+                                musicList,
+                            );
+                        } catch (error: any) {
+                            Toast.warn(
+                                t("toast.unknownError", {
+                                    reason: error?.message ?? error,
+                                }),
+                            );
+                        } finally {
+                            setPlayAllLoading(false);
+                        }
                     } else {
                         Toast.warn(t("common.emptyList"));
                     }
                 }}>
-                <Icon
-                    name="play-circle"
-                    style={style.playAllIcon}
-                    size={iconSizeConst.normal}
-                    color={colors.text}
-                />
+                {playAllLoading ? (
+                    <ActivityIndicator
+                        animating
+                        color={colors.primary}
+                        size="small"
+                        style={style.playAllIcon}
+                    />
+                ) : (
+                    <Icon
+                        name="play-circle"
+                        style={style.playAllIcon}
+                        size={iconSizeConst.normal}
+                        color={colors.text}
+                    />
+                )}
                 <ThemeText fontWeight="bold">{t("playAllBar.title")}</ThemeText>
             </Pressable>
             {canStar && musicSheet ? (
@@ -67,6 +100,9 @@ export default function (props: IProps) {
                     sizeType={"normal"}
                     color={starred ? colors.danger : undefined}
                     style={style.optionButton}
+                    accessibilityLabel={
+                        starred ? t("a11y.unfavorite") : t("a11y.favorite")
+                    }
                     onPress={async () => {
                         if (!starred) {
                             MusicSheet.starMusicSheet(musicSheet);
@@ -82,6 +118,7 @@ export default function (props: IProps) {
                 name="folder-plus"
                 sizeType={"normal"}
                 style={style.optionButton}
+                accessibilityLabel={t("a11y.addToPlaylist")}
                 onPress={async () => {
                     showPanel("AddToMusicSheet", {
                         musicItem: musicList ?? [],
@@ -105,6 +142,9 @@ const style = StyleSheet.create({
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
+    },
+    playAllPressed: {
+        opacity: 0.7,
     },
     playAllIcon: {
         marginRight: spacing.sm,

@@ -7,8 +7,8 @@ import { getMediaUniqueKey } from "@/utils/mediaUtils";
 import rpx from "@/utils/rpx";
 import Toast from "@/utils/toast";
 import Clipboard from "@react-native-clipboard/clipboard";
-import React from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, AppState, StyleSheet, View } from "react-native";
 
 import Divider from "@/components/base/divider";
 import { IIconName } from "@/components/base/icon.tsx";
@@ -25,6 +25,7 @@ import { readAsStringAsync } from "expo-file-system";
 import { FlatList } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PanelBase from "../base/panelBase";
+import useColors from "@/hooks/useColors";
 
 interface IMusicItemLyricOptionsProps {
     /** 歌曲信息 */
@@ -36,7 +37,8 @@ const ITEM_HEIGHT = rpx(96);
 interface IOption {
     icon: IIconName;
     title: string;
-    onPress?: () => void;
+    action?: string;
+    onPress?: () => void | Promise<void>;
     show?: boolean;
 }
 
@@ -47,6 +49,70 @@ export default function MusicItemLyricOptions(
 
     const safeAreaInsets = useSafeAreaInsets();
     const { t } = useI18N();
+    const colors = useColors();
+    const [busyAction, setBusyAction] = useState<string | null>(null);
+    const actionLockRef = useRef(false);
+    const pendingDesktopLyricPermissionRef = useRef(false);
+    const appStateRef = useRef(AppState.currentState);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener("change", async state => {
+            const returnedFromSettings =
+                appStateRef.current.match(/inactive|background/) &&
+                state === "active" &&
+                pendingDesktopLyricPermissionRef.current;
+            appStateRef.current = state;
+            if (!returnedFromSettings) {
+                return;
+            }
+
+            pendingDesktopLyricPermissionRef.current = false;
+            try {
+                const hasPermission =
+                    await LyricUtil.checkSystemAlertPermission();
+                if (!hasPermission) {
+                    Toast.warn(
+                        t(
+                            "panel.musicItemLyricOptions.desktopLyricPermissionError",
+                        ),
+                    );
+                    return;
+                }
+
+                await LyricUtil.showStatusBarLyric(
+                    "CatMusicFree",
+                    getStatusBarLyricConfig(),
+                );
+                Config.setConfig("lyric.showStatusBarLyric", true);
+                Toast.success(t("toast.settingSuccess"));
+                hidePanel();
+            } catch (error: any) {
+                Toast.warn(
+                    error?.message ??
+                        t(
+                            "panel.musicItemLyricOptions.desktopLyricPermissionError",
+                        ),
+                );
+            }
+        });
+
+        return () => subscription.remove();
+    }, [t]);
+
+    const runAction = async (action: string, task: () => Promise<void>) => {
+        if (actionLockRef.current) {
+            return;
+        }
+
+        actionLockRef.current = true;
+        setBusyAction(action);
+        try {
+            await task();
+        } finally {
+            actionLockRef.current = false;
+            setBusyAction(null);
+        }
+    };
 
     const uploadLocalLyric = async (type: "raw" | "translation" = "raw") => {
         try {
@@ -117,68 +183,85 @@ export default function MusicItemLyricOptions(
             },
         },
         {
-            icon: "lyric", title: t("panel.musicItemLyricOptions.toggleDesktopLyric", {
+            icon: "lyric",
+            title: t("panel.musicItemLyricOptions.toggleDesktopLyric", {
                 status: Config.getConfig("lyric.showStatusBarLyric")
                     ? t("panel.musicItemLyricOptions.disableDesktopLyric")
                     : t("panel.musicItemLyricOptions.enableDesktopLyric"),
             }),
             async onPress() {
-                const showStatusBarLyric = Config.getConfig("lyric.showStatusBarLyric");
-                if (!showStatusBarLyric) {
-                    const hasPermission =
-                        await LyricUtil.checkSystemAlertPermission();
+                await runAction("desktopLyric", async () => {
+                    const showStatusBarLyric = Config.getConfig(
+                        "lyric.showStatusBarLyric",
+                    );
+                    if (!showStatusBarLyric) {
+                        const hasPermission =
+                            await LyricUtil.checkSystemAlertPermission();
 
-                    if (hasPermission) {
-                        LyricUtil.showStatusBarLyric(
-                            "CatMusicFree",
-                            getStatusBarLyricConfig(),
-                        );
-                        Config.setConfig("lyric.showStatusBarLyric", true);
+                        if (hasPermission) {
+                            await LyricUtil.showStatusBarLyric(
+                                "CatMusicFree",
+                                getStatusBarLyricConfig(),
+                            );
+                            Config.setConfig("lyric.showStatusBarLyric", true);
+                            hidePanel();
+                        } else {
+                            pendingDesktopLyricPermissionRef.current = true;
+                            await LyricUtil.requestSystemAlertPermission();
+                        }
                     } else {
-                        LyricUtil.requestSystemAlertPermission().finally(() => {
-                            Toast.warn(t("panel.musicItemLyricOptions.desktopLyricPermissionError"));
-                        });
+                        await LyricUtil.hideStatusBarLyric();
+                        Config.setConfig("lyric.showStatusBarLyric", false);
+                        hidePanel();
                     }
-                } else {
-                    LyricUtil.hideStatusBarLyric();
-                    Config.setConfig("lyric.showStatusBarLyric", false);
-                }
-                hidePanel();
+                });
             },
+            action: "desktopLyric",
         },
         {
             icon: "arrow-up-tray",
             title: t("panel.musicItemLyricOptions.uploadLocalLyric"),
             async onPress() {
-                await uploadLocalLyric();
+                await runAction("uploadRaw", () => uploadLocalLyric());
             },
+            action: "uploadRaw",
         },
         {
             icon: "arrow-up-tray",
             title: t("panel.musicItemLyricOptions.uploadLocalLyricTranslation"),
             async onPress() {
-                await uploadLocalLyric("translation");
+                await runAction("uploadTranslation", () =>
+                    uploadLocalLyric("translation"),
+                );
             },
+            action: "uploadTranslation",
         },
         {
             icon: "trash-outline",
             title: t("panel.musicItemLyricOptions.deleteLocalLyric"),
             async onPress() {
-                try {
-                    lyricManager.removeLocalLyric(musicItem);
-                    hidePanel();
-                } catch (e: any) {
-                    errorLog("删除本地歌词失败", e?.message ?? e);
-                    Toast.warn(t("panel.musicItemLyricOptions.deleteFail", {
-                        reason: e?.message,
-                    }));
-                }
+                await runAction("deleteLocal", async () => {
+                    try {
+                        await lyricManager.removeLocalLyric(musicItem);
+                        hidePanel();
+                        Toast.success(t("toast.deleteSuccess"));
+                    } catch (e: any) {
+                        errorLog("删除本地歌词失败", e?.message ?? e);
+                        Toast.warn(
+                            t("panel.musicItemLyricOptions.deleteFail", {
+                                reason: e?.message,
+                            }),
+                        );
+                    }
+                });
             },
+            action: "deleteLocal",
         },
     ];
 
     return (
         <PanelBase
+            dismissDisabled={busyAction !== null}
             renderBody={() => (
                 <>
                     <View style={style.header}>
@@ -222,6 +305,7 @@ export default function MusicItemLyricOptions(
                                     <ListItem
                                         withHorizontalPadding
                                         heightType="small"
+                                        disabled={busyAction !== null}
                                         onPress={item.onPress}>
                                         <ListItem.ListItemIcon
                                             width={rpx(48)}
@@ -229,6 +313,12 @@ export default function MusicItemLyricOptions(
                                             iconSize={iconSizeConst.light}
                                         />
                                         <ListItem.Content title={item.title} />
+                                        {item.action && busyAction === item.action ? (
+                                            <ActivityIndicator
+                                                color={colors.primary}
+                                                size="small"
+                                            />
+                                        ) : null}
                                     </ListItem>
                                 ) : null
                             }

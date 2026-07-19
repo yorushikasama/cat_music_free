@@ -98,10 +98,12 @@ export default function Bottom() {
                     disabled={!canUseSelection}
                     onPress={() => {
                         if (canUseSelection) {
-                            downloader.download(selectedItems);
-                            Toast.success(
-                                t("toast.beginDownload"),
-                            );
+                            const result = downloader.download(selectedItems);
+                            if (result.enqueuedCount > 0) {
+                                Toast.success(t("toast.beginDownload"));
+                            } else if (!result.rejectionReason) {
+                                Toast.warn(t("toast.downloadAlreadyQueued"));
+                            }
                             resetSelectedIndices();
                         }
                     }}

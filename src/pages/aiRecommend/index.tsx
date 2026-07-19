@@ -226,114 +226,125 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
         };
     }, []);
 
-    const generate = useCallback(async (requestedRefinement?: string, replaceCurrent = false) => {
-        if (activeRequestRef.current) {
-            return;
-        }
-        if (!(await isAIConfigured())) {
-            setConfigured(false);
-            Toast.warn(t("aiRecommend.configureFirst"));
-            openSettings();
-            return;
-        }
-        if (!prompt.trim()) {
-            Toast.warn(t("aiRecommend.promptRequired"));
-            return;
-        }
-        if (!(await ensureAIDataSharingConsent("recommendation"))) {
-            return;
-        }
+    const generate = useCallback(
+        async (requestedRefinement?: string, replaceCurrent = false) => {
+            if (activeRequestRef.current) {
+                return;
+            }
+            if (!(await isAIConfigured())) {
+                setConfigured(false);
+                Toast.warn(t("aiRecommend.configureFirst"));
+                openSettings();
+                return;
+            }
+            if (!prompt.trim()) {
+                Toast.warn(t("aiRecommend.promptRequired"));
+                return;
+            }
+            if (!(await ensureAIDataSharingConsent("recommendation"))) {
+                return;
+            }
 
-        const request = {
-            id: ++nextRequestIdRef.current,
-            controller: new AbortController(),
-        };
-        activeRequestRef.current = request;
-        setLoading(true);
-        setError("");
-        try {
-            const ignored = getIgnoredMusicRecommendationIds();
-            const refinementInstruction = requestedRefinement?.trim();
-            const fetchedCandidates =
-                await collectMusicRecommendationCandidates(
-                    prompt.trim(),
-                    history,
-                    exploration,
-                );
-            if (activeRequestRef.current?.id !== request.id) {
-                return;
-            }
-            const excludedIds = new Set(
-                replaceCurrent
-                    ? recommendations.map(item => getMediaUniqueKey(item.music))
-                    : [],
-            );
-            const candidates = Array.from(
-                new Map(
-                    [...fetchedCandidates, ...recommendations.map(item => item.music)]
-                        .filter(music => {
-                            const id = getMediaUniqueKey(music);
-                            return !ignored.has(id) && !excludedIds.has(id);
-                        })
-                        .map(music => [getMediaUniqueKey(music), music] as const),
-                ).values(),
-            );
-            const next = await recommendMusicWithAI({
-                prompt: prompt.trim(),
-                candidates,
-                history,
-                previousRecommendations: refinementInstruction
-                    ? recommendations
-                    : undefined,
-                refinement: refinementInstruction,
-                likedMusicIds: Array.from(likedMusicIds),
-                exploration,
-                signal: request.controller.signal,
-            });
-            if (activeRequestRef.current?.id !== request.id) {
-                return;
-            }
-            setAllRecommendations(next);
-            setGeneratedPrompt(
-                refinementInstruction
-                    ? `${prompt.trim()} · ${refinementInstruction}`
-                    : prompt.trim(),
-            );
-            const createdAt = Date.now();
-            setCachedAt(createdAt);
-            const cache = {
-                prompt: refinementInstruction
-                    ? `${prompt.trim()} · ${refinementInstruction}`
-                    : prompt.trim(),
-                createdAt,
-                recommendations: next,
-                exploration,
+            const request = {
+                id: ++nextRequestIdRef.current,
+                controller: new AbortController(),
             };
-            setMusicRecommendationCache(cache);
-            addMusicRecommendationHistory(cache);
-            setHistoryEntries(getMusicRecommendationHistory());
-        } catch (reason: any) {
-            if (reason instanceof AIError && reason.code === "aborted") {
-                return;
+            activeRequestRef.current = request;
+            setLoading(true);
+            setError("");
+            try {
+                const ignored = getIgnoredMusicRecommendationIds();
+                const refinementInstruction = requestedRefinement?.trim();
+                const fetchedCandidates =
+                    await collectMusicRecommendationCandidates(
+                        prompt.trim(),
+                        history,
+                        exploration,
+                    );
+                if (activeRequestRef.current?.id !== request.id) {
+                    return;
+                }
+                const excludedIds = new Set(
+                    replaceCurrent
+                        ? recommendations.map(item =>
+                            getMediaUniqueKey(item.music),
+                        )
+                        : [],
+                );
+                const candidates = Array.from(
+                    new Map(
+                        [
+                            ...fetchedCandidates,
+                            ...recommendations.map(item => item.music),
+                        ]
+                            .filter(music => {
+                                const id = getMediaUniqueKey(music);
+                                return !ignored.has(id) && !excludedIds.has(id);
+                            })
+                            .map(
+                                music =>
+                                    [getMediaUniqueKey(music), music] as const,
+                            ),
+                    ).values(),
+                );
+                const next = await recommendMusicWithAI({
+                    prompt: prompt.trim(),
+                    candidates,
+                    history,
+                    previousRecommendations: refinementInstruction
+                        ? recommendations
+                        : undefined,
+                    refinement: refinementInstruction,
+                    likedMusicIds: Array.from(likedMusicIds),
+                    exploration,
+                    signal: request.controller.signal,
+                });
+                if (activeRequestRef.current?.id !== request.id) {
+                    return;
+                }
+                setAllRecommendations(next);
+                setGeneratedPrompt(
+                    refinementInstruction
+                        ? `${prompt.trim()} · ${refinementInstruction}`
+                        : prompt.trim(),
+                );
+                const createdAt = Date.now();
+                setCachedAt(createdAt);
+                const cache = {
+                    prompt: refinementInstruction
+                        ? `${prompt.trim()} · ${refinementInstruction}`
+                        : prompt.trim(),
+                    createdAt,
+                    recommendations: next,
+                    exploration,
+                };
+                setMusicRecommendationCache(cache);
+                addMusicRecommendationHistory(cache);
+                setHistoryEntries(getMusicRecommendationHistory());
+            } catch (reason: any) {
+                if (reason instanceof AIError && reason.code === "aborted") {
+                    return;
+                }
+                const message = getLocalizedAIErrorMessage(reason);
+                setError(message);
+                Toast.warn(t("aiRecommend.failed", { reason: message }));
+            } finally {
+                if (activeRequestRef.current?.id === request.id) {
+                    activeRequestRef.current = null;
+                    setLoading(false);
+                }
             }
-            const message = getLocalizedAIErrorMessage(reason);
-            setError(message);
-            Toast.warn(t("aiRecommend.failed", { reason: message }));
-        } finally {
-            if (activeRequestRef.current?.id === request.id) {
-                activeRequestRef.current = null;
-                setLoading(false);
-            }
-        }
-    }, [
-        exploration,
-        history,
-        likedMusicIds,
-        openSettings,
-        prompt,
-        recommendations,
-        t,
-    ]);
+        },
+        [
+            exploration,
+            history,
+            likedMusicIds,
+            openSettings,
+            prompt,
+            recommendations,
+            t,
+        ],
+    );
 
     return (
         <PageShell
@@ -455,16 +466,21 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                         accessibilityRole="button"
                                         accessibilityLabel={option.label}
                                         accessibilityHint={option.description}
-                                        accessibilityState={{ selected: active }}
+                                        accessibilityState={{
+                                            selected: active,
+                                        }}
                                         activeOpacity={0.72}
-                                        onPress={() => setExploration(option.value)}
+                                        onPress={() =>
+                                            setExploration(option.value)
+                                        }
                                         style={[
                                             styles.explorationOption,
                                             active && {
-                                                backgroundColor:
-                                                    Color(colors.primary)
-                                                        .alpha(0.12)
-                                                        .string(),
+                                                backgroundColor: Color(
+                                                    colors.primary,
+                                                )
+                                                    .alpha(0.12)
+                                                    .string(),
                                             },
                                         ]}>
                                         <ThemeText
@@ -546,7 +562,15 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     </View>
                     <TouchableOpacity
                         accessibilityRole="button"
-                        accessibilityLabel={t("aiRecommend.generate")}
+                        accessibilityLabel={
+                            loading
+                                ? t("aiRecommend.generating")
+                                : t("aiRecommend.generate")
+                        }
+                        accessibilityState={{
+                            busy: loading,
+                            disabled: loading,
+                        }}
                         activeOpacity={0.78}
                         disabled={loading}
                         onPress={() => generate()}
@@ -578,18 +602,24 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                 {historyEntries.length ? (
                     <View style={styles.historySection}>
                         <View style={styles.historyHeader}>
-                            <ThemeText fontSize="description" fontWeight="semibold">
+                            <ThemeText
+                                fontSize="description"
+                                fontWeight="semibold">
                                 {t("aiRecommend.historyTitle")}
                             </ThemeText>
                             <TouchableOpacity
                                 accessibilityRole="button"
-                                accessibilityLabel={t("aiRecommend.clearHistory")}
+                                accessibilityLabel={t(
+                                    "aiRecommend.clearHistory",
+                                )}
                                 activeOpacity={0.7}
                                 onPress={() => {
                                     clearMusicRecommendationHistory();
                                     setHistoryEntries([]);
                                 }}>
-                                <ThemeText fontSize="tag" fontColor="textSecondary">
+                                <ThemeText
+                                    fontSize="tag"
+                                    fontColor="textSecondary">
                                     {t("aiRecommend.clearHistory")}
                                 </ThemeText>
                             </TouchableOpacity>
@@ -604,7 +634,9 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     onPress={() => {
                                         setPrompt(entry.prompt.split(" · ")[0]);
                                         setGeneratedPrompt(entry.prompt);
-                                        setAllRecommendations(entry.recommendations);
+                                        setAllRecommendations(
+                                            entry.recommendations,
+                                        );
                                         setCachedAt(entry.createdAt);
                                         setExploration(
                                             entry.exploration ?? "balanced",
@@ -613,9 +645,11 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     style={[
                                         styles.historyOption,
                                         {
-                                            backgroundColor: colors.surfaceSecondary,
+                                            backgroundColor:
+                                                colors.surfaceSecondary,
                                             borderColor:
-                                                colors.controlBorder ?? colors.divider,
+                                                colors.controlBorder ??
+                                                colors.divider,
                                         },
                                     ]}>
                                     <Icon
@@ -655,16 +689,23 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                             <>
                                 <TouchableOpacity
                                     accessibilityRole="button"
-                                    accessibilityLabel={t("aiRecommend.playAll")}
-                                    accessibilityState={{ disabled: loading }}
+                                    accessibilityLabel={t(
+                                        "aiRecommend.playAll",
+                                    )}
+                                    accessibilityState={{
+                                        busy: loading,
+                                        disabled: loading,
+                                    }}
                                     activeOpacity={0.7}
                                     disabled={loading}
                                     style={[
                                         styles.headerIconAction,
                                         {
-                                            backgroundColor: colors.surfaceSecondary,
+                                            backgroundColor:
+                                                colors.surfaceSecondary,
                                             borderColor:
-                                                colors.controlBorder ?? colors.divider,
+                                                colors.controlBorder ??
+                                                colors.divider,
                                         },
                                         loading && styles.loadingButton,
                                     ]}
@@ -680,15 +721,20 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     accessibilityLabel={t(
                                         "aiRecommend.saveToPlaylist",
                                     )}
-                                    accessibilityState={{ disabled: loading }}
+                                    accessibilityState={{
+                                        busy: loading,
+                                        disabled: loading,
+                                    }}
                                     activeOpacity={0.7}
                                     disabled={loading}
                                     style={[
                                         styles.headerIconAction,
                                         {
-                                            backgroundColor: colors.surfaceSecondary,
+                                            backgroundColor:
+                                                colors.surfaceSecondary,
                                             borderColor:
-                                                colors.controlBorder ?? colors.divider,
+                                                colors.controlBorder ??
+                                                colors.divider,
                                         },
                                         loading && styles.loadingButton,
                                     ]}
@@ -701,12 +747,16 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     accessibilityRole="button"
-                                    accessibilityLabel={t("aiRecommend.refresh")}
+                                    accessibilityLabel={t(
+                                        "aiRecommend.refresh",
+                                    )}
                                     activeOpacity={0.7}
                                     disabled={loading}
                                     style={styles.headerAction}
                                     onPress={() => generate(undefined, true)}>
-                                    <ThemeText fontSize="tag" color={colors.primary}>
+                                    <ThemeText
+                                        fontSize="tag"
+                                        color={colors.primary}>
                                         {t("aiRecommend.refresh")}
                                     </ThemeText>
                                 </TouchableOpacity>
@@ -726,10 +776,12 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                 {t("aiRecommend.resetIgnored")}
                             </ThemeText>
                         </TouchableOpacity>
-                        {(likedMusicIds.size || recommendations.length) ? (
+                        {likedMusicIds.size || recommendations.length ? (
                             <TouchableOpacity
                                 accessibilityRole="button"
-                                accessibilityLabel={t("aiRecommend.clearPreferences")}
+                                accessibilityLabel={t(
+                                    "aiRecommend.clearPreferences",
+                                )}
                                 activeOpacity={0.7}
                                 style={styles.headerAction}
                                 onPress={() => {
@@ -811,7 +863,9 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                         <Input
                             value={refinement}
                             onChangeText={setRefinement}
-                            accessibilityLabel={t("aiRecommend.refinePlaceholder")}
+                            accessibilityLabel={t(
+                                "aiRecommend.refinePlaceholder",
+                            )}
                             placeholder={t("aiRecommend.refinePlaceholder")}
                             variant="outlined"
                         />
@@ -861,7 +915,11 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
 
                 {error ? (
                     <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={t("common.clickToRetry")}
+                        accessibilityState={{ disabled: loading }}
                         activeOpacity={0.75}
+                        disabled={loading}
                         onPress={() => generate()}
                         style={[
                             styles.errorRow,
@@ -966,7 +1024,9 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     accessibilityRole="button"
-                                    accessibilityLabel={t("aiRecommend.moreLikeThis")}
+                                    accessibilityLabel={t(
+                                        "aiRecommend.moreLikeThis",
+                                    )}
                                     accessibilityState={{ selected: liked }}
                                     activeOpacity={0.68}
                                     style={styles.ignoreButton}
@@ -983,7 +1043,9 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     <ThemeText
                                         fontSize="tag"
                                         color={
-                                            liked ? colors.primary : colors.textSecondary
+                                            liked
+                                                ? colors.primary
+                                                : colors.textSecondary
                                         }>
                                         {liked
                                             ? t("aiRecommend.liked")

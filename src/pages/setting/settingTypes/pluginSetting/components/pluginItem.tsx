@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useRef, useState } from "react";
 
 import useColors from "@/hooks/useColors";
 import pluginManager, { Plugin, usePluginEnabled } from "@/core/pluginManager";
@@ -26,7 +26,8 @@ interface IPluginItemProps {
 interface IOption {
     title: string;
     icon: IIconName;
-    onPress?: () => void;
+    action?: string;
+    onPress?: () => void | Promise<void>;
     show?: boolean;
 }
 
@@ -36,48 +37,74 @@ function _PluginItem(props: IPluginItemProps) {
     const enabled = usePluginEnabled(plugin);
     const { t } = useI18N();
     const rerender = useRerender();
+    const [runningAction, setRunningAction] = useState<string | null>(null);
+    const actionLockRef = useRef(false);
 
-    const alternativePluginName = pluginManager.getAlternativePluginName(plugin);
+    const alternativePluginName =
+        pluginManager.getAlternativePluginName(plugin);
+
+    const runAction = async (action: string, task: () => Promise<void>) => {
+        if (actionLockRef.current) {
+            return;
+        }
+
+        actionLockRef.current = true;
+        setRunningAction(action);
+        try {
+            await task();
+        } finally {
+            actionLockRef.current = false;
+            setRunningAction(null);
+        }
+    };
 
     const options: IOption[] = [
         {
             title: t("pluginSetting.pluginItem.options.updatePlugin"),
             icon: "arrow-path",
             async onPress() {
-                try {
-                    await pluginManager.updatePlugin(plugin);
-                    Toast.success(t("toast.pluginUpdateSuccess"));
-                } catch (e: any) {
-                    Toast.warn(e?.message ?? t("toast.failToUpdatePlugin"));
-                }
+                await runAction("update", async () => {
+                    try {
+                        await pluginManager.updatePlugin(plugin);
+                        Toast.success(t("toast.pluginUpdateSuccess"));
+                    } catch (e: any) {
+                        Toast.warn(
+                            e?.message ?? t("toast.failToUpdatePlugin"),
+                        );
+                    }
+                });
             },
+            action: "update",
             show: !!plugin.instance.srcUrl,
         },
         {
             title: t("pluginSetting.pluginItem.options.testSearch"),
             icon: "magnifying-glass",
             async onPress() {
-                try {
-                    const searchType =
-                        plugin.instance.defaultSearchType ?? "music";
-                    const result = await plugin.methods.search(
-                        "周杰伦",
-                        1,
-                        searchType,
-                    );
-                    Toast.success(
-                        t("pluginSetting.pluginItem.testResponded", {
-                            count: result?.data?.length ?? 0,
-                        }),
-                    );
-                } catch (error: any) {
-                    Toast.warn(
-                        t("pluginSetting.pluginItem.testFailed", {
-                            reason: error?.message ?? error,
-                        }),
-                    );
-                }
+                await runAction("testSearch", async () => {
+                    try {
+                        const searchType =
+                            plugin.instance.defaultSearchType ?? "music";
+                        const result = await plugin.methods.search(
+                            "周杰伦",
+                            1,
+                            searchType,
+                        );
+                        Toast.success(
+                            t("pluginSetting.pluginItem.testResponded", {
+                                count: result?.data?.length ?? 0,
+                            }),
+                        );
+                    } catch (error: any) {
+                        Toast.warn(
+                            t("pluginSetting.pluginItem.testFailed", {
+                                reason: error?.message ?? error,
+                            }),
+                        );
+                    }
+                });
             },
+            action: "testSearch",
             show: !!plugin.supportedMethods.has("search"),
         },
         {
@@ -99,17 +126,18 @@ function _PluginItem(props: IPluginItemProps) {
             show: true,
             onPress() {
                 showDialog("SimpleDialog", {
-                    title: t("pluginSetting.pluginItem.options.uninstallPlugin"),
-                    content: t("pluginSetting.pluginItem.options.uninstallPluginContent", {
-                        name: plugin.name,
-                    }),
+                    title: t(
+                        "pluginSetting.pluginItem.options.uninstallPlugin",
+                    ),
+                    content: t(
+                        "pluginSetting.pluginItem.options.uninstallPluginContent",
+                        {
+                            name: plugin.name,
+                        },
+                    ),
                     async onOk() {
-                        try {
-                            await pluginManager.uninstallPlugin(plugin.hash);
-                            Toast.success(t("toast.pluginUninstalled"));
-                        } catch {
-                            Toast.warn(t("toast.failToUpdatePlugin"));
-                        }
+                        await pluginManager.uninstallPlugin(plugin.hash);
+                        Toast.success(t("toast.pluginUninstalled"));
                     },
                 });
             },
@@ -120,21 +148,33 @@ function _PluginItem(props: IPluginItemProps) {
             show: true,
             onPress() {
                 showDialog("RadioDialog", {
-                    content: (pluginManager.getSortedPluginsWithAbility("getMediaSource").map(it => it.name)),
-                    title: t("pluginSetting.pluginItem.dialog.setAlternativePluginTitle"),
-                    defaultSelected: pluginManager.getAlternativePluginName(plugin) as any,
+                    content: pluginManager
+                        .getSortedPluginsWithAbility("getMediaSource")
+                        .map(it => it.name),
+                    title: t(
+                        "pluginSetting.pluginItem.dialog.setAlternativePluginTitle",
+                    ),
+                    defaultSelected: pluginManager.getAlternativePluginName(
+                        plugin,
+                    ) as any,
                     onOk(value) {
                         if (value === plugin.name) {
-                            pluginManager.setAlternativePluginName(plugin, null as any);
+                            pluginManager.setAlternativePluginName(
+                                plugin,
+                                null as any,
+                            );
                         } else {
-                            pluginManager.setAlternativePluginName(plugin, value as any);
+                            pluginManager.setAlternativePluginName(
+                                plugin,
+                                value as any,
+                            );
                         }
                         rerender();
                     },
-                    tip: t("pluginSetting.pluginItem.dialog.setAlternativePluginTip"),
-
+                    tip: t(
+                        "pluginSetting.pluginItem.dialog.setAlternativePluginTip",
+                    ),
                 });
-
             },
         },
         {
@@ -143,30 +183,49 @@ function _PluginItem(props: IPluginItemProps) {
             onPress() {
                 showPanel("SimpleInput", {
                     title: t("pluginSetting.pluginItem.options.importMusic"),
-                    placeholder: t("pluginSetting.pluginItem.options.importMusicPlaceHolder"),
+                    placeholder: t(
+                        "pluginSetting.pluginItem.options.importMusicPlaceHolder",
+                    ),
                     hints: plugin.instance.hints?.importMusicItem,
                     maxLength: 1000,
-                    async onOk(text) {
-                        const result = await plugin.methods.importMusicItem(
-                            text,
-                        );
-                        if (result) {
-                            showDialog("SimpleDialog", {
-                                title: t("pluginSetting.pluginItem.options.importDialogTitle"),
-                                content: t("pluginSetting.pluginItem.options.importMusicDialogContent", {
-                                    name: result.title,
+                    async onOk(text, closePanel) {
+                        try {
+                            const result = await plugin.methods.importMusicItem(
+                                text,
+                            );
+                            if (result) {
+                                closePanel();
+                                showDialog("SimpleDialog", {
+                                    title: t(
+                                        "pluginSetting.pluginItem.options.importDialogTitle",
+                                    ),
+                                    content: t(
+                                        "pluginSetting.pluginItem.options.importMusicDialogContent",
+                                        {
+                                            name: result.title,
+                                        },
+                                    ),
+                                    onOk() {
+                                        showPanel("AddToMusicSheet", {
+                                            musicItem: result,
+                                            newSheetDefaultName: t(
+                                                "pluginSetting.pluginItem.options.importMusicToSheetName",
+                                                {
+                                                    name: plugin.name,
+                                                },
+                                            ),
+                                        });
+                                    },
+                                });
+                            } else {
+                                Toast.warn(t("toast.failToImportMusic"));
+                            }
+                        } catch (error: any) {
+                            Toast.warn(
+                                t("pluginSetting.pluginItem.testFailed", {
+                                    reason: error?.message ?? error,
                                 }),
-                                onOk() {
-                                    showPanel("AddToMusicSheet", {
-                                        musicItem: result,
-                                        newSheetDefaultName: t("pluginSetting.pluginItem.options.importMusicToSheetName", {
-                                            name: plugin.name,
-                                        }),
-                                    });
-                                },
-                            });
-                        } else {
-                            Toast.warn(t("toast.failToImportMusic"));
+                            );
                         }
                     },
                 });
@@ -179,29 +238,42 @@ function _PluginItem(props: IPluginItemProps) {
             onPress() {
                 showPanel("SimpleInput", {
                     title: t("pluginSetting.pluginItem.options.importSheet"),
-                    placeholder: t("pluginSetting.pluginItem.options.importSheetPlaceHolder"),
+                    placeholder: t(
+                        "pluginSetting.pluginItem.options.importSheetPlaceHolder",
+                    ),
                     hints: plugin.instance.hints?.importMusicSheet,
                     maxLength: 1000,
                     async onOk(text, closePanel) {
-                        Toast.success(t("toast.importing"));
-                        closePanel();
-                        const result = await plugin.methods.importMusicSheet(
-                            text,
-                        );
-                        if (result && result.length > 0) {
-                            showDialog("SimpleDialog", {
-                                title: t("pluginSetting.pluginItem.options.importDialogTitle"),
-                                content: t("pluginSetting.pluginItem.options.importSheetDialogContent", {
-                                    count: result.length,
+                        try {
+                            const result =
+                                await plugin.methods.importMusicSheet(text);
+                            if (result && result.length > 0) {
+                                closePanel();
+                                showDialog("SimpleDialog", {
+                                    title: t(
+                                        "pluginSetting.pluginItem.options.importDialogTitle",
+                                    ),
+                                    content: t(
+                                        "pluginSetting.pluginItem.options.importSheetDialogContent",
+                                        {
+                                            count: result.length,
+                                        },
+                                    ),
+                                    onOk() {
+                                        showPanel("AddToMusicSheet", {
+                                            musicItem: result,
+                                        });
+                                    },
+                                });
+                            } else {
+                                Toast.warn(t("toast.failToImportSheet"));
+                            }
+                        } catch (error: any) {
+                            Toast.warn(
+                                t("pluginSetting.pluginItem.testFailed", {
+                                    reason: error?.message ?? error,
                                 }),
-                                onOk() {
-                                    showPanel("AddToMusicSheet", {
-                                        musicItem: result,
-                                    });
-                                },
-                            });
-                        } else {
-                            Toast.warn(t("toast.failToImportSheet"));
+                            );
                         }
                     },
                 });
@@ -245,15 +317,20 @@ function _PluginItem(props: IPluginItemProps) {
                         fontWeight="semibold">
                         {plugin.name}
                     </ThemeText>
-                    {
-                        plugin.instance.description?.length ? <IconButton name='question-mark-circle' sizeType='light' onPress={() => {
-                            showDialog("MarkdownDialog", {
-                                title: plugin.name,
-                                markdownContent: plugin.instance.description!,
-                            });
-                        }} /> : null
-                    }
-
+                    {plugin.instance.description?.length ? (
+                        <IconButton
+                            name="question-mark-circle"
+                            sizeType="light"
+                            accessibilityLabel={t("a11y.help")}
+                            onPress={() => {
+                                showDialog("MarkdownDialog", {
+                                    title: plugin.name,
+                                    markdownContent:
+                                        plugin.instance.description!,
+                                });
+                            }}
+                        />
+                    ) : null}
                 </View>
                 <ThemeSwitch
                     value={enabled}
@@ -280,13 +357,15 @@ function _PluginItem(props: IPluginItemProps) {
                     </ThemeText>
                 ) : null}
             </View>
-            {alternativePluginName ? <View style={styles.alternativePluginDescription}>
-                <ThemeText fontSize="subTitle" fontColor="textSecondary">
-                    {t("pluginSetting.pluginItem.alternativePlugin", {
-                        name: alternativePluginName,
-                    })}
-                </ThemeText>
-            </View> : null}
+            {alternativePluginName ? (
+                <View style={styles.alternativePluginDescription}>
+                    <ThemeText fontSize="subTitle" fontColor="textSecondary">
+                        {t("pluginSetting.pluginItem.alternativePlugin", {
+                            name: alternativePluginName,
+                        })}
+                    </ThemeText>
+                </View>
+            ) : null}
             <View style={styles.contents}>
                 {options.map((it, index) =>
                     it.show !== false ? (
@@ -297,9 +376,14 @@ function _PluginItem(props: IPluginItemProps) {
                                 styles.optionButton,
                                 {
                                     backgroundColor: colors.controlBackground,
-                                    borderColor: colors.controlBorder ?? colors.divider,
+                                    borderColor:
+                                        colors.controlBorder ?? colors.divider,
                                 },
                             ]}
+                            disabled={runningAction !== null}
+                            loading={
+                                !!it.action && runningAction === it.action
+                            }
                             onPress={it.onPress}>
                             {it.title}
                         </IconTextButton>

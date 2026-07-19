@@ -1,5 +1,12 @@
-import React from "react";
-import { Image, StyleSheet, View, ScrollView } from "react-native";
+import React, { useCallback, useState } from "react";
+import {
+    ActivityIndicator,
+    Image,
+    Pressable,
+    StyleSheet,
+    View,
+    ScrollView,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import globalStyle from "@/constants/globalStyle";
 import ThemeText from "@/components/base/themeText";
@@ -13,7 +20,6 @@ import { ROUTE_PATH } from "@/core/router/index.ts";
 import { showDialog } from "@/components/dialogs/useDialog";
 import { showPanel } from "@/components/panels/usePanel";
 import Icon from "@/components/base/icon.tsx";
-import { TouchableOpacity } from "react-native-gesture-handler";
 import Theme from "@/core/theme";
 import { ImgAsset } from "@/constants/assetsConst";
 import {
@@ -40,15 +46,12 @@ export default function ProfileTab() {
     const { t, getSupportedLanguages, getLanguage, setLanguage } = useI18N();
     const navigate = useNavigate();
     const countDown = useScheduleCloseCountDown();
-    const updateStatus = useUpdateAvailable();
+    const { hasUpdate, refresh: refreshUpdateStatus } = useUpdateAvailable();
+    const [checkingUpdate, setCheckingUpdate] = useState(false);
     const isAcgTheme = theme.id === "p-acg-firefly";
     const avatarColorStyle = {
-        backgroundColor: isAcgTheme
-            ? "transparent"
-            : colors.selectedBackground,
-        borderColor: isAcgTheme
-            ? "transparent"
-            : colors.selectedBorder,
+        backgroundColor: isAcgTheme ? "transparent" : colors.selectedBackground,
+        borderColor: isAcgTheme ? "transparent" : colors.selectedBorder,
     };
     const pageStyle = { backgroundColor: colors.pageBackground };
     const headerStyle = {
@@ -83,6 +86,20 @@ export default function ProfileTab() {
             type: settingType,
         });
     }
+
+    const handleCheckUpdate = useCallback(async () => {
+        if (checkingUpdate) {
+            return;
+        }
+
+        setCheckingUpdate(true);
+        try {
+            await checkUpdateAndShowResult(true);
+            await refreshUpdateStatus();
+        } finally {
+            setCheckingUpdate(false);
+        }
+    }, [checkingUpdate, refreshUpdateStatus]);
 
     const settingItems: IProfileItem[] = [
         {
@@ -149,40 +166,49 @@ export default function ProfileTab() {
         {
             icon: "arrow-path",
             title: t("sidebar.checkUpdate"),
-            onPress: async () => {
-                await checkUpdateAndShowResult(true);
-                updateStatus.refresh();
-            },
-            rightText: `${t("sidebar.currentVersion")}${deviceInfoModule.getVersion()}`,
-            showDot: updateStatus.hasUpdate,
+            onPress: handleCheckUpdate,
+            rightText: `${t(
+                "sidebar.currentVersion",
+            )}${deviceInfoModule.getVersion()}`,
+            showDot: hasUpdate,
         },
         {
             icon: "information-circle",
-            title: `${t("common.about")} ${deviceInfoModule.getApplicationName()}`,
+            title: `${t(
+                "common.about",
+            )} ${deviceInfoModule.getApplicationName()}`,
             onPress: () => navigateToSetting("about"),
         },
     ];
 
-    const renderSection = (
-        items: IProfileItem[],
-    ) => (
-        <View
-            style={[
-                styles.card,
-                cardStyle,
-            ]}>
+    const renderSection = (items: IProfileItem[]) => (
+        <View style={[styles.card, cardStyle]}>
             {items.map((item, index) => {
                 const isFirst = index === 0;
+                const isUpdateItem = item.icon === "arrow-path";
                 return (
-                    <TouchableOpacity
+                    <Pressable
                         key={index}
-                        style={[
+                        accessibilityRole="button"
+                        accessibilityLabel={item.title}
+                        accessibilityState={{
+                            busy: isUpdateItem && checkingUpdate,
+                        }}
+                        android_ripple={{ color: colors.pressedOverlay }}
+                        disabled={isUpdateItem && checkingUpdate}
+                        style={({ pressed }) => [
                             styles.item,
                             !isFirst && dividerStyle,
+                            {
+                                opacity:
+                                    pressed || (isUpdateItem && checkingUpdate)
+                                        ? 0.72
+                                        : 1,
+                            },
                         ]}
-                        onPress={item.onPress}
-                        activeOpacity={0.6}>
-                        <View style={[styles.iconContainer, iconContainerStyle]}>
+                        onPress={item.onPress}>
+                        <View
+                            style={[styles.iconContainer, iconContainerStyle]}>
                             <Icon
                                 name={item.icon as any}
                                 size={rpx(32)}
@@ -190,16 +216,11 @@ export default function ProfileTab() {
                             />
                             {item.showDot ? (
                                 <View
-                                    style={[
-                                        styles.updateDot,
-                                        updateDotStyle,
-                                    ]}
+                                    style={[styles.updateDot, updateDotStyle]}
                                 />
                             ) : null}
                         </View>
-                        <ThemeText
-                            fontSize="content"
-                            style={styles.itemTitle}>
+                        <ThemeText fontSize="content" style={styles.itemTitle}>
                             {item.title}
                         </ThemeText>
                         {item.rightText ? (
@@ -210,12 +231,19 @@ export default function ProfileTab() {
                                 {item.rightText}
                             </ThemeText>
                         ) : null}
-                        <Icon
-                            name="chevron-right"
-                            size={rpx(28)}
-                            color={colors.textSecondary}
-                        />
-                    </TouchableOpacity>
+                        {isUpdateItem && checkingUpdate ? (
+                            <ActivityIndicator
+                                color={colors.primary}
+                                size="small"
+                            />
+                        ) : (
+                            <Icon
+                                name="chevron-right"
+                                size={rpx(28)}
+                                color={colors.textSecondary}
+                            />
+                        )}
+                    </Pressable>
                 );
             })}
         </View>
@@ -226,15 +254,9 @@ export default function ProfileTab() {
             style={[globalStyle.fwflex1, pageStyle]}
             contentContainerStyle={contentContainerStyle}
             showsVerticalScrollIndicator={false}>
-            <View style={[
-                styles.header,
-                headerStyle,
-            ]}>
+            <View style={[styles.header, headerStyle]}>
                 <View style={styles.headerContent}>
-                    <View style={[
-                        styles.avatarContainer,
-                        avatarColorStyle,
-                    ]}>
+                    <View style={[styles.avatarContainer, avatarColorStyle]}>
                         {isAcgTheme ? (
                             <Image
                                 source={ImgAsset.xilianTabIcons.maid}
@@ -259,7 +281,8 @@ export default function ProfileTab() {
                         <ThemeText
                             fontSize="subTitle"
                             fontColor="textSecondary">
-                            {t("sidebar.currentVersion")}{deviceInfoModule.getVersion()}
+                            {t("sidebar.currentVersion")}
+                            {deviceInfoModule.getVersion()}
                         </ThemeText>
                     </View>
                 </View>

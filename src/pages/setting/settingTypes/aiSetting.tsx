@@ -50,6 +50,7 @@ export default function AISetting() {
     );
     const [testing, setTesting] = useState(false);
     const [fetchingModels, setFetchingModels] = useState(false);
+    const [saving, setSaving] = useState(false);
     const draftConfigured = !!(
         baseUrl.trim() &&
         (apiKey.trim() || hasSavedApiKey) &&
@@ -107,6 +108,9 @@ export default function AISetting() {
     }
 
     async function getModels() {
+        if (fetchingModels || testing || saving) {
+            return;
+        }
         if (!baseUrl.trim()) {
             Toast.warn(t("aiSettings.endpointIncomplete"));
             return;
@@ -145,6 +149,9 @@ export default function AISetting() {
     }
 
     async function testConnection() {
+        if (testing || fetchingModels || saving) {
+            return;
+        }
         if (!draftConfigured) {
             Toast.warn(t("aiSettings.incomplete"));
             return;
@@ -170,6 +177,26 @@ export default function AISetting() {
             );
         } finally {
             setTesting(false);
+        }
+    }
+
+    async function saveSettings() {
+        if (saving || testing || fetchingModels) {
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await save();
+            Toast.success(t("toast.saveSuccess"));
+        } catch (error: any) {
+            Toast.warn(
+                t("aiSettings.testFailed", {
+                    reason: getLocalizedAIErrorMessage(error),
+                }),
+            );
+        } finally {
+            setSaving(false);
         }
     }
 
@@ -329,7 +356,12 @@ export default function AISetting() {
                                 accessibilityRole="button"
                                 accessibilityLabel={t("aiSettings.fetchModels")}
                                 activeOpacity={0.72}
-                                disabled={fetchingModels}
+                                accessibilityState={{
+                                    busy: fetchingModels,
+                                    disabled:
+                                        fetchingModels || testing || saving,
+                                }}
+                                disabled={fetchingModels || testing || saving}
                                 onPress={getModels}
                                 style={[
                                     styles.fetchButton,
@@ -412,7 +444,8 @@ export default function AISetting() {
                             ? t("aiSettings.testing")
                             : t("aiSettings.testConnection")
                     }
-                    disabled={testing}
+                    loading={testing}
+                    disabled={testing || fetchingModels || saving}
                     backgroundColor={colors.surfaceSecondary}
                     textColor={colors.text}
                     onPress={testConnection}
@@ -420,20 +453,11 @@ export default function AISetting() {
                 <ActionButton
                     icon="check"
                     label={t("common.save")}
+                    loading={saving}
+                    disabled={saving || testing || fetchingModels}
                     backgroundColor={primaryTint}
                     textColor={colors.primary}
-                    onPress={async () => {
-                        try {
-                            await save();
-                            Toast.success(t("toast.saveSuccess"));
-                        } catch (error: any) {
-                            Toast.warn(
-                                t("aiSettings.testFailed", {
-                                    reason: getLocalizedAIErrorMessage(error),
-                                }),
-                            );
-                        }
-                    }}
+                    onPress={saveSettings}
                 />
             </View>
         </ScrollView>
@@ -476,6 +500,7 @@ function ActionButton({
     label,
     onPress,
     disabled,
+    loading,
     backgroundColor,
     textColor,
 }: {
@@ -483,6 +508,7 @@ function ActionButton({
     label: string;
     onPress: () => void;
     disabled?: boolean;
+    loading?: boolean;
     backgroundColor?: string;
     textColor?: string;
 }) {
@@ -493,6 +519,7 @@ function ActionButton({
         <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={label}
+            accessibilityState={{ busy: loading, disabled }}
             activeOpacity={0.74}
             disabled={disabled}
             onPress={onPress}
@@ -503,7 +530,11 @@ function ActionButton({
                 },
                 disabled && styles.disabledAction,
             ]}>
-            <Icon name={icon} size={rpx(22)} color={resolvedTextColor} />
+            {loading ? (
+                <ActivityIndicator size="small" color={resolvedTextColor} />
+            ) : (
+                <Icon name={icon} size={rpx(22)} color={resolvedTextColor} />
+            )}
             <ThemeText
                 fontWeight="semibold"
                 color={resolvedTextColor}

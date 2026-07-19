@@ -42,9 +42,6 @@ export default function BackupSetting() {
                     Toast.success(t("toast.backupSuccess"));
                     hideDialog();
                 },
-                onCancel(hideDialog) {
-                    hideDialog();
-                },
                 onReject(reason, hideDialog) {
                     hideDialog();
                     errorLog("本地备份失败", reason);
@@ -77,10 +74,6 @@ export default function BackupSetting() {
                         Toast.success(t("toast.resumeSuccess"));
                         hideDialog();
                         resolve(true);
-                    },
-                    onCancel(hideDialog) {
-                        hideDialog();
-                        resolve(false);
                     },
                     onReject(reason, hideDialog) {
                         hideDialog();
@@ -129,33 +122,53 @@ export default function BackupSetting() {
             Toast.warn(t("toast.resumePreCheckFailed"));
             return;
         }
-        const client = createClient(url, {
-            authType: AuthType.Password,
-            username: username,
-            password: password,
+        showDialog("LoadingDialog", {
+            title: t("backupAndResume.resumeFromWebdav"),
+            loadingText: t("backupAndResume.resuming"),
+            async task() {
+                const client = createClient(url, {
+                    authType: AuthType.Password,
+                    username,
+                    password,
+                });
+
+                if (
+                    !(await client.exists(
+                        "/CatMusicFree/CatMusicFreeBackup.json",
+                    ))
+                ) {
+                    throw new Error("BACKUP_FILE_NOT_FOUND");
+                }
+
+                const resumeData = await client.getFileContents(
+                    "/CatMusicFree/CatMusicFreeBackup.json",
+                    {
+                        format: "text",
+                    },
+                );
+                await Backup.resume(
+                    resumeData,
+                    Config.getConfig("backup.resumeMode"),
+                );
+            },
+            onResolve(_, hideDialog) {
+                Toast.success(t("toast.resumeSuccess"));
+                hideDialog();
+            },
+            onReject(reason, hideDialog) {
+                hideDialog();
+                if (reason?.message === "BACKUP_FILE_NOT_FOUND") {
+                    Toast.warn(t("toast.backupFileNotFound"));
+                    return;
+                }
+                errorLog("WebDAV恢复失败", reason);
+                Toast.warn(
+                    t("toast.resumeFail", {
+                        reason: reason?.message ?? reason,
+                    }),
+                );
+            },
         });
-
-        if (!(await client.exists("/CatMusicFree/CatMusicFreeBackup.json"))) {
-            Toast.warn(t("toast.backupFileNotFound"));
-            return;
-        }
-
-        try {
-            const resumeData = await client.getFileContents(
-                "/CatMusicFree/CatMusicFreeBackup.json",
-                {
-                    format: "text",
-                },
-            );
-            await Backup.resume(
-                resumeData,
-                Config.getConfig("backup.resumeMode"),
-            );
-            Toast.success(t("toast.resumeSuccess"));
-        } catch (e: any) {
-            errorLog("WebDAV恢复失败", e);
-            Toast.warn(t("toast.resumeFail", { reason: e?.message ?? e }));
-        }
     }
 
     async function onBackupToWebdav() {
@@ -166,30 +179,42 @@ export default function BackupSetting() {
             Toast.warn(t("toast.resumePreCheckFailed"));
             return;
         }
-        try {
-            const client = createClient(url, {
-                authType: AuthType.Password,
-                username: username,
-                password: password,
-            });
+        showDialog("LoadingDialog", {
+            title: t("backupAndResume.backupToWebdav"),
+            loadingText: t("backupAndResume.backuping"),
+            async task() {
+                const client = createClient(url, {
+                    authType: AuthType.Password,
+                    username,
+                    password,
+                });
 
-            const raw = Backup.backup();
-            if (!(await client.exists("/CatMusicFree"))) {
-                await client.createDirectory("/CatMusicFree");
-            }
-            // 临时文件
-            await client.putFileContents(
-                "/CatMusicFree/CatMusicFreeBackup.json",
-                raw,
-                {
-                    overwrite: true,
-                },
-            );
-            Toast.success(t("toast.backupSuccess"));
-        } catch (e: any) {
-            errorLog("WebDAV备份失败", e);
-            Toast.warn(t("toast.backupFail", { reason: e?.message ?? e }));
-        }
+                const raw = Backup.backup();
+                if (!(await client.exists("/CatMusicFree"))) {
+                    await client.createDirectory("/CatMusicFree");
+                }
+                await client.putFileContents(
+                    "/CatMusicFree/CatMusicFreeBackup.json",
+                    raw,
+                    {
+                        overwrite: true,
+                    },
+                );
+            },
+            onResolve(_, hideDialog) {
+                Toast.success(t("toast.backupSuccess"));
+                hideDialog();
+            },
+            onReject(reason, hideDialog) {
+                hideDialog();
+                errorLog("WebDAV备份失败", reason);
+                Toast.warn(
+                    t("toast.backupFail", {
+                        reason: reason?.message ?? reason,
+                    }),
+                );
+            },
+        });
     }
 
     return (

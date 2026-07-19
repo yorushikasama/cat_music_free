@@ -8,6 +8,7 @@ import Input from "@/components/base/input";
 import useColors from "@/hooks/useColors";
 import { useI18N } from "@/core/i18n";
 import PersistStatus from "@/utils/persistStatus";
+import Toast from "@/utils/toast";
 
 interface ISetScheduleCloseTimeDialogProps {
     onOk?: (minutes: number) => void;
@@ -18,7 +19,7 @@ export default function SetScheduleCloseTimeDialog(
 ) {
     const { onOk } = props;
     const [timeInput, setTimeInput] = useState("");
-    
+
     const colors = useColors();
     const { t } = useI18N();
 
@@ -28,21 +29,22 @@ export default function SetScheduleCloseTimeDialog(
 
     const handleConfirm = () => {
         let minutes = 0;
-        
+
         if (timeInput.trim()) {
             minutes = parseInt(timeInput.trim(), 10);
         } else if (placeholder) {
             minutes = parseInt(placeholder, 10);
         }
-        
+
         // Validate input
         if (isNaN(minutes) || minutes <= 0 || minutes > 1440) {
+            Toast.warn(t("dialog.setScheduleCloseTime.invalid"));
             return;
         }
-        
+
         // Save to persistent storage
         PersistStatus.set("app.scheduleCloseTime", minutes);
-        
+
         onOk?.(minutes);
         hideDialog();
     };
@@ -59,37 +61,57 @@ export default function SetScheduleCloseTimeDialog(
 
     return (
         <Dialog onDismiss={hideDialog}>
-            <Dialog.Title>{t("dialog.setScheduleCloseTime.title")}</Dialog.Title>
+            <Dialog.Title>
+                {t("dialog.setScheduleCloseTime.title")}
+            </Dialog.Title>
             <Dialog.Content style={[style.dialogContent, containerStyles]}>
                 <View style={style.inputSection}>
                     <View style={style.inputRow}>
-                        <View style={[style.inputContainer, { borderColor: colors.divider, backgroundColor: colors.card }]}>
+                        <View
+                            style={[
+                                style.inputContainer,
+                                {
+                                    borderColor: colors.divider,
+                                    backgroundColor: colors.card,
+                                },
+                            ]}>
                             <Input
                                 hasHorizontalPadding={false}
                                 style={[style.textInput, inputStyles]}
                                 value={timeInput}
                                 onChangeText={text => {
                                     // Only allow numbers
-                                    const numericText = text.replace(/[^0-9]/g, "");
+                                    const numericText = text.replace(
+                                        /[^0-9]/g,
+                                        "",
+                                    );
                                     // Limit to 4 digits (max 1440 minutes = 24 hours)
                                     if (numericText.length <= 4) {
                                         setTimeInput(numericText);
                                     }
                                 }}
-                                placeholder={placeholder || t("dialog.setScheduleCloseTime.placeholder")}
+                                placeholder={
+                                    placeholder ||
+                                    t("dialog.setScheduleCloseTime.placeholder")
+                                }
                                 placeholderTextColor={colors.textSecondary}
                                 keyboardType="numeric"
                                 maxLength={4}
                             />
                         </View>
                         <View style={style.unitContainer}>
-                            <ThemeText style={style.unitText} fontColor="textSecondary">
+                            <ThemeText
+                                style={style.unitText}
+                                fontColor="textSecondary">
                                 {t("dialog.setScheduleCloseTime.unit")}
                             </ThemeText>
                         </View>
                     </View>
                     <View style={style.hintContainer}>
-                        <ThemeText style={style.hintText} fontSize="subTitle" fontColor="textSecondary">
+                        <ThemeText
+                            style={style.hintText}
+                            fontSize="subTitle"
+                            fontColor="textSecondary">
                             {t("dialog.setScheduleCloseTime.hint")}
                         </ThemeText>
                     </View>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import rpx, { vmax } from "@/utils/rpx";
 import SkeletonList from "@/components/base/skeleton";
@@ -26,7 +26,7 @@ import StorageAccess from "@/native/storageAccess";
 interface IOption {
     icon: IIconName;
     title: string;
-    onPress?: () => void;
+    onPress?: () => void | Promise<void>;
 }
 
 export default function PluginList() {
@@ -34,8 +34,93 @@ export default function PluginList() {
     const { t } = useI18N();
 
     const [loading, setLoading] = useState(false);
+    const operationLockRef = useRef(false);
 
     const navigator = useNavigation<any>();
+
+    const runPluginOperation = async <T,>(operation: () => Promise<T>) => {
+        if (operationLockRef.current) {
+            return { started: false as const };
+        }
+
+        operationLockRef.current = true;
+        setLoading(true);
+        try {
+            return {
+                started: true as const,
+                value: await operation(),
+            };
+        } finally {
+            operationLockRef.current = false;
+            setLoading(false);
+        }
+    };
+
+    const showInstallResults = (
+        result: IInstallPluginResult[],
+        type: "install" | "update" = "install",
+    ) => {
+        const successResults = result.filter(it => it.success);
+        const failResults = result.filter(it => !it.success);
+
+        if (!result.length) {
+            Toast.warn(
+                type === "update"
+                    ? t("checkUpdate.error.latestVersion")
+                    : t("toast.allPluginInstallFailed"),
+            );
+            return;
+        }
+
+        if (!failResults.length) {
+            Toast.success(
+                type === "update"
+                    ? t("toast.updatePluginSuccess")
+                    : t("toast.installPluginSuccess"),
+            );
+            return;
+        }
+
+        Toast.warn(
+            successResults.length
+                ? type === "update"
+                    ? t("toast.partialPluginUpdateFailed")
+                    : t("toast.partialPluginInstallFailed")
+                : type === "update"
+                    ? t("toast.allPluginUpdateFailed")
+                    : t("toast.allPluginInstallFailed"),
+            {
+                type: "warn",
+                actionText: t("common.view"),
+                onActionClick: () => {
+                    showDialog("SimpleDialog", {
+                        title: t(
+                            type === "update"
+                                ? "pluginSetting.menu.pluginUpdateFailedDialogTitle"
+                                : "pluginSetting.menu.pluginInstallFailedDialogTitle",
+                        ),
+                        content: t(
+                            type === "update"
+                                ? "pluginSetting.pluginUpdateFailedDialogContent"
+                                : "pluginSetting.pluginInstallFailedDialogContent",
+                            {
+                                detail: failResults
+                                    .map(
+                                        it =>
+                                            (it.pluginUrl ?? "") +
+                                            "\n" +
+                                            t("pluginSetting.failReason", {
+                                                reason: it.message ?? "",
+                                            }),
+                                    )
+                                    .join("\n-----\n"),
+                            },
+                        ),
+                    });
+                },
+            },
+        );
+    };
 
     const menuOptions: IOption[] = [
         {
@@ -63,13 +148,19 @@ export default function PluginList() {
             icon: "trash-outline",
             title: t("pluginSetting.menu.uninstallAll"),
             onPress() {
+                if (operationLockRef.current) {
+                    return;
+                }
                 showDialog("SimpleDialog", {
                     title: t("pluginSetting.menu.uninstallAll"),
                     content: t("pluginSetting.menu.uninstallAllContent"),
                     async onOk() {
-                        setLoading(true);
-                        await PluginManager.uninstallAllPlugins();
-                        setLoading(false);
+                        const result = await runPluginOperation(async () => {
+                            await PluginManager.uninstallAllPlugins();
+                        });
+                        if (result.started) {
+                            Toast.success(t("toast.pluginUninstalled"));
+                        }
                     },
                 });
             },
@@ -90,26 +181,39 @@ export default function PluginList() {
                 Toast.warn(t("pluginSetting.menu.noValidPluginFile", { defaultValue: "未选择有效的插件文件（.js）" }));
                 return;
             }
-            setLoading(true);
 
-            await Promise.all(
-                jsFiles.map(async it => {
-                    await PluginManager.installPluginFromLocalFile(it.uri, {
-                        notCheckVersion: Config.getConfig(
-                            "basic.notCheckPluginVersion",
-                        ),
-                        useExpoFs: true,
-                    });
-                }),
+            const operation = await runPluginOperation(() =>
+                Promise.all(
+                    jsFiles.map(async it => {
+                        try {
+                            return await PluginManager.installPluginFromLocalFile(
+                                it.uri,
+                                {
+                                    notCheckVersion: Config.getConfig(
+                                        "basic.notCheckPluginVersion",
+                                    ),
+                                    useExpoFs: true,
+                                },
+                            );
+                        } catch (e: any) {
+                            return {
+                                success: false,
+                                message: e?.message ?? "",
+                                pluginUrl: it.name ?? it.uri,
+                            };
+                        }
+                    }),
+                ),
             );
-            Toast.success(t("toast.installPluginSuccess"));
+            if (operation.started) {
+                showInstallResults(operation.value);
+            }
         } catch (e: any) {
             trace("插件安装失败", e?.message);
             Toast.warn(t("toast.installPluginFail", {
                 reason: e?.message ?? "",
             }));
         }
-        setLoading(false);
     }
 
     async function onInstallFromNetworkClick() {
@@ -118,43 +222,15 @@ export default function PluginList() {
             placeholder: t("pluginSetting.menu.installPluginDialogPlaceholder"),
             maxLength: 200,
             async onOk(text, closePanel) {
-                setLoading(true);
+                const operation = await runPluginOperation(() =>
+                    installPluginFromUrl(text.trim()),
+                );
+                if (!operation.started) {
+                    return;
+                }
+
+                showInstallResults(operation.value);
                 closePanel();
-
-                const result = await installPluginFromUrl(text.trim());
-
-                // 检查是否全部安装成功
-                const successResults: IInstallPluginResult[] = [];
-                const failResults: IInstallPluginResult[] = [];
-                for (let i = 0; i < result.length; ++i) {
-                    if (result[i].success) {
-                        successResults.push(result[i]);
-                    } else {
-                        failResults.push(result[i]);
-                    }
-                }
-
-                if (!failResults.length) {
-                    Toast.success(t("toast.installPluginSuccess"));
-                } else {
-                    Toast.warn(successResults.length ? t("toast.partialPluginInstallFailed") : t("toast.allPluginInstallFailed"), {
-                        "type": "warn",
-                        "actionText": t("common.view"),
-                        "onActionClick": () => {
-                            showDialog("SimpleDialog", {
-                                title: t("pluginSetting.menu.pluginInstallFailedDialogTitle"),
-                                content: t("pluginSetting.pluginInstallFailedDialogContent", {
-                                    detail: failResults.map(it => (it.pluginUrl ?? "") + "\n" + t("pluginSetting.failReason", {
-                                        reason: it.message ?? "",
-                                    })).join("\n-----\n"),
-                                }),
-                            });
-                        },
-                    });
-                }
-
-
-                setLoading(false);
             },
         });
     }
@@ -163,114 +239,68 @@ export default function PluginList() {
         const urls = Config.getConfig("plugin.subscribeUrl");
         if (!urls) {
             Toast.warn(t("toast.noSubscription"));
+            return;
         }
-        setLoading(true);
 
-        const successResults: IInstallPluginResult[] = [];
-        const failResults: IInstallPluginResult[] = [];
-
-        try {
-            const urlItems = JSON.parse(urls!);
-            if (Array.isArray(urlItems)) {
-                for (let i = 0; i < urlItems.length; ++i) {
-                    const result = await installPluginFromUrl(urlItems[i].url);
-                    if (result[0]) {
-                        if (result[0].success) {
-                            successResults.push(result[0]);
-                        } else {
-                            failResults.push(result[0]);
-                        }
-                    }
+        const operation = await runPluginOperation(async () => {
+            try {
+                const urlItems = JSON.parse(urls);
+                if (!Array.isArray(urlItems)) {
+                    throw new Error();
                 }
-            } else {
-                throw new Error();
-            }
 
-            if (!failResults.length) {
-                Toast.success(t("toast.installPluginSuccess"));
-            } else {
-                Toast.warn((successResults.length ? t("toast.partialPluginInstallFailed") : t("toast.allPluginInstallFailed")), {
-                    "type": "warn",
-                    "actionText": t("common.view"),
-                    "onActionClick": () => {
-                        showDialog("SimpleDialog", {
-                            title: t("pluginSetting.menu.pluginInstallFailedDialogTitle"),
-                            content: t("pluginSetting.pluginInstallFailedDialogContent", {
-                                detail: failResults.map(it => (it.pluginUrl ?? "") + "\n" + t("pluginSetting.failReason", {
-                                    reason: it.message ?? "",
-                                })).join("\n-----\n"),
-                            }),
-                        });
-                    },
-                });
-            }
-
-        } catch {
-            if (urls?.length) {
-                const result = await installPluginFromUrl(urls);
-                if (result[0]) {
-                    if (result[0].success) {
-                        Toast.success(t("toast.installPluginSuccess"));
-                    } else {
-                        Toast.warn(t("toast.partialPluginInstallFailedWithReason", {
-                            reason: result[0].message ?? "",
-                        }));
-                    }
-                } else {
-                    Toast.warn(t("toast.subscriptionInvalid"));
+                const subscribeUrls = urlItems
+                    .map((item: any) => item?.url)
+                    .filter((url: any): url is string => !!url?.trim?.());
+                if (!subscribeUrls.length) {
+                    return [];
                 }
+
+                const results = await Promise.all(
+                    subscribeUrls.map(url => installPluginFromUrl(url)),
+                );
+                return results.flat();
+            } catch {
+                return installPluginFromUrl(urls);
             }
+        });
+        if (!operation.started) {
+            return;
         }
-        setLoading(false);
+
+        if (!operation.value.length) {
+            Toast.warn(t("toast.subscriptionInvalid"));
+            return;
+        }
+        showInstallResults(operation.value);
     }
 
     async function onUpdateAllClick() {
-        const enabledPlugins = PluginManager.getEnabledPlugins();
-        setLoading(true);
-
-        const successResults: IInstallPluginResult[] = [];
-        const failResults: IInstallPluginResult[] = [];
+        const updateUrls = PluginManager.getEnabledPlugins()
+            .map(plugin => plugin.instance.srcUrl)
+            .filter((url: any): url is string => !!url?.trim?.());
+        if (!updateUrls.length) {
+            Toast.warn(t("checkUpdate.error.latestVersion"));
+            return;
+        }
 
         try {
-            for (let i = 0; i < enabledPlugins.length; ++i) {
-                const srcUrl = enabledPlugins[i].instance.srcUrl;
-                if (srcUrl) {
-                    const result = await installPluginFromUrl(srcUrl);
-                    if (result[0]) {
-                        if (result[0].success) {
-                            successResults.push(result[0]);
-                        } else {
-                            failResults.push(result[0]);
-                        }
-                    }
-                }
+            const operation = await runPluginOperation(async () => {
+                const results = await Promise.all(
+                    updateUrls.map(url => installPluginFromUrl(url)),
+                );
+                return results.flat();
+            });
+            if (!operation.started) {
+                return;
             }
 
-            if (!failResults.length) {
-                Toast.success(t("toast.updatePluginSuccess"));
-            } else {
-                Toast.warn((successResults.length ? t("toast.partialPluginUpdateFailed") : t("toast.allPluginUpdateFailed")), {
-                    "type": "warn",
-                    "actionText": t("common.view"),
-                    "onActionClick": () => {
-                        showDialog("SimpleDialog", {
-                            title: t("pluginSetting.menu.pluginUpdateFailedDialogTitle"),
-                            content: t("pluginSetting.pluginUpdateFailedDialogContent", {
-                                detail: failResults.map(it => (it.pluginUrl ?? "") + "\n" + t("pluginSetting.failReason", {
-                                    reason: it.message ?? "",
-                                })).join("\n-----\n"),
-                            }),
-                        });
-                    },
-                });
-            }
-
+            showInstallResults(operation.value, "update");
         } catch (e: any) {
             Toast.warn(t("toast.unknownError", {
                 reason: e?.message ?? e,
             }));
         }
-        setLoading(false);
     }
 
     return (
@@ -307,7 +337,13 @@ export default function PluginList() {
 
                     <Fab
                         icon="plus"
+                        accessibilityLabel={t("a11y.add")}
+                        disabled={loading}
+                        loading={loading}
                         onPress={() => {
+                            if (operationLockRef.current) {
+                                return;
+                            }
                             showPanel("SimpleSelect", {
                                 height: vmax(72),
                                 header: t("pluginSetting.menu.installPlugin"),
@@ -338,17 +374,17 @@ export default function PluginList() {
                                         icon: "bookmark-square",
                                     },
                                 ],
-                                onPress(item) {
+                                async onPress(item) {
                                     if (item.value === "local") {
-                                        onInstallFromLocalClick();
+                                        await onInstallFromLocalClick();
                                     } else if (item.value === "network") {
-                                        onInstallFromNetworkClick();
+                                        await onInstallFromNetworkClick();
                                     } else if (item.value === "batch") {
                                         showPanel("BatchInstall");
                                     } else if (item.value === "subscription") {
-                                        onSubscribeClick();
+                                        await onSubscribeClick();
                                     } else if (item.value === "updateAll") {
-                                        onUpdateAllClick();
+                                        await onUpdateAllClick();
                                     }
                                 },
                             });

@@ -1,9 +1,14 @@
 import React from "react";
-import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 import ThemeText from "@/components/base/themeText";
 
-import { setCloseAfterPlayEnd, setScheduleClose, useCloseAfterPlayEnd, useScheduleCloseCountDown } from "@/utils/scheduleClose";
+import {
+    setCloseAfterPlayEnd,
+    setScheduleClose,
+    useCloseAfterPlayEnd,
+    useScheduleCloseCountDown,
+} from "@/utils/scheduleClose";
 import timeformat from "@/utils/timeformat";
 import PanelBase from "../base/panelBase";
 import PanelHeader from "../base/panelHeader";
@@ -17,10 +22,9 @@ import { radius } from "@/constants/borderRadius";
 import { iconSizeConst } from "@/constants/uiConst";
 import Color from "color";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
+import Toast from "@/utils/toast";
 
 const shortCutTimes = [10, 20, 30, 45, 60] as const;
-
 
 export default function TimingClose() {
     const closeAfterPlay = useCloseAfterPlayEnd();
@@ -40,12 +44,29 @@ export default function TimingClose() {
 
     const selectTime = (minutes: number) => {
         setScheduleClose(Date.now() + minutes * 60000);
+        Toast.success(
+            t("panel.timingClose.scheduleSet", {
+                minutes,
+            }),
+        );
+    };
+
+    const handleCloseAfterPlayChange = () => {
+        const nextValue = !closeAfterPlay;
+        setCloseAfterPlayEnd(nextValue);
+        Toast.success(
+            t(
+                nextValue
+                    ? "panel.timingClose.closeAfterPlayEnabled"
+                    : "panel.timingClose.closeAfterPlayDisabled",
+            ),
+        );
     };
 
     return (
         <PanelBase
             keyboardAvoidBehavior="none"
-            positionMethod='top'
+            positionMethod="top"
             height={rpx(620) + safeAreaInsets.bottom}
             renderBody={() => (
                 <>
@@ -60,7 +81,10 @@ export default function TimingClose() {
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={[
                             styles.bodyContent,
-                            { paddingBottom: safeAreaInsets.bottom + spacing.xl },
+                            {
+                                paddingBottom:
+                                    safeAreaInsets.bottom + spacing.xl,
+                            },
                         ]}>
                         <View
                             style={[
@@ -116,16 +140,24 @@ export default function TimingClose() {
 
                         <View style={styles.timeGrid}>
                             {shortCutTimes.map(time => (
-                                <TouchableOpacity
-                                    style={[
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`${time} ${t(
+                                        "panel.timingClose.minute",
+                                    )}`}
+                                    android_ripple={{
+                                        color: colors.pressedOverlay,
+                                    }}
+                                    style={({ pressed }) => [
                                         styles.timeItem,
                                         {
-                                            backgroundColor: colors.surfaceSecondary,
+                                            backgroundColor:
+                                                colors.surfaceSecondary,
                                             borderColor: colors.divider,
+                                            opacity: pressed ? 0.76 : 1,
                                         },
                                     ]}
                                     key={time}
-                                    activeOpacity={0.78}
                                     onPress={() => selectTime(time)}>
                                     <ThemeText
                                         fontSize="title"
@@ -138,19 +170,26 @@ export default function TimingClose() {
                                         style={styles.minuteText}>
                                         {t("panel.timingClose.minute")}
                                     </ThemeText>
-                                </TouchableOpacity>
+                                </Pressable>
                             ))}
-                            <TouchableOpacity
-                                style={[
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={t(
+                                    "panel.timingClose.customize",
+                                )}
+                                android_ripple={{
+                                    color: colors.pressedOverlay,
+                                }}
+                                style={({ pressed }) => [
                                     styles.timeItem,
                                     styles.customTimeItem,
                                     {
                                         backgroundColor: primarySoft,
                                         borderColor: primaryBorder,
+                                        opacity: pressed ? 0.76 : 1,
                                     },
                                 ]}
-                                key='customize'
-                                activeOpacity={0.78}
+                                key="customize"
                                 onPress={() => {
                                     showDialog("SetScheduleCloseTimeDialog", {
                                         onOk: (minutes: number) => {
@@ -170,26 +209,36 @@ export default function TimingClose() {
                                     style={styles.customText}>
                                     {t("panel.timingClose.customize")}
                                 </ThemeText>
-                            </TouchableOpacity>
+                            </Pressable>
                         </View>
 
-                        <TouchableOpacity
-                            activeOpacity={0.78}
-                            style={[
+                        <Pressable
+                            accessibilityRole="checkbox"
+                            accessibilityLabel={t(
+                                "panel.timingClose.closeAfterPlay",
+                            )}
+                            accessibilityState={{ checked: closeAfterPlay }}
+                            android_ripple={{ color: colors.pressedOverlay }}
+                            style={({ pressed }) => [
                                 styles.optionRow,
                                 {
                                     backgroundColor: colors.surfaceSecondary,
                                     borderColor: colors.divider,
+                                    opacity: pressed ? 0.76 : 1,
                                 },
                             ]}
                             onPress={() => {
-                                setCloseAfterPlayEnd(!closeAfterPlay);
+                                handleCloseAfterPlayChange();
                             }}>
                             <View style={styles.optionContent}>
                                 <Icon
                                     name="check-circle-outline"
                                     size={iconSizeConst.light}
-                                    color={closeAfterPlay ? colors.primary : colors.textSecondary}
+                                    color={
+                                        closeAfterPlay
+                                            ? colors.primary
+                                            : colors.textSecondary
+                                    }
                                 />
                                 <View style={styles.optionText}>
                                     <ThemeText
@@ -202,25 +251,39 @@ export default function TimingClose() {
                                         fontColor="textSecondary"
                                         numberOfLines={1}
                                         style={styles.optionDescription}>
-                                        {t("panel.timingClose.closeAfterPlayDesc")}
+                                        {t(
+                                            "panel.timingClose.closeAfterPlayDesc",
+                                        )}
                                     </ThemeText>
                                 </View>
                             </View>
                             <Checkbox checked={closeAfterPlay} />
-                        </TouchableOpacity>
+                        </Pressable>
 
                         {isCountingDown ? (
-                            <TouchableOpacity
-                                activeOpacity={0.78}
-                                style={[
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={t(
+                                    "panel.timingClose.cancelScheduleClose",
+                                )}
+                                android_ripple={{
+                                    color: colors.pressedOverlay,
+                                }}
+                                style={({ pressed }) => [
                                     styles.cancelButton,
                                     {
                                         backgroundColor: dangerSoft,
                                         borderColor: dangerBorder,
+                                        opacity: pressed ? 0.76 : 1,
                                     },
                                 ]}
                                 onPress={() => {
                                     setScheduleClose(null);
+                                    Toast.success(
+                                        t(
+                                            "panel.timingClose.scheduleCancelled",
+                                        ),
+                                    );
                                 }}>
                                 <Icon
                                     name="x-mark"
@@ -233,7 +296,7 @@ export default function TimingClose() {
                                     style={styles.cancelButtonText}>
                                     {t("panel.timingClose.cancelScheduleClose")}
                                 </ThemeText>
-                            </TouchableOpacity>
+                            </Pressable>
                         ) : null}
                     </ScrollView>
                 </>
@@ -241,7 +304,6 @@ export default function TimingClose() {
         />
     );
 }
-
 
 const styles = StyleSheet.create({
     body: {

@@ -4,7 +4,7 @@ import rpx from "@/utils/rpx";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import useColors from "@/hooks/useColors";
-import { TouchableOpacity } from "react-native-gesture-handler";
+import { TouchableOpacity } from "react-native";
 import Icon from "@/components/base/icon.tsx";
 
 interface ICheckboxProps {
@@ -41,6 +41,9 @@ export default function Checkbox(props: ICheckboxProps) {
 
     return onPress ? (
         <TouchableOpacity
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: Boolean(checked) }}
+            activeOpacity={0.68}
             hitSlop={{
                 left: slop,
                 right: slop,

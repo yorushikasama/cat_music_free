@@ -45,35 +45,44 @@ export default function ImportMusicSheet() {
                                                 placeholder: t("panel.importMusicSheet.placeholder"),
                                                 hints: plugin.instance.hints
                                                     ?.importMusicSheet,
-                                                maxLength: 1000,                                                async onOk(text, closePanel) {
-                                                    Toast.success(
-                                                        t("panel.importMusicSheet.importing"),
-                                                    );
-                                                    closePanel();
-                                                    const result =
-                                                        await plugin.methods.importMusicSheet(
-                                                            text,
-                                                        );
-                                                    if (result && result.length > 0) {
-                                                        showDialog(
-                                                            "SimpleDialog",
-                                                            {
-                                                                title: t("panel.importMusicSheet.prepareImport"),
-                                                                content: t("panel.importMusicSheet.foundSongs", { count: result.length }),
-                                                                onOk() {
-                                                                    showPanel(
-                                                                        "AddToMusicSheet",
-                                                                        {
-                                                                            musicItem:
-                                                                                result,
-                                                                        },
-                                                                    );
+                                                maxLength: 1000,
+                                                async onOk(text, closePanel) {
+                                                    try {
+                                                        const result =
+                                                            await plugin.methods.importMusicSheet(
+                                                                text,
+                                                            );
+                                                        if (result && result.length > 0) {
+                                                            closePanel();
+                                                            showDialog(
+                                                                "SimpleDialog",
+                                                                {
+                                                                    title: t("panel.importMusicSheet.prepareImport"),
+                                                                    content: t("panel.importMusicSheet.foundSongs", { count: result.length }),
+                                                                    onOk() {
+                                                                        showPanel(
+                                                                            "AddToMusicSheet",
+                                                                            {
+                                                                                musicItem:
+                                                                                    result,
+                                                                            },
+                                                                        );
+                                                                    },
                                                                 },
-                                                            },
-                                                        );                                                    
-                                                    } else {
+                                                            );
+                                                        } else {
+                                                            Toast.warn(
+                                                                t("panel.importMusicSheet.invalidLink"),
+                                                            );
+                                                        }
+                                                    } catch (error: any) {
                                                         Toast.warn(
-                                                            t("panel.importMusicSheet.invalidLink"),
+                                                            t("toast.unknownError", {
+                                                                reason:
+                                                                    error?.message ??
+                                                                    error ??
+                                                                    "",
+                                                            }),
                                                         );
                                                     }
                                                 },

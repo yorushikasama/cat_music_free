@@ -5,7 +5,14 @@ import { useI18N } from "@/core/i18n";
 import LyricUtil from "@/native/lyricUtil";
 import rpx from "@/utils/rpx";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+    ActivityIndicator,
+    AppState,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
+} from "react-native";
 import PageShell from "@/components/base/pageShell";
 import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
@@ -15,6 +22,7 @@ import {
     hasNotificationPermission,
     requestNotificationPermission,
 } from "@/utils/notificationPermission";
+import Toast from "@/utils/toast";
 
 type IPermissionTypes = "floatingWindow" | "notification";
 
@@ -28,6 +36,10 @@ export default function Permissions() {
     });
     const { t } = useI18N();
     const colors = useColors();
+    const [requestingType, setRequestingType] = useState<IPermissionTypes | null>(
+        null,
+    );
+    const pendingFloatWindowRequestRef = useRef(false);
 
     const checkPermission = useCallback(async (type?: IPermissionTypes) => {
         const newPermission: Partial<Record<IPermissionTypes, boolean>> = {};
@@ -54,7 +66,21 @@ export default function Permissions() {
                     appState.current.match(/inactive|background/) &&
                     nextAppState === "active"
                 ) {
-                    checkPermission();
+                    const refreshPermission = async () => {
+                        await checkPermission();
+                        if (pendingFloatWindowRequestRef.current) {
+                            pendingFloatWindowRequestRef.current = false;
+                            const granted =
+                                await LyricUtil.checkSystemAlertPermission();
+                            setRequestingType(null);
+                            if (granted) {
+                                Toast.success(t("permissionSetting.granted"));
+                            } else {
+                                Toast.warn(t("toast.noFloatWindowPermission"));
+                            }
+                        }
+                    };
+                    refreshPermission();
                 }
 
                 appState.current = nextAppState;
@@ -64,31 +90,65 @@ export default function Permissions() {
         return () => {
             subscription.remove();
         };
-    }, [checkPermission]);
+    }, [checkPermission, t]);
+
+    const requestFloatWindowPermission = useCallback(async () => {
+        if (requestingType) {
+            return;
+        }
+
+        pendingFloatWindowRequestRef.current = true;
+        setRequestingType("floatingWindow");
+        try {
+            await LyricUtil.requestSystemAlertPermission();
+        } catch (error: any) {
+            pendingFloatWindowRequestRef.current = false;
+            setRequestingType(null);
+            Toast.warn(error?.message ?? t("toast.noFloatWindowPermission"));
+        }
+    }, [requestingType, t]);
+
+    const requestNotification = useCallback(async () => {
+        if (requestingType) {
+            return;
+        }
+
+        setRequestingType("notification");
+        try {
+            const granted = await requestNotificationPermission();
+            await checkPermission("notification");
+            if (granted) {
+                Toast.success(t("permissionSetting.granted"));
+            } else {
+                Toast.warn(t("toast.notificationPermissionDenied"));
+            }
+        } catch (error: any) {
+            Toast.warn(error?.message ?? t("toast.notificationPermissionDenied"));
+        } finally {
+            setRequestingType(null);
+        }
+    }, [checkPermission, requestingType, t]);
 
     const permissionItems: Array<{
         type: IPermissionTypes;
         icon: IIconName;
         title: string;
         description: string;
-        onPress: () => void;
+        onPress: () => void | Promise<void>;
     }> = [
         {
             type: "floatingWindow",
             icon: "chat-bubble-oval-left-ellipsis",
             title: t("permissionSetting.floatWindowPermission"),
             description: t("permissionSetting.floatWindowPermissionDescription"),
-            onPress: () => LyricUtil.requestSystemAlertPermission(),
+            onPress: requestFloatWindowPermission,
         },
         {
             type: "notification",
             icon: "alarm-outline",
             title: t("permissionSetting.notificationPermission"),
             description: t("permissionSetting.notificationPermissionDescription"),
-            onPress: async () => {
-                await requestNotificationPermission();
-                checkPermission("notification");
-            },
+            onPress: requestNotification,
         },
     ];
 
@@ -118,11 +178,17 @@ export default function Permissions() {
                 </View>
                 {permissionItems.map(item => {
                     const granted = permissions[item.type];
+                    const requesting = requestingType === item.type;
                     return (
                         <Pressable
                             key={item.type}
                             accessibilityRole="button"
                             onPress={item.onPress}
+                            disabled={requestingType !== null}
+                            accessibilityState={{
+                                busy: requesting,
+                                disabled: requestingType !== null,
+                            }}
                             style={({ pressed }) => [
                                 styles.permissionCard,
                                 {
@@ -130,7 +196,12 @@ export default function Permissions() {
                                     borderColor: granted
                                         ? colors.selectedBorder
                                         : colors.controlBorder ?? colors.divider,
-                                    opacity: pressed ? 0.82 : 1,
+                                    opacity:
+                                        requestingType !== null
+                                            ? 0.56
+                                            : pressed
+                                                ? 0.82
+                                                : 1,
                                 },
                             ]}>
                             <View
@@ -158,11 +229,18 @@ export default function Permissions() {
                                         style={styles.permissionTitle}>
                                         {item.title}
                                     </ThemeText>
-                                    <Icon
-                                        name="chevron-right"
-                                        size={rpx(26)}
-                                        color={colors.textSecondary}
-                                    />
+                                    {requesting ? (
+                                        <ActivityIndicator
+                                            color={colors.primary}
+                                            size="small"
+                                        />
+                                    ) : (
+                                        <Icon
+                                            name="chevron-right"
+                                            size={rpx(26)}
+                                            color={colors.textSecondary}
+                                        />
+                                    )}
                                 </View>
                                 <ThemeText
                                     fontSize="description"

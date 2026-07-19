@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import ThemeText from "@/components/base/themeText";
-import { Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import rpx, { vh } from "@/utils/rpx";
 import openUrl from "@/utils/openUrl";
 import Clipboard from "@react-native-clipboard/clipboard";
@@ -29,6 +29,7 @@ interface IDownloadDialogProps {
 export default function DownloadDialog(props: IDownloadDialogProps) {
     const { content, fromUrl, backUrl, version, downloadUrls } = props;
     const [skipState, setSkipState] = useState(false);
+    const [backgroundDownloading, setBackgroundDownloading] = useState(false);
 
     const { t } = useI18N();
     const colors = useColors();
@@ -40,6 +41,11 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
     const dividerSoft = Color(colors.divider ?? colors.text).alpha(0.55).rgb().string();
 
     async function startBackgroundDownload(url: string) {
+        if (backgroundDownloading) {
+            return;
+        }
+
+        setBackgroundDownloading(true);
         try {
             PersistStatus.set("app.skipVersion", undefined);
             await NativeUtils.downloadAndInstallApk(
@@ -53,6 +59,8 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                 e?.message ??
                     t("dialog.downloadDialog.backgroundDownloadFailed"),
             );
+        } finally {
+            setBackgroundDownloading(false);
         }
     }
 
@@ -182,6 +190,7 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                                 source: item.label,
                             })}
                             primary={index === 0}
+                            disabled={backgroundDownloading}
                             onPress={() => {
                                 PersistStatus.set("app.skipVersion", undefined);
                                 openUrl(item.url);
@@ -193,6 +202,8 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                         icon="inbox-arrow-down"
                         title={t("dialog.downloadDialog.backgroundDownload")}
                         description={t("dialog.downloadDialog.backgroundDownloadDesc")}
+                        loading={backgroundDownloading}
+                        disabled={backgroundDownloading}
                         onPress={async () => {
                             await startBackgroundDownload(backgroundDownloadUrl);
                         }}
@@ -201,6 +212,7 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
 
                 <View style={style.footerRow}>
                     <TouchableOpacity
+                        disabled={backgroundDownloading}
                         onPress={() => {
                             setSkipState(state => !state);
                         }}>
@@ -216,6 +228,7 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                     </TouchableOpacity>
                     <Pressable
                         hitSlop={spacing.sm}
+                        disabled={backgroundDownloading}
                         onPress={() => {
                             hideDialog();
                             if (skipState) {
@@ -265,9 +278,19 @@ function DownloadAction(props: {
     title: string;
     description: string;
     primary?: boolean;
+    disabled?: boolean;
+    loading?: boolean;
     onPress: () => void;
 }) {
-    const { icon, title, description, primary, onPress } = props;
+    const {
+        icon,
+        title,
+        description,
+        primary,
+        disabled = false,
+        loading = false,
+        onPress,
+    } = props;
     const colors = useColors();
     const borderColor = primary
         ? Color(colors.primary).alpha(0.2).rgb().string()
@@ -282,6 +305,10 @@ function DownloadAction(props: {
 
     return (
         <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={title}
+            accessibilityState={{ busy: loading, disabled }}
+            disabled={disabled}
             onPress={onPress}
             android_ripple={{ color: Color(colors.primary).alpha(0.08).rgb().string() }}
             style={({ pressed }) => [
@@ -289,15 +316,19 @@ function DownloadAction(props: {
                 {
                     backgroundColor,
                     borderColor,
-                    opacity: pressed ? 0.76 : 1,
+                    opacity: disabled ? 0.52 : pressed ? 0.76 : 1,
                 },
             ]}>
             <View style={[style.actionIconWrap, { backgroundColor: iconBg }]}>
-                <Icon
-                    name={icon}
-                    size={rpx(30)}
-                    color={iconColor}
-                />
+                {loading ? (
+                    <ActivityIndicator color={iconColor} size="small" />
+                ) : (
+                    <Icon
+                        name={icon}
+                        size={rpx(30)}
+                        color={iconColor}
+                    />
+                )}
             </View>
             <View style={style.actionTextWrap}>
                 <ThemeText

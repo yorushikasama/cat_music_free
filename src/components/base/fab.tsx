@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import rpx from "@/utils/rpx";
 import useColors from "@/hooks/useColors";
 import { iconSizeConst } from "@/constants/uiConst";
@@ -10,29 +10,45 @@ import { spacing } from "@/constants/spacing";
 interface IFabProps {
     icon?: IIconName;
     onPress?: () => void;
+    accessibilityLabel?: string;
+    disabled?: boolean;
+    loading?: boolean;
 }
 export default function Fab(props: IFabProps) {
-    const { icon, onPress } = props;
+    const {
+        icon,
+        onPress,
+        accessibilityLabel,
+        disabled = false,
+        loading = false,
+    } = props;
 
     const colors = useColors();
+    const isDisabled = disabled || loading || !onPress;
 
     return (
         <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+                accessibilityLabel ??
+                (icon ? icon.replace(/-/g, " ") : undefined)
+            }
+            accessibilityState={{ busy: loading, disabled: isDisabled }}
+            android_ripple={{ color: "rgba(255,255,255,0.24)" }}
+            disabled={isDisabled}
             onPress={onPress}
             style={({ pressed }) => [
                 styles.container,
                 {
                     backgroundColor: colors.primary,
                     shadowColor: colors.shadow,
-                    opacity: pressed ? 0.84 : 1,
+                    opacity: isDisabled ? 0.56 : pressed ? 0.84 : 1,
                 },
             ]}>
-            {icon ? (
-                <Icon
-                    name={icon}
-                    color="#ffffff"
-                    size={iconSizeConst.normal}
-                />
+            {loading ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+            ) : icon ? (
+                <Icon name={icon} color="#ffffff" size={iconSizeConst.normal} />
             ) : null}
         </Pressable>
     );

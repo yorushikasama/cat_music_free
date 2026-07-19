@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import rpx, { vmax } from "@/utils/rpx";
 import { fontSizeConst } from "@/constants/uiConst";
@@ -111,6 +111,7 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
     const [mode, setMode] = useState<InputMode>("urls");
     const [urlText, setUrlText] = useState("");
     const [installing, setInstalling] = useState(false);
+    const operationLockRef = useRef(false);
     const [progress, setProgress] = useState({ current: 0, total: 0 });
     const progressRatio = useMemo(() => {
         if (!progress.total) {
@@ -124,12 +125,15 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
     );
 
     const installBatch = useCallback(async (urls: string[]) => {
+        if (operationLockRef.current) {
+            return;
+        }
         if (!urls.length) {
-            setInstalling(false);
             Toast.warn(t("pluginSetting.batchInstall.noValidUrls"));
             return;
         }
 
+        operationLockRef.current = true;
         setInstalling(true);
         setProgress({ current: 0, total: urls.length });
 
@@ -137,68 +141,72 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
         const failResults: IInstallPluginResult[] = [];
         const notCheckVersion = Config.getConfig("basic.notCheckPluginVersion");
 
-        for (let i = 0; i < urls.length; i++) {
-            const pluginUrl = urls[i];
-            setProgress({ current: i + 1, total: urls.length });
-            try {
-                const result = await PluginManager.installPluginFromUrl(pluginUrl, {
-                    notCheckVersion,
-                });
-                if (result.success) {
-                    successResults.push(result);
-                } else {
-                    failResults.push(result);
+        try {
+            for (let i = 0; i < urls.length; i++) {
+                const pluginUrl = urls[i];
+                setProgress({ current: i + 1, total: urls.length });
+                try {
+                    const result = await PluginManager.installPluginFromUrl(pluginUrl, {
+                        notCheckVersion,
+                    });
+                    if (result.success) {
+                        successResults.push(result);
+                    } else {
+                        failResults.push(result);
+                    }
+                } catch (e: any) {
+                    failResults.push({
+                        success: false,
+                        message: e?.message ?? "",
+                        pluginUrl,
+                    });
                 }
-            } catch (e: any) {
-                failResults.push({
-                    success: false,
-                    message: e?.message ?? "",
-                    pluginUrl,
-                });
             }
-        }
 
-        setInstalling(false);
-        hidePanel();
+            hidePanel();
 
-        const allResults = [...successResults, ...failResults];
-        onBatchComplete?.(allResults);
+            const allResults = [...successResults, ...failResults];
+            onBatchComplete?.(allResults);
 
-        if (!failResults.length) {
-            Toast.success(
-                t("pluginSetting.batchInstall.allSuccess", {
-                    count: successResults.length,
-                }),
-            );
-        } else {
-            Toast.warn(
-                successResults.length
-                    ? t("pluginSetting.batchInstall.partialFailed", {
-                        successCount: successResults.length,
-                        failCount: failResults.length,
-                    })
-                    : t("pluginSetting.batchInstall.allFailed"),
-                {
-                    type: "warn",
-                    actionText: t("common.view"),
-                    onActionClick: () => {
-                        showDialog("SimpleDialog", {
-                            title: t("pluginSetting.menu.pluginInstallFailedDialogTitle"),
-                            content: t("pluginSetting.pluginInstallFailedDialogContent", {
-                                detail: failResults
-                                    .map(it =>
-                                        (it.pluginUrl ?? "") +
-                                        "\n" +
-                                        t("pluginSetting.failReason", {
-                                            reason: it.message ?? "",
-                                        }),
-                                    )
-                                    .join("\n-----\n"),
-                            }),
-                        });
+            if (!failResults.length) {
+                Toast.success(
+                    t("pluginSetting.batchInstall.allSuccess", {
+                        count: successResults.length,
+                    }),
+                );
+            } else {
+                Toast.warn(
+                    successResults.length
+                        ? t("pluginSetting.batchInstall.partialFailed", {
+                            successCount: successResults.length,
+                            failCount: failResults.length,
+                        })
+                        : t("pluginSetting.batchInstall.allFailed"),
+                    {
+                        type: "warn",
+                        actionText: t("common.view"),
+                        onActionClick: () => {
+                            showDialog("SimpleDialog", {
+                                title: t("pluginSetting.menu.pluginInstallFailedDialogTitle"),
+                                content: t("pluginSetting.pluginInstallFailedDialogContent", {
+                                    detail: failResults
+                                        .map(it =>
+                                            (it.pluginUrl ?? "") +
+                                            "\n" +
+                                            t("pluginSetting.failReason", {
+                                                reason: it.message ?? "",
+                                            }),
+                                        )
+                                        .join("\n-----\n"),
+                                }),
+                            });
+                        },
                     },
-                },
-            );
+                );
+            }
+        } finally {
+            operationLockRef.current = false;
+            setInstalling(false);
         }
     }, [t, onBatchComplete]);
 
@@ -210,6 +218,9 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
     }, [mode, urlText, installBatch]);
 
     const handleImportFile = useCallback(async () => {
+        if (operationLockRef.current) {
+            return;
+        }
         try {
             const results = await DocumentPicker.getDocumentAsync({
                 copyToCacheDirectory: true,
@@ -221,18 +232,20 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
             }
 
             const file = results.assets[0];
-            setInstalling(true);
-
             const extension = getListExtension(file.name);
             if (!extension) {
-                setInstalling(false);
                 Toast.warn(t("pluginSetting.batchInstall.unsupportedFileType"));
                 return;
             }
 
+            operationLockRef.current = true;
+            setInstalling(true);
             const urls = await fetchPluginListUrls(file.uri, extension);
+            operationLockRef.current = false;
+            setInstalling(false);
             await installBatch(urls);
         } catch (e: any) {
+            operationLockRef.current = false;
             setInstalling(false);
             Toast.warn(t("pluginSetting.batchInstall.fileParseError", {
                 reason: e?.message ?? "",
@@ -241,6 +254,9 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
     }, [installBatch, t]);
 
     const handleImportFromUrl = useCallback(async () => {
+        if (operationLockRef.current) {
+            return;
+        }
         if (!urlText.trim()) {
             Toast.warn(t("pluginSetting.batchInstall.noValidUrls"));
             return;
@@ -254,11 +270,15 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
 
         const extension = getListExtension(inputUrl);
         if (extension) {
+            operationLockRef.current = true;
             setInstalling(true);
             try {
                 const urls = await fetchPluginListUrls(inputUrl, extension);
+                operationLockRef.current = false;
+                setInstalling(false);
                 await installBatch(urls);
             } catch (e: any) {
+                operationLockRef.current = false;
                 setInstalling(false);
                 Toast.warn(t("pluginSetting.batchInstall.fileParseError", {
                     reason: e?.message ?? "",
@@ -273,6 +293,7 @@ export default function BatchInstallPanel(props: IBatchInstallProps) {
         return (
             <PanelBase
                 height={vmax(30)}
+                dismissDisabled
                 renderBody={() => (
                     <View style={styles.loadingContainer}>
                         <View

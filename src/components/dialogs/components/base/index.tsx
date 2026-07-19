@@ -1,5 +1,6 @@
-import React, { ReactNode, useEffect, useMemo, useRef } from "react";
+import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
+    ActivityIndicator,
     BackHandler,
     NativeEventSubscription,
     StyleProp,
@@ -24,6 +25,8 @@ import { ScrollView } from "react-native-gesture-handler";
 import useOrientation from "@/hooks/useOrientation.ts";
 import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
+import Toast from "@/utils/toast";
+import i18n from "@/core/i18n";
 
 const Z_INDEX = {
     backdrop: 16300,
@@ -33,14 +36,21 @@ const Z_INDEX = {
 interface IDialogProps {
     onDismiss?: () => void;
     children?: ReactNode;
+    dismissDisabled?: boolean;
 }
 
 function Dialog(props: IDialogProps) {
-    const { children, onDismiss } = props;
+    const { children, onDismiss, dismissDisabled = false } = props;
 
     const sharedShowValue = useSharedValue(0);
+    const dismissDisabledRef = useRef(dismissDisabled);
+    const onDismissRef = useRef(onDismiss);
+    dismissDisabledRef.current = dismissDisabled;
+    onDismissRef.current = onDismiss;
     const colors = useColors();
-    const backHandlerRef = useRef<NativeEventSubscription | undefined>(undefined);
+    const backHandlerRef = useRef<NativeEventSubscription | undefined>(
+        undefined,
+    );
     const orientation = useOrientation();
 
     // 对话框宽度
@@ -62,7 +72,10 @@ function Dialog(props: IDialogProps) {
         backHandlerRef.current = BackHandler.addEventListener(
             "hardwareBackPress",
             () => {
-                onDismiss?.();
+                if (dismissDisabledRef.current) {
+                    return true;
+                }
+                onDismissRef.current?.();
                 return true;
             },
         );
@@ -74,7 +87,7 @@ function Dialog(props: IDialogProps) {
                 backHandlerRef.current = undefined;
             }
         };
-    }, [onDismiss, sharedShowValue]);
+    }, [sharedShowValue]);
 
     const containerStyle = useAnimatedStyle(() => {
         return {
@@ -102,7 +115,7 @@ function Dialog(props: IDialogProps) {
         <View style={styles.backContainer}>
             <TouchableWithoutFeedback
                 style={styles.container}
-                onPress={onDismiss}>
+                onPress={dismissDisabled ? undefined : onDismiss}>
                 <Animated.View style={[styles.container, containerStyle]} />
             </TouchableWithoutFeedback>
             <Animated.View
@@ -112,7 +125,8 @@ function Dialog(props: IDialogProps) {
                     containerStyle,
                     scaleAnimationStyle,
                     {
-                        backgroundColor: colors.surfacePrimary ?? colors.backdrop,
+                        backgroundColor:
+                            colors.surfacePrimary ?? colors.backdrop,
                         shadowColor: colors.shadow,
                         borderColor: colors.divider,
                     },
@@ -190,13 +204,17 @@ interface IDialogActionsProps {
         title: string;
         type?: "normal" | "primary" | "danger";
         show?: boolean;
-        onPress?: () => void;
+        disabled?: boolean;
+        onPress?: () => void | Promise<void>;
     }>;
     style?: StyleProp<ViewStyle>;
 }
 
 function Actions(props: IDialogActionsProps) {
     const { children, style, actions } = props;
+    const [loadingActionIndex, setLoadingActionIndex] = useState<number | null>(
+        null,
+    );
 
     const validActions = useMemo(
         () => actions?.filter(it => it.show !== false),
@@ -210,7 +228,35 @@ function Actions(props: IDialogActionsProps) {
                     <BottomButton
                         key={index}
                         style={index === 0 ? null : styles.actionButton}
-                        onPress={it.onPress}
+                        disabled={
+                            it.disabled ||
+                            loadingActionIndex !== null &&
+                            loadingActionIndex !== index
+                        }
+                        loading={loadingActionIndex === index}
+                        onPress={async () => {
+                            if (
+                                !it.onPress ||
+                                it.disabled ||
+                                loadingActionIndex !== null
+                            ) {
+                                return;
+                            }
+
+                            setLoadingActionIndex(index);
+                            try {
+                                await it.onPress();
+                            } catch (error: any) {
+                                Toast.warn(
+                                    error?.message ??
+                                        i18n.t("toast.unknownError", {
+                                            reason: "",
+                                        }),
+                                );
+                            } finally {
+                                setLoadingActionIndex(null);
+                            }
+                        }}
                         text={it.title}
                         type={it.type}
                     />
@@ -221,16 +267,14 @@ function Actions(props: IDialogActionsProps) {
         children
     );
 
-    return (
+    return typeof children === "string" ? (
         <View style={[styles.actionsContainer, style]}>
-            {typeof children === "string" ? (
-                <ThemeText fontSize="content" numberOfLines={1}>
-                    {children}
-                </ThemeText>
-            ) : (
-                _children
-            )}
+            <ThemeText fontSize="content" numberOfLines={1}>
+                {children}
+            </ThemeText>
         </View>
+    ) : (
+        <View style={[styles.actionsContainer, style]}>{_children}</View>
     );
 }
 
@@ -238,32 +282,57 @@ function BottomButton(props: {
     type?: "normal" | "primary" | "danger";
     text: string;
     style?: StyleProp<ViewStyle>;
-    onPress?: () => void;
+    onPress?: () => void | Promise<void>;
+    disabled?: boolean;
+    loading?: boolean;
 }) {
-    const { type = "normal", text, style, onPress } = props;
+    const {
+        type = "normal",
+        text,
+        style,
+        onPress,
+        disabled = false,
+        loading = false,
+    } = props;
     const colors = useColors();
 
     return (
         <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={text}
+            accessibilityState={{
+                busy: loading,
+                disabled: !onPress || disabled,
+            }}
             activeOpacity={0.6}
+            disabled={!onPress || disabled || loading}
             onPress={onPress}
             style={[
                 styles.bottomBtn,
                 {
-                    backgroundColor: type === "primary"
-                        ? colors.primary
-                        : type === "danger"
-                            ? colors.danger ?? "#FC5F5F"
-                            : colors.surfaceSecondary,
+                    backgroundColor:
+                        type === "primary"
+                            ? colors.primary
+                            : type === "danger"
+                                ? colors.danger ?? "#FC5F5F"
+                                : colors.surfaceSecondary,
                 },
+                (disabled || loading) && styles.bottomBtnDisabled,
                 style,
             ]}>
-            <ThemeText
-                fontWeight="medium"
-                numberOfLines={1}
-                color={type === "normal" ? undefined : "white"}>
-                {text}
-            </ThemeText>
+            {loading ? (
+                <ActivityIndicator
+                    color={type === "normal" ? colors.primary : "#ffffff"}
+                    size="small"
+                />
+            ) : (
+                <ThemeText
+                    fontWeight="medium"
+                    numberOfLines={1}
+                    color={type === "normal" ? undefined : "white"}>
+                    {text}
+                </ThemeText>
+            )}
         </TouchableOpacity>
     );
 }
@@ -277,6 +346,9 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         height: rpx(64),
+    },
+    bottomBtnDisabled: {
+        opacity: 0.56,
     },
     backContainer: {
         position: "absolute",

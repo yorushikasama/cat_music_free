@@ -69,6 +69,9 @@ export default function Operations() {
                 <HeartIcon />
             </View>
             <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={i18n.t("panel.musicQuality.title")}
+                android_ripple={{ color: palette.pressedOverlay }}
                 style={({ pressed }) => [
                     styles.actionButton,
                     pressed ? pressedStyle : null,
@@ -97,6 +100,15 @@ export default function Operations() {
                 </Text>
             </Pressable>
             <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                    isDownloaded
+                        ? i18n.t("common.done")
+                        : i18n.t("common.download")
+                }
+                accessibilityState={{ disabled: isDownloaded }}
+                android_ripple={{ color: palette.pressedOverlay }}
+                disabled={isDownloaded}
                 style={({ pressed }) => [
                     styles.actionButton,
                     pressed ? pressedStyle : null,
@@ -107,7 +119,17 @@ export default function Operations() {
                             type: "download",
                             musicItem,
                             async onQualityPress(quality) {
-                                downloader.download(musicItem, quality);
+                                const result = downloader.download(
+                                    musicItem,
+                                    quality,
+                                );
+                                if (result.enqueuedCount > 0) {
+                                    Toast.success(i18n.t("toast.beginDownload"));
+                                } else if (!result.rejectionReason) {
+                                    Toast.warn(
+                                        i18n.t("toast.downloadAlreadyQueued"),
+                                    );
+                                }
                             },
                         });
                     }
@@ -123,6 +145,9 @@ export default function Operations() {
                 />
             </Pressable>
             <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={i18n.t("panel.playRate.title")}
+                android_ripple={{ color: palette.pressedOverlay }}
                 style={({ pressed }) => [
                     styles.actionButton,
                     pressed ? pressedStyle : null,
@@ -137,7 +162,13 @@ export default function Operations() {
                                 try {
                                     await TrackPlayer.setRate(newRate / 100);
                                     PersistStatus.set("music.rate", newRate);
-                                } catch {}
+                                } catch (error: any) {
+                                    Toast.warn(
+                                        i18n.t("toast.unknownError", {
+                                            reason: error?.message ?? error,
+                                        }),
+                                    );
+                                }
                             }
                         },
                     });
@@ -147,6 +178,9 @@ export default function Operations() {
                 </Text>
             </Pressable>
             <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={i18n.t("a11y.moreOptions")}
+                android_ripple={{ color: palette.pressedOverlay }}
                 style={({ pressed }) => [
                     styles.actionButton,
                     pressed ? pressedStyle : null,

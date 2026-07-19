@@ -1,9 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, SectionList, SectionListData, StyleSheet, View } from "react-native";
+import {
+    Pressable,
+    SectionList,
+    SectionListData,
+    StyleSheet,
+    View,
+} from "react-native";
 import rpx from "@/utils/rpx";
 import ListItem from "@/components/base/listItem";
 import { sizeFormatter } from "@/utils/fileUtils";
-import downloader, { DownloadFailReason, DownloadStatus, useDownloadQueue, useDownloadTask } from "@/core/downloader";
+import downloader, {
+    DownloadFailReason,
+    DownloadStatus,
+    useDownloadQueue,
+    useDownloadTask,
+} from "@/core/downloader";
 import { useI18N } from "@/core/i18n";
 import ThemeText from "@/components/base/themeText";
 import Icon from "@/components/base/icon";
@@ -12,7 +23,6 @@ import { spacing } from "@/constants/spacing";
 import { radius } from "@/constants/borderRadius";
 import Empty from "@/components/base/empty";
 import Color from "color";
-
 
 interface DownloadingListItemProps {
     musicItem: IMusic.IMusicItem;
@@ -25,7 +35,9 @@ function DownloadingListItem(props: DownloadingListItemProps) {
 
     const status = taskInfo?.status ?? DownloadStatus.Error;
     const progressRatio =
-        status === DownloadStatus.Downloading && taskInfo?.downloadedSize && taskInfo?.fileSize
+        status === DownloadStatus.Downloading &&
+        taskInfo?.downloadedSize &&
+        taskInfo?.fileSize
             ? Math.min(1, taskInfo.downloadedSize / taskInfo.fileSize)
             : status === DownloadStatus.Completed
                 ? 1
@@ -46,8 +58,12 @@ function DownloadingListItem(props: DownloadingListItemProps) {
     } else if (status === DownloadStatus.Completed) {
         description = t("downloading.downloadStatus.completed");
     } else if (status === DownloadStatus.Downloading) {
-        const progress = taskInfo?.downloadedSize ? sizeFormatter(taskInfo.downloadedSize) : "-";
-        const totalSize = taskInfo?.fileSize ? sizeFormatter(taskInfo.fileSize) : "-";
+        const progress = taskInfo?.downloadedSize
+            ? sizeFormatter(taskInfo.downloadedSize)
+            : "-";
+        const totalSize = taskInfo?.fileSize
+            ? sizeFormatter(taskInfo.fileSize)
+            : "-";
 
         description = t("downloading.downloadStatus.downloadProgress", {
             progress,
@@ -59,46 +75,61 @@ function DownloadingListItem(props: DownloadingListItemProps) {
         description = t("downloading.downloadStatus.preparing");
     }
 
-    const tintColor = status === DownloadStatus.Error
-        ? colors.danger ?? "#d14343"
-        : status === DownloadStatus.Completed
-            ? colors.success ?? "#08A34C"
-            : colors.primary;
+    const tintColor =
+        status === DownloadStatus.Error
+            ? colors.danger ?? "#d14343"
+            : status === DownloadStatus.Completed
+                ? colors.success ?? "#08A34C"
+                : colors.primary;
 
     return (
-        <ListItem
-            withHorizontalPadding
-            heightType="big"
-            style={styles.item}>
+        <ListItem withHorizontalPadding heightType="big" style={styles.item}>
             <View
                 style={[
                     styles.statusIcon,
                     {
-                        backgroundColor: Color(tintColor).alpha(0.1).rgb().string(),
-                        borderColor: Color(tintColor).alpha(0.18).rgb().string(),
+                        backgroundColor: Color(tintColor)
+                            .alpha(0.1)
+                            .rgb()
+                            .string(),
+                        borderColor: Color(tintColor)
+                            .alpha(0.18)
+                            .rgb()
+                            .string(),
                     },
                 ]}>
                 <Icon
-                    name={status === DownloadStatus.Error ? "exclamation-circle" : "arrow-down-tray"}
+                    name={
+                        status === DownloadStatus.Error
+                            ? "exclamation-circle"
+                            : "arrow-down-tray"
+                    }
                     size={rpx(30)}
                     color={tintColor}
                 />
             </View>
             <ListItem.Content
                 title={musicItem.title}
-                description={(
+                description={
                     <View>
                         <ThemeText
                             numberOfLines={1}
                             fontSize="description"
-                            color={status === DownloadStatus.Error ? tintColor : colors.textSecondary}>
+                            color={
+                                status === DownloadStatus.Error
+                                    ? tintColor
+                                    : colors.textSecondary
+                            }>
                             {description}
                         </ThemeText>
                         {status === DownloadStatus.Downloading ? (
                             <View
                                 style={[
                                     styles.progressTrack,
-                                    { backgroundColor: colors.controlBackground },
+                                    {
+                                        backgroundColor:
+                                            colors.controlBackground,
+                                    },
                                 ]}>
                                 <View
                                     style={[
@@ -112,10 +143,13 @@ function DownloadingListItem(props: DownloadingListItemProps) {
                             </View>
                         ) : null}
                     </View>
-                )}
+                }
             />
             {status === DownloadStatus.Error ? (
                 <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.clickToRetry")}
+                    android_ripple={{ color: colors.pressedOverlay }}
                     hitSlop={spacing.sm}
                     onPress={() => downloader.retry(musicItem)}
                     style={styles.removeButton}>
@@ -127,6 +161,9 @@ function DownloadingListItem(props: DownloadingListItemProps) {
                 </Pressable>
             ) : status === DownloadStatus.Pending ? (
                 <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.delete")}
+                    android_ripple={{ color: colors.pressedOverlay }}
                     hitSlop={spacing.sm}
                     onPress={() => downloader.remove(musicItem)}
                     style={styles.removeButton}>
@@ -139,7 +176,6 @@ function DownloadingListItem(props: DownloadingListItemProps) {
             ) : null}
         </ListItem>
     );
-
 }
 
 export default function DownloadingList() {
@@ -171,17 +207,20 @@ export default function DownloadingList() {
 
     const sections = [
         active.length ? { title: t("downloading.title"), data: active } : null,
-        waiting.length ? { title: t("downloading.downloadStatus.pending"), data: waiting } : null,
+        waiting.length
+            ? { title: t("downloading.downloadStatus.pending"), data: waiting }
+            : null,
         failed.length ? { title: t("common.error"), data: failed } : null,
     ].filter(Boolean) as SectionListData<IMusic.IMusicItem>[];
-
 
     return (
         <View style={styles.wrapper}>
             <SectionList
                 sections={sections}
                 keyExtractor={_ => `dl${_.platform}.${_.id}`}
-                renderItem={({ item }) => <DownloadingListItem musicItem={item} />}
+                renderItem={({ item }) => (
+                    <DownloadingListItem musicItem={item} />
+                )}
                 renderSectionHeader={({ section }) => (
                     <View style={styles.sectionHeader}>
                         <ThemeText
@@ -195,7 +234,8 @@ export default function DownloadingList() {
                                 styles.sectionCount,
                                 {
                                     backgroundColor: colors.controlBackground,
-                                    borderColor: colors.controlBorder ?? colors.divider,
+                                    borderColor:
+                                        colors.controlBorder ?? colors.divider,
                                 },
                             ]}>
                             <ThemeText
@@ -207,14 +247,18 @@ export default function DownloadingList() {
                         </View>
                     </View>
                 )}
-                ListEmptyComponent={(
+                ListEmptyComponent={
                     <Empty
                         icon="arrow-down-tray"
                         title={t("downloading.title")}
                         description={t("common.emptyListDescription")}
                     />
-                )}
-                contentContainerStyle={downloadQueue.length ? styles.listContent : styles.emptyContent}
+                }
+                contentContainerStyle={
+                    downloadQueue.length
+                        ? styles.listContent
+                        : styles.emptyContent
+                }
             />
         </View>
     );

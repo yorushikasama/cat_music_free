@@ -125,7 +125,10 @@ export function ToastBaseComponent() {
                     <Icon
                         size={fontSizeConst.appbar}
                         name={typeConfig[activeToast.type].name}
-                        color={colors[typeConfig[activeToast.type].colorKey] ?? typeConfig[activeToast.type].colorKey}
+                        color={
+                            colors[typeConfig[activeToast.type].colorKey] ??
+                            typeConfig[activeToast.type].colorKey
+                        }
                     />
                     <Text
                         numberOfLines={2}
@@ -134,9 +137,13 @@ export function ToastBaseComponent() {
                     </Text>
                     {activeToast.actionText && activeToast.onActionClick ? (
                         <Pressable
-                            style={[
+                            accessibilityRole="button"
+                            accessibilityLabel={activeToast.actionText}
+                            android_ripple={{ color: "rgba(255,255,255,0.24)" }}
+                            style={({ pressed }) => [
                                 styles.actionTextContainer,
                                 { backgroundColor: colors.primary },
+                                pressed ? styles.actionTextPressed : null,
                             ]}
                             onPress={activeToast.onActionClick}>
                             <Text style={styles.actionText} numberOfLines={1}>
@@ -196,6 +203,9 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         borderRadius: radius.pill,
         height: rpx(58),
+    },
+    actionTextPressed: {
+        opacity: 0.76,
     },
 });
 

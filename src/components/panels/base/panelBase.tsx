@@ -42,6 +42,8 @@ interface IPanelBaseProps {
     height?: number;
     // 定位方式
     positionMethod?: "top" | "bottom";
+    /** 执行中的任务不应被返回键或遮罩意外关闭。 */
+    dismissDisabled?: boolean;
     renderBody: (loading: boolean) => React.ReactElement;
 }
 
@@ -51,8 +53,11 @@ export default function (props: IPanelBaseProps) {
         renderBody,
         keyboardAvoidBehavior,
         positionMethod = "bottom",
+        dismissDisabled = false,
     } = props;
     const snapPoint = useSharedValue(0);
+    const dismissDisabledRef = useRef(dismissDisabled);
+    dismissDisabledRef.current = dismissDisabled;
 
     const colors = useColors();
     const [loading, setLoading] = useState(true); // 是否处于弹出状态
@@ -81,6 +86,9 @@ export default function (props: IPanelBaseProps) {
         backHandlerRef.current = BackHandler.addEventListener(
             "hardwareBackPress",
             () => {
+                if (dismissDisabledRef.current) {
+                    return true;
+                }
                 snapPoint.value = withTiming(0, timingConfig);
                 return true;
             },
@@ -205,6 +213,9 @@ export default function (props: IPanelBaseProps) {
             <Pressable
                 style={style.maskWrapper}
                 onPress={() => {
+                    if (dismissDisabled) {
+                        return;
+                    }
                     snapPoint.value = withTiming(0, timingConfig);
                 }}>
                 <Animated.View

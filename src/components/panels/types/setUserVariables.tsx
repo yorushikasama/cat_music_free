@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { KeyboardAvoidingView, StyleSheet } from "react-native";
 import rpx, { vmax } from "@/utils/rpx";
 import useColors from "@/hooks/useColors";
@@ -14,7 +14,10 @@ import PanelHeader from "../base/panelHeader";
 
 interface IUserVariablesProps {
     title?: string;
-    onOk: (values: Record<string, string>, closePanel: () => void) => void;
+    onOk: (
+        values: Record<string, string>,
+        closePanel: () => void,
+    ) => void | Promise<void>;
     variables: IPlugin.IUserVariable[];
     initValues?: Record<string, string>;
     onCancel?: () => void;
@@ -26,12 +29,14 @@ export default function SetUserVariables(props: IUserVariablesProps) {
     const colors = useColors();
 
     const resultRef = useRef({ ...initValues });
+    const [submitting, setSubmitting] = useState(false);
 
     return (
         <PanelBase
             height={vmax(80)}
-            positionMethod='top'
-            keyboardAvoidBehavior='none'
+            positionMethod="top"
+            keyboardAvoidBehavior="none"
+            dismissDisabled={submitting}
             renderBody={() => (
                 <>
                     <PanelHeader
@@ -41,7 +46,12 @@ export default function SetUserVariables(props: IUserVariablesProps) {
                             hidePanel();
                         }}
                         onOk={async () => {
-                            onOk(resultRef.current, hidePanel);
+                            setSubmitting(true);
+                            try {
+                                await onOk(resultRef.current, hidePanel);
+                            } finally {
+                                setSubmitting(false);
+                            }
                         }}
                     />
                     <KeyboardAvoidingView
@@ -63,6 +73,7 @@ export default function SetUserVariables(props: IUserVariablesProps) {
                                     </ThemeText>
                                     <Input
                                         defaultValue={initValues[it.key]}
+                                        editable={!submitting}
                                         onChangeText={e => {
                                             resultRef.current[it.key] = e;
                                         }}

@@ -75,6 +75,8 @@ export default function Empty(props: IEmptyProps) {
             {props.actionText && props.onAction ? (
                 <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel={props.actionText}
+                    android_ripple={{ color: colors.pressedOverlay }}
                     onPress={props.onAction}
                     style={({ pressed }) => [
                         style.actionButton,

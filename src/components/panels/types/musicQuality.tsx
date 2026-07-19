@@ -1,5 +1,5 @@
-import React, { Fragment } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import React, { Fragment, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import rpx from "@/utils/rpx";
 import ThemeText from "@/components/base/themeText";
 
@@ -12,6 +12,7 @@ import { hidePanel } from "../usePanel";
 import Divider from "@/components/base/divider";
 import PanelHeader from "../base/panelHeader";
 import { useI18N } from "@/core/i18n";
+import useColors from "@/hooks/useColors";
 
 interface IMusicQualityProps {
     type?: "play" | "download";
@@ -21,18 +22,39 @@ interface IMusicQualityProps {
     onQualityPress: (
         quality: IMusic.IQualityKey,
         musicItem: IMusic.IMusicItem,
-    ) => void;
+    ) => void | Promise<void>;
 }
 
 export default function MusicQuality(props: IMusicQualityProps) {
     const safeAreaInsets = useSafeAreaInsets();
     const i18n = useI18N();
+    const colors = useColors();
 
     const { musicItem, onQualityPress, type = "play" } = props ?? {};
+    const [selectingQuality, setSelectingQuality] =
+        useState<IMusic.IQualityKey | null>(null);
+    const selectionLockRef = useRef(false);
+
+    const handleQualityPress = async (quality: IMusic.IQualityKey) => {
+        if (selectionLockRef.current) {
+            return;
+        }
+
+        selectionLockRef.current = true;
+        setSelectingQuality(quality);
+        try {
+            await onQualityPress(quality, musicItem);
+            hidePanel();
+        } finally {
+            selectionLockRef.current = false;
+            setSelectingQuality(null);
+        }
+    };
 
     return (
         <PanelBase
             height={rpx(520)}
+            dismissDisabled={selectingQuality !== null}
             renderBody={() => (
                 <>
                     <PanelHeader
@@ -58,20 +80,37 @@ export default function MusicQuality(props: IMusicQualityProps) {
                                 <Fragment key={`frag-${key}`}>
                                     <Pressable
                                         key={`btn-${key}`}
-                                        style={style.item}
-                                        onPress={() => {
-                                            onQualityPress(key, musicItem);
-                                            hidePanel();
-                                        }}>
-                                        <ThemeText>
-                                            {qualityText[key]}{" "}
-                                            {musicItem.qualities?.[key]?.size
-                                                ? `(${sizeFormatter(
-                                                      musicItem.qualities[key]
-                                                          .size!,
-                                                )})`
-                                                : ""}
-                                        </ThemeText>
+                                        accessibilityRole="button"
+                                        accessibilityLabel={qualityText[key]}
+                                        accessibilityState={{
+                                            busy: selectingQuality === key,
+                                            disabled: selectingQuality !== null,
+                                        }}
+                                        android_ripple={{
+                                            color: colors.pressedOverlay,
+                                        }}
+                                        disabled={selectingQuality !== null}
+                                        style={({ pressed }) => [
+                                            style.item,
+                                            pressed ? style.itemPressed : null,
+                                        ]}
+                                        onPress={() => handleQualityPress(key)}>
+                                        {selectingQuality === key ? (
+                                            <ActivityIndicator
+                                                color={colors.primary}
+                                                size="small"
+                                            />
+                                        ) : (
+                                            <ThemeText>
+                                                {qualityText[key]}{" "}
+                                                {musicItem.qualities?.[key]?.size
+                                                    ? `(${sizeFormatter(
+                                                          musicItem.qualities[key]
+                                                              .size!,
+                                                    )})`
+                                                    : ""}
+                                            </ThemeText>
+                                        )}
                                     </Pressable>
                                 </Fragment>
                             );
@@ -96,5 +135,8 @@ const style = StyleSheet.create({
     item: {
         height: rpx(96),
         justifyContent: "center",
+    },
+    itemPressed: {
+        opacity: 0.72,
     },
 });

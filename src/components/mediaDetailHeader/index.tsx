@@ -1,10 +1,5 @@
 import React, { ReactNode, useState } from "react";
-import {
-    ImageRequireSource,
-    Pressable,
-    StyleSheet,
-    View,
-} from "react-native";
+import { ImageRequireSource, Pressable, StyleSheet, View } from "react-native";
 
 import FastImage from "@/components/base/fastImage";
 import Tag from "@/components/base/tag";
@@ -41,18 +36,15 @@ export default function MediaDetailHeader(props: IMediaDetailHeaderProps) {
     };
 
     return (
-        <View
-            style={[
-                styles.wrapper,
-                wrapperStyle,
-            ]}>
+        <View style={[styles.wrapper, wrapperStyle]}>
             <View style={styles.hero}>
                 <View
                     style={[
                         styles.coverShadow,
                         {
                             borderColor: colors.controlBorder ?? colors.divider,
-                            shadowColor: colors.shadowMedium ?? colors.shadow ?? "#000",
+                            shadowColor:
+                                colors.shadowMedium ?? colors.shadow ?? "#000",
                         },
                     ]}>
                     <FastImage
@@ -87,7 +79,8 @@ export default function MediaDetailHeader(props: IMediaDetailHeaderProps) {
                                     containerStyle={[
                                         styles.platformTag,
                                         {
-                                            backgroundColor: colors.selectedBackground,
+                                            backgroundColor:
+                                                colors.selectedBackground,
                                             borderColor: colors.selectedBorder,
                                         },
                                     ]}
@@ -98,6 +91,12 @@ export default function MediaDetailHeader(props: IMediaDetailHeaderProps) {
                     </View>
                     {description ? (
                         <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={description}
+                            accessibilityState={{
+                                expanded: maxLines === undefined,
+                            }}
+                            android_ripple={{ color: colors.pressedOverlay }}
                             onPress={() => {
                                 setMaxLines(maxLines ? undefined : 4);
                             }}

@@ -13,6 +13,7 @@ import { radius } from "@/constants/borderRadius";
 import { spacing } from "@/constants/spacing";
 import ThemeText from "@/components/base/themeText";
 import Icon from "@/components/base/icon";
+import { useI18N } from "@/core/i18n";
 
 type InputVariant = "filled" | "outlined" | "underline";
 
@@ -44,6 +45,7 @@ export default function Input(props: IInputProps) {
         ...inputProps
     } = props;
     const colors = useColors();
+    const { t } = useI18N();
     const [focused, setFocused] = useState(false);
     const canClear = !!onClear && typeof value === "string" && value.length > 0;
 
@@ -57,13 +59,19 @@ export default function Input(props: IInputProps) {
                 ? colors.primary
                 : colors.divider ?? "rgba(0,0,0,0.1)";
 
-    const borderWidth = focused || error || success ? 1.5 : variant === "underline" || variant === "outlined" ? 1 : 0;
+    const borderWidth =
+        focused || error || success
+            ? 1.5
+            : variant === "underline" || variant === "outlined"
+                ? 1
+                : 0;
 
     const variantStyle = (() => {
         switch (variant) {
         case "filled":
             return {
-                backgroundColor: colors.surfaceTertiary ?? colors.placeholder,
+                backgroundColor:
+                        colors.surfaceTertiary ?? colors.placeholder,
                 borderRadius: radius.sm,
                 borderBottomWidth: borderWidth,
                 borderBottomColor: borderColor,
@@ -103,7 +111,9 @@ export default function Input(props: IInputProps) {
                     onBlur?.(e);
                 }}
                 style={[
-                    hasHorizontalPadding ? styles.container : styles.containerWithoutPadding,
+                    hasHorizontalPadding
+                        ? styles.container
+                        : styles.containerWithoutPadding,
                     { color: currentColor },
                     variantStyle,
                     style,
@@ -113,7 +123,10 @@ export default function Input(props: IInputProps) {
             {canClear ? (
                 <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={clearAccessibilityLabel ?? "Clear input"}
+                    accessibilityLabel={
+                        clearAccessibilityLabel ?? t("common.clear")
+                    }
+                    android_ripple={{ color: colors.pressedOverlay }}
                     hitSlop={rpx(6)}
                     onPress={onClear}
                     style={({ pressed }) => [
@@ -138,9 +151,7 @@ export default function Input(props: IInputProps) {
                         />
                     )}
                     {errorMessage && (
-                        <ThemeText
-                            color={statusColor}
-                            fontSize="tag">
+                        <ThemeText color={statusColor} fontSize="tag">
                             {errorMessage}
                         </ThemeText>
                     )}

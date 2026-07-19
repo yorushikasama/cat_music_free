@@ -434,6 +434,7 @@ class PluginManager implements IPluginManager, IInjectable {
                 }
             } catch (e: any) {
                 errorLog("卸载插件失败", { hash, error: e?.message ?? e });
+                throw e;
             }
         }
     }
@@ -443,25 +444,44 @@ class PluginManager implements IPluginManager, IInjectable {
      * 同时清理媒体额外数据并删除插件文件
      */
     async uninstallAllPlugins() {
+        const failedPlugins: Plugin[] = [];
         await Promise.all(
             this.getPlugins().map(async plugin => {
                 try {
                     const pluginName = plugin.name;
                     await unlink(plugin.path);
                     removeAllMediaExtra(pluginName);
-                } catch (e) {}
+                } catch (e: any) {
+                    errorLog("卸载插件失败", {
+                        hash: plugin.hash,
+                        error: e?.message ?? e,
+                    });
+                    failedPlugins.push(plugin);
+                }
             }),
         );
-        this.setPlugins([]);
+        this.setPlugins(failedPlugins);
 
         /** 清除空余文件，异步做就可以了 */
+        const failedPluginPaths = new Set(
+            failedPlugins.map(plugin => plugin.path),
+        );
         readDir(pathConst.pluginPath)
             .then(fns => {
                 fns.forEach(fn => {
+                    if (failedPluginPaths.has(fn.path)) {
+                        return;
+                    }
                     unlink(fn.path).catch(emptyFunction);
                 });
             })
             .catch(emptyFunction);
+
+        if (failedPlugins.length) {
+            throw new Error(
+                `有 ${failedPlugins.length} 个插件卸载失败，请稍后重试`,
+            );
+        }
     }
 
     /**
@@ -474,14 +494,12 @@ class PluginManager implements IPluginManager, IInjectable {
         if (!updateUrl) {
             throw new Error("没有更新源");
         }
-        try {
-            await this.installPluginFromUrl(updateUrl);
-        } catch (e: any) {
-            if (e.message === "插件已安装") {
-                throw new Error(i18n.t("checkUpdate.error.latestVersion"));
-            } else {
-                throw e;
-            }
+        const result = await this.installPluginFromUrl(updateUrl);
+        if (!result.success) {
+            throw new Error(result.message || "插件更新失败");
+        }
+        if (result.message === "插件已安装") {
+            throw new Error(i18n.t("checkUpdate.error.latestVersion"));
         }
     }
 
