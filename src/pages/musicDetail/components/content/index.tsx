@@ -6,7 +6,13 @@ import useOrientation from "@/hooks/useOrientation";
 import Config from "@/core/appConfig";
 import globalStyle from "@/constants/globalStyle";
 
-export default function Content() {
+interface IContentProps {
+    translatingLyric: boolean;
+    setTranslatingLyric: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+export default function Content(props: IContentProps) {
+    const { translatingLyric, setTranslatingLyric } = props;
     const [tab, selectTab] = useState<"album" | "lyric">(
         Config.getConfig("basic.musicDetailDefault") || "album",
     );
@@ -29,7 +35,11 @@ export default function Content() {
             {showAlbumCover ? (
                 <AlbumCover onTurnPageClick={onTurnPageClick} />
             ) : (
-                <Lyric onTurnPageClick={onTurnPageClick} />
+                <Lyric
+                    onTurnPageClick={onTurnPageClick}
+                    translating={translatingLyric}
+                    setTranslating={setTranslatingLyric}
+                />
             )}
         </View>
     );

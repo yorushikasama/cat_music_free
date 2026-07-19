@@ -47,6 +47,8 @@ interface IItemHeights {
 
 interface IProps {
     onTurnPageClick?: () => void;
+    translating: boolean;
+    setTranslating: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const fontSizeMap = {
@@ -78,7 +80,7 @@ function LyricLoadingSkeleton() {
 }
 
 export default function Lyric(props: IProps) {
-    const { onTurnPageClick } = props;
+    const { onTurnPageClick, translating, setTranslating } = props;
 
     const { loading, meta, lyrics, hasTranslation } = useLyricState();
     const currentLrcItem = useCurrentLyricItem();
@@ -426,6 +428,8 @@ export default function Lyric(props: IProps) {
             </GestureDetector>
             <LyricOperations
                 scrollToCurrentLrcItem={delayedScrollToCurrentLrcItem}
+                translating={translating}
+                setTranslating={setTranslating}
             />
         </>
     );

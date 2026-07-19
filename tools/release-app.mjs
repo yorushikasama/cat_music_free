@@ -35,7 +35,7 @@ const ALLOWED_UNTRACKED_PATHS = [
     /^(?:src|tools|docs|release|generator)\//,
     /^android\/app\/src\//,
     /^android\/(?:app\/build\.gradle|build\.gradle|gradle\.properties)$/,
-    /^(?:package\.json|package-lock\.json|\.gitignore)$/,
+    /^(?:AGENTS\.md|package\.json|package-lock\.json|\.gitignore)$/,
 ];
 
 export function parseArgs(argv) {

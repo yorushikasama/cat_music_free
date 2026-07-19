@@ -100,12 +100,37 @@ describe("AI music recommendation service", () => {
                 usedFallback: true,
             },
         });
-        expect(progress).toEqual(["planning", "completed"]);
+        expect(progress).toEqual([
+            "planning",
+            "planned",
+            "resolving",
+            "backfilling",
+            "completed",
+        ]);
         expect(mockedFallback).toHaveBeenCalledWith(
             ["夜晚 散步"],
             [playableRecommendation],
             expect.objectContaining({ target: 3 }),
         );
+    });
+
+    it("publishes the AI plan before music source resolution", async () => {
+        mockedResolver.mockResolvedValue([playableRecommendation]);
+        mockedFallback.mockResolvedValue([playableRecommendation]);
+        const plans: unknown[] = [];
+
+        await generateMusicRecommendations({
+            prompt: "夜晚散步想听安静的歌",
+            history: [],
+            onPlan: plan => plans.push(plan),
+        });
+
+        expect(plans).toEqual([
+            expect.objectContaining({
+                intentSummary: "夜晚散步",
+                tracks: [plannedTrack],
+            }),
+        ]);
     });
 
     it("does not resolve explicitly ignored planned tracks", async () => {

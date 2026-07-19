@@ -19,6 +19,10 @@ jest.mock("../client", () => ({
     },
 }));
 
+jest.mock("@/utils/log", () => ({
+    errorLog: require("@jest/globals").jest.fn(),
+}));
+
 const mockedCreateChatCompletion = jest.mocked(createChatCompletion);
 
 describe("AI lyric translation helpers", () => {
@@ -124,5 +128,30 @@ describe("AI lyric translation helpers", () => {
         await expect(
             translateLyric("[00:01.00]Hello\n[00:02.00]World", "简体中文"),
         ).rejects.toMatchObject({ code: "incomplete-translation" });
+    });
+
+    it("gives a translation request a full minute before timing out", async () => {
+        mockedCreateChatCompletion.mockResolvedValueOnce(
+            JSON.stringify({
+                translations: [
+                    {
+                        id: 0,
+                        text: "雨夜",
+                        translated: true,
+                        sourceLanguage: "Japanese",
+                    },
+                ],
+            }),
+        );
+
+        await translateLyric("[00:01.00]雨の夜", "简体中文");
+
+        expect(mockedCreateChatCompletion).toHaveBeenCalledWith(
+            expect.any(Array),
+            expect.objectContaining({
+                timeout: 60000,
+                maxTokens: 1200,
+            }),
+        );
     });
 });

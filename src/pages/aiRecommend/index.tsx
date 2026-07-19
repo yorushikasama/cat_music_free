@@ -35,6 +35,8 @@ import {
     unlikeMusicRecommendation,
     unlikeMusicRecommendationTrack,
     type IMusicRecommendationProgress,
+    type IAIRecommendationPlan,
+    type AIErrorCode,
 } from "@/core/ai";
 import { useAppConfig } from "@/core/appConfig";
 import { useI18N } from "@/core/i18n";
@@ -65,6 +67,14 @@ interface IAIRecommendPageProps {
     embedded?: boolean;
 }
 
+type RecommendationProcessStep = {
+    id: "planning" | "planned" | "resolving" | "backfilling";
+    icon: IIconName;
+    label: string;
+    detail?: string;
+    status: "pending" | "active" | "completed";
+};
+
 export function AIRecommendTab() {
     return <AIRecommendPage embedded />;
 }
@@ -75,7 +85,7 @@ export default function AIRecommend() {
 
 function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
     const colors = useColors();
-    const { t } = useI18N();
+    const { t, getLanguage } = useI18N();
     const navigate = useNavigate();
     const history = useMusicHistory();
     const savedBaseUrl = useAppConfig("ai.baseUrl");
@@ -141,6 +151,13 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
     const [partialResult, setPartialResult] = useState(
         initialCacheRef.current?.partial === true,
     );
+    const [recommendationPlan, setRecommendationPlan] =
+        useState<IAIRecommendationPlan | undefined>(
+            initialCacheRef.current?.plan,
+        );
+    const recommendationPlanRef = useRef<IAIRecommendationPlan | undefined>(
+        initialCacheRef.current?.plan,
+    );
     const [exploration, setExploration] =
         useState<MusicRecommendationExplorationLevel>(
             initialCacheRef.current?.exploration ?? "balanced",
@@ -150,7 +167,8 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
         null,
     );
     const [error, setError] = useState("");
-    const [refinement, setRefinement] = useState("");
+    const [planResolutionError, setPlanResolutionError] =
+        useState<AIErrorCode>();
     const [historyEntries, setHistoryEntries] = useState(() =>
         getMusicRecommendationHistory(),
     );
@@ -159,15 +177,6 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
     );
     const [likedTrackFingerprints, setLikedTrackFingerprints] = useState(
         () => new Set(getLikedMusicRecommendationTracks().keys()),
-    );
-    const refinementOptions = useMemo(
-        () => [
-            t("aiRecommend.refineFaster"),
-            t("aiRecommend.refineFewerVocals"),
-            t("aiRecommend.refineCantonese"),
-            t("aiRecommend.refineDifferentArtists"),
-        ],
-        [t],
     );
     const explorationOptions = useMemo<
         Array<{
@@ -251,7 +260,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
     }, []);
 
     const generate = useCallback(
-        async (requestedRefinement?: string, replaceCurrent = false) => {
+        async () => {
             if (activeRequestRef.current) {
                 return;
             }
@@ -277,18 +286,13 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
             setLoading(true);
             setProgress({ stage: "planning" });
             setError("");
+            setRecommendationPlan(undefined);
+            recommendationPlanRef.current = undefined;
+            setPlanResolutionError(undefined);
             try {
-                const refinementInstruction = requestedRefinement?.trim();
-                const previousRecommendations = replaceCurrent
-                    ? []
-                    : refinementInstruction
-                        ? recommendations
-                        : undefined;
                 const result = await generateMusicRecommendations({
                     prompt: prompt.trim(),
                     history,
-                    previousRecommendations,
-                    refinement: refinementInstruction,
                     likedTracks: Array.from(
                         getLikedMusicRecommendationTracks().values(),
                     ),
@@ -296,10 +300,18 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                         getIgnoredMusicRecommendationTracks().values(),
                     ),
                     exploration,
+                    limit: 6,
+                    outputLanguage: getLanguage().name,
                     signal: request.controller.signal,
                     onProgress: nextProgress => {
                         if (activeRequestRef.current?.id === request.id) {
                             setProgress(nextProgress);
+                        }
+                    },
+                    onPlan: plan => {
+                        if (activeRequestRef.current?.id === request.id) {
+                            recommendationPlanRef.current = plan;
+                            setRecommendationPlan(plan);
                         }
                     },
                     onRecommendations: next => {
@@ -315,17 +327,13 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                 }
                 setAllRecommendations(result.recommendations);
                 setPartialResult(result.partial);
-                setGeneratedPrompt(
-                    refinementInstruction
-                        ? `${prompt.trim()} · ${refinementInstruction}`
-                        : prompt.trim(),
-                );
+                recommendationPlanRef.current = result.plan;
+                setRecommendationPlan(result.plan);
+                setGeneratedPrompt(prompt.trim());
                 const createdAt = Date.now();
                 setCachedAt(createdAt);
                 const cache = {
-                    prompt: refinementInstruction
-                        ? `${prompt.trim()} · ${refinementInstruction}`
-                        : prompt.trim(),
+                    prompt: prompt.trim(),
                     createdAt,
                     recommendations: result.recommendations,
                     exploration,
@@ -342,6 +350,15 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     Toast.success(t("aiRecommend.cancelled"));
                     return;
                 }
+                if (reason instanceof AIError) {
+                    setPlanResolutionError(reason.code);
+                    if (
+                        recommendationPlanRef.current &&
+                        ["no-plugins", "no-candidates"].includes(reason.code)
+                    ) {
+                        return;
+                    }
+                }
                 const message = getLocalizedAIErrorMessage(reason);
                 setError(message);
                 Toast.warn(t("aiRecommend.failed", { reason: message }));
@@ -349,13 +366,13 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                 if (activeRequestRef.current?.id === request.id) {
                     activeRequestRef.current = null;
                     setLoading(false);
-                    setProgress(null);
                 }
             }
         },
         [
             exploration,
             history,
+            getLanguage,
             openSettings,
             prompt,
             recommendations,
@@ -370,6 +387,11 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
         if (progress.stage === "planning") {
             return t("aiRecommend.planning");
         }
+        if (progress.stage === "planned") {
+            return t("aiRecommend.processPlanned", {
+                count: progress.plannedTrackCount ?? 0,
+            });
+        }
         if (progress.stage === "resolving") {
             return t("aiRecommend.resolving", {
                 completed: progress.completed ?? 0,
@@ -383,6 +405,123 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
         }
         return t("aiRecommend.generating");
     }, [progress, t]);
+
+    const processSteps = useMemo<RecommendationProcessStep[]>(() => {
+        const stageOrder = {
+            planning: 0,
+            planned: 1,
+            resolving: 2,
+            backfilling: 3,
+            completed: 4,
+        } as const;
+        const currentStage =
+            progress?.stage ??
+            (recommendationPlan
+                ? recommendations.length
+                    ? "completed"
+                    : "planned"
+                : undefined);
+        const currentIndex = currentStage ? stageOrder[currentStage] : -1;
+        const createStep = (
+            id: RecommendationProcessStep["id"],
+            icon: IIconName,
+            label: string,
+            detail: string | undefined,
+            index: number,
+        ): RecommendationProcessStep => ({
+            id,
+            icon,
+            label,
+            detail,
+            status:
+                currentIndex > index
+                    ? "completed"
+                    : currentIndex === index && loading
+                        ? "active"
+                        : currentIndex >= index
+                            ? "completed"
+                            : "pending",
+        });
+        return [
+            createStep(
+                "planning",
+                "strategy",
+                t("aiRecommend.processPlanning"),
+                loading && progress?.stage === "planning"
+                    ? t("aiRecommend.planning")
+                    : undefined,
+                0,
+            ),
+            createStep(
+                "planned",
+                "check-circle",
+                t("aiRecommend.processPlanned", {
+                    count: recommendationPlan?.tracks.length ??
+                        progress?.plannedTrackCount ??
+                        0,
+                }),
+                recommendationPlan?.intentSummary || undefined,
+                1,
+            ),
+            createStep(
+                "resolving",
+                "magnifying-glass",
+                t("aiRecommend.processResolving"),
+                loading && progress?.stage === "resolving"
+                    ? t("aiRecommend.resolving", {
+                        completed: progress.completed ?? 0,
+                        total: progress.total ?? 0,
+                    })
+                    : undefined,
+                2,
+            ),
+            createStep(
+                "backfilling",
+                "arrow-path",
+                t("aiRecommend.processBackfilling"),
+                loading && progress?.stage === "backfilling"
+                    ? t("aiRecommend.backfilling", {
+                        matched: progress.matched ?? 0,
+                    })
+                    : undefined,
+                3,
+            ),
+        ];
+    }, [loading, progress, recommendationPlan, recommendations.length, t]);
+
+    const conclusion = useMemo(() => {
+        if (!recommendationPlan || loading) {
+            return null;
+        }
+        if (!recommendations.length) {
+            return {
+                title: t("aiRecommend.conclusionPlanReady"),
+                description:
+                    planResolutionError === "no-plugins"
+                        ? t("aiRecommend.conclusionNoPlugins", {
+                            count: recommendationPlan.tracks.length,
+                        })
+                        : t("aiRecommend.conclusionNoPlayable", {
+                            count: recommendationPlan.tracks.length,
+                        }),
+                icon: "information-circle" as const,
+            };
+        }
+        return {
+            title: t("aiRecommend.conclusionReady"),
+            description: t("aiRecommend.conclusionPlayable", {
+                planned: recommendationPlan.tracks.length,
+                playable: recommendations.length,
+            }),
+            icon: "check-circle" as const,
+        };
+    }, [
+        loading,
+        planResolutionError,
+        recommendationPlan,
+        recommendations.length,
+        t,
+    ]);
 
     return (
         <PageShell
@@ -664,6 +803,133 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     ) : null}
                 </View>
 
+                {(loading || recommendationPlan) ? (
+                    <View
+                        accessibilityLiveRegion="polite"
+                        style={[
+                            styles.processPanel,
+                            {
+                                backgroundColor: colors.surfaceSecondary,
+                                borderColor:
+                                    colors.controlBorder ?? colors.divider,
+                            },
+                        ]}>
+                        <View style={styles.processHeader}>
+                            <View style={styles.processHeaderCopy}>
+                                <ThemeText fontSize="description" fontWeight="semibold">
+                                    {t("aiRecommend.processTitle")}
+                                </ThemeText>
+                                <ThemeText fontSize="tag" fontColor="textSecondary">
+                                    {loading
+                                        ? progressLabel || t("aiRecommend.generating")
+                                        : planResolutionError
+                                            ? t("aiRecommend.processPlanReady")
+                                            : t("aiRecommend.processComplete")}
+                                </ThemeText>
+                            </View>
+                            {loading ? (
+                                <ActivityIndicator
+                                    size="small"
+                                    color={colors.primary}
+                                />
+                            ) : (
+                                <Icon
+                                    name="check-circle"
+                                    size={rpx(22)}
+                                    color={colors.success ?? colors.primary}
+                                />
+                            )}
+                        </View>
+                        <View style={styles.processSteps}>
+                            {processSteps.map((step, index) => {
+                                const active = step.status === "active";
+                                const completed = step.status === "completed";
+                                const indicatorColor = completed
+                                    ? colors.success ?? colors.primary
+                                    : active
+                                        ? colors.primary
+                                        : colors.textSecondary;
+                                return (
+                                    <View key={step.id} style={styles.processStep}>
+                                        <View style={styles.processIndicatorColumn}>
+                                            <View
+                                                style={[
+                                                    styles.processIndicator,
+                                                    {
+                                                        backgroundColor: completed
+                                                            ? Color(indicatorColor)
+                                                                .alpha(0.15)
+                                                                .string()
+                                                            : active
+                                                                ? primaryTint
+                                                                : colors.surfacePrimary,
+                                                        borderColor: completed || active
+                                                            ? indicatorColor
+                                                            : colors.divider,
+                                                    },
+                                                ]}>
+                                                {active ? (
+                                                    <ActivityIndicator
+                                                        size="small"
+                                                        color={indicatorColor}
+                                                    />
+                                                ) : (
+                                                    <Icon
+                                                        name={
+                                                            completed
+                                                                ? "check"
+                                                                : step.icon
+                                                        }
+                                                        size={rpx(17)}
+                                                        color={indicatorColor}
+                                                    />
+                                                )}
+                                            </View>
+                                            {index < processSteps.length - 1 ? (
+                                                <View
+                                                    style={[
+                                                        styles.processConnector,
+                                                        {
+                                                            backgroundColor:
+                                                                completed
+                                                                    ? indicatorColor
+                                                                    : colors.divider,
+                                                        },
+                                                    ]}
+                                                />
+                                            ) : null}
+                                        </View>
+                                        <View style={styles.processStepCopy}>
+                                            <ThemeText
+                                                fontSize="description"
+                                                fontWeight={
+                                                    active || completed
+                                                        ? "semibold"
+                                                        : "regular"
+                                                }
+                                                color={
+                                                    active || completed
+                                                        ? colors.text
+                                                        : colors.textSecondary
+                                                }>
+                                                {step.label}
+                                            </ThemeText>
+                                            {step.detail ? (
+                                                <ThemeText
+                                                    fontSize="tag"
+                                                    fontColor="textSecondary"
+                                                    numberOfLines={2}>
+                                                    {step.detail}
+                                                </ThemeText>
+                                            ) : null}
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
+                ) : null}
+
                 {historyEntries.length ? (
                     <View style={styles.historySection}>
                         <View style={styles.historyHeader}>
@@ -704,6 +970,9 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                         );
                                         setCachedAt(entry.createdAt);
                                         setPartialResult(entry.partial === true);
+                                        recommendationPlanRef.current = entry.plan;
+                                        setRecommendationPlan(entry.plan);
+                                        setProgress({ stage: "completed" });
                                         setExploration(
                                             entry.exploration ?? "balanced",
                                         );
@@ -829,7 +1098,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     activeOpacity={0.7}
                                     disabled={loading}
                                     style={styles.headerAction}
-                                    onPress={() => generate(undefined, true)}>
+                                    onPress={generate}>
                                     <ThemeText
                                         fontSize="tag"
                                         color={colors.primary}>
@@ -893,6 +1162,9 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     setGeneratedPrompt("");
                                     setCachedAt(undefined);
                                     setPartialResult(false);
+                                    recommendationPlanRef.current = undefined;
+                                    setRecommendationPlan(undefined);
+                                    setProgress(null);
                                 }}>
                                 <ThemeText
                                     fontSize="tag"
@@ -904,94 +1176,31 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     </View>
                 </View>
 
-                {recommendations.length ? (
+                {conclusion ? (
                     <View
                         style={[
-                            styles.refinement,
+                            styles.conclusion,
                             {
-                                backgroundColor: colors.surfaceSecondary,
+                                backgroundColor: Color(colors.primary)
+                                    .alpha(colors.hasBackgroundImage ? 0.13 : 0.08)
+                                    .string(),
                                 borderColor:
                                     colors.controlBorder ?? colors.divider,
                             },
                         ]}>
-                        <ThemeText fontSize="description" fontWeight="semibold">
-                            {t("aiRecommend.refineTitle")}
-                        </ThemeText>
-                        <View style={styles.refinementOptions}>
-                            {refinementOptions.map(option => (
-                                <TouchableOpacity
-                                    key={option}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={option}
-                                    disabled={loading}
-                                    activeOpacity={0.7}
-                                    onPress={() => {
-                                        setRefinement(option);
-                                        generate(option);
-                                    }}
-                                    style={[
-                                        styles.refinementOption,
-                                        { borderColor: colors.divider },
-                                    ]}>
-                                    <ThemeText
-                                        fontSize="tag"
-                                        color={colors.primary}
-                                        numberOfLines={1}>
-                                        {option}
-                                    </ThemeText>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                        <Input
-                            value={refinement}
-                            onChangeText={setRefinement}
-                            accessibilityLabel={t(
-                                "aiRecommend.refinePlaceholder",
-                            )}
-                            placeholder={t("aiRecommend.refinePlaceholder")}
-                            variant="outlined"
+                        <Icon
+                            name={conclusion.icon}
+                            size={rpx(24)}
+                            color={colors.primary}
                         />
-                        <TouchableOpacity
-                            accessibilityRole="button"
-                            accessibilityLabel={
-                                loading
-                                    ? t("aiRecommend.generating")
-                                    : t("aiRecommend.refineGenerate")
-                            }
-                            accessibilityState={{
-                                disabled: loading || !refinement.trim(),
-                                busy: loading,
-                            }}
-                            disabled={loading || !refinement.trim()}
-                            activeOpacity={0.72}
-                            onPress={() => generate(refinement)}
-                            style={[
-                                styles.refineButton,
-                                { backgroundColor: primaryTint },
-                                (loading || !refinement.trim()) &&
-                                    styles.loadingButton,
-                            ]}>
-                            {loading ? (
-                                <ActivityIndicator
-                                    size="small"
-                                    color={colors.primary}
-                                />
-                            ) : (
-                                <Icon
-                                    name="arrow-path"
-                                    size={rpx(20)}
-                                    color={colors.primary}
-                                />
-                            )}
-                            <ThemeText
-                                fontSize="description"
-                                fontWeight="semibold"
-                                color={colors.primary}>
-                                {loading
-                                    ? t("aiRecommend.generating")
-                                    : t("aiRecommend.refineGenerate")}
+                        <View style={styles.conclusionCopy}>
+                            <ThemeText fontSize="description" fontWeight="semibold">
+                                {conclusion.title}
                             </ThemeText>
-                        </TouchableOpacity>
+                            <ThemeText fontSize="tag" fontColor="textSecondary">
+                                {conclusion.description}
+                            </ThemeText>
+                        </View>
                     </View>
                 ) : null}
 
@@ -1025,7 +1234,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     </TouchableOpacity>
                 ) : null}
 
-                {!recommendations.length && !loading ? (
+                {!recommendations.length && !loading && !recommendationPlan ? (
                     <Empty
                         icon="strategy"
                         minHeight={rpx(320)}
@@ -1271,6 +1480,55 @@ const styles = StyleSheet.create({
         borderRadius: radius.sm,
         borderWidth: StyleSheet.hairlineWidth,
     },
+    processPanel: {
+        borderRadius: radius.sm,
+        borderWidth: StyleSheet.hairlineWidth,
+        padding: spacing.sm,
+        gap: spacing.sm,
+        marginTop: spacing.lg,
+    },
+    processHeader: {
+        minHeight: rpx(40),
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.sm,
+    },
+    processHeaderCopy: {
+        flex: 1,
+        gap: rpx(2),
+    },
+    processSteps: {
+        gap: 0,
+    },
+    processStep: {
+        minHeight: rpx(50),
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    processIndicatorColumn: {
+        width: rpx(30),
+        alignItems: "center",
+    },
+    processIndicator: {
+        width: rpx(28),
+        height: rpx(28),
+        borderRadius: radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    processConnector: {
+        flex: 1,
+        width: StyleSheet.hairlineWidth,
+        marginVertical: rpx(3),
+    },
+    processStepCopy: {
+        flex: 1,
+        minWidth: 0,
+        gap: rpx(2),
+        paddingBottom: spacing.xs,
+    },
     loadingButton: {
         opacity: 0.65,
     },
@@ -1327,32 +1585,20 @@ const styles = StyleSheet.create({
     historyOptionText: {
         flex: 1,
     },
-    refinement: {
+    conclusion: {
+        minHeight: rpx(68),
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
         borderRadius: radius.sm,
         borderWidth: StyleSheet.hairlineWidth,
         padding: spacing.sm,
-        gap: spacing.sm,
         marginBottom: spacing.sm,
     },
-    refinementOptions: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: spacing.xs,
-    },
-    refinementOption: {
-        minHeight: rpx(44),
-        borderRadius: radius.pill,
-        borderWidth: StyleSheet.hairlineWidth,
-        justifyContent: "center",
-        paddingHorizontal: spacing.sm,
-    },
-    refineButton: {
-        minHeight: rpx(48),
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: spacing.xs,
-        borderRadius: radius.sm,
+    conclusionCopy: {
+        flex: 1,
+        minWidth: 0,
+        gap: rpx(2),
     },
     recommendation: {
         borderBottomWidth: StyleSheet.hairlineWidth,

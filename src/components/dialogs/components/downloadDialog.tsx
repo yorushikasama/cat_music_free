@@ -113,28 +113,6 @@ export default function DownloadDialog(props: IDownloadDialogProps) {
                 style={style.scrollView}
                 contentContainerStyle={style.scrollContent}
                 showsVerticalScrollIndicator={false}>
-                <View
-                    style={[
-                        style.infoBox,
-                        {
-                            backgroundColor: colors.surfaceSecondary,
-                            borderColor: dividerSoft,
-                        },
-                    ]}>
-                    <Icon
-                        name="information-circle"
-                        size={rpx(30)}
-                        color={colors.primary}
-                    />
-                    <ThemeText
-                        fontColor="textSecondary"
-                        fontSize="description"
-                        lineHeight
-                        style={style.infoText}>
-                        {t("dialog.downloadDialog.downloadHint")}
-                    </ThemeText>
-                </View>
-
                 <View style={style.sectionHeader}>
                     <ThemeText fontWeight="semibold">
                         {t("dialog.downloadDialog.changeLogTitle")}
@@ -380,19 +358,6 @@ const style = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: spacing.lg,
         paddingBottom: spacing.md,
-    },
-    infoBox: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: radius.lg,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        marginBottom: spacing.lg,
-    },
-    infoText: {
-        flex: 1,
-        marginLeft: spacing.sm,
     },
     sectionHeader: {
         marginBottom: spacing.md,

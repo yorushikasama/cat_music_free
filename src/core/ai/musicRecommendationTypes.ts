@@ -29,6 +29,7 @@ export interface IAIRecommendedMusic {
 
 export type MusicRecommendationStage =
     | "planning"
+    | "planned"
     | "resolving"
     | "backfilling"
     | "completed";
@@ -39,6 +40,7 @@ export interface IMusicRecommendationProgress {
     total?: number;
     matched?: number;
     target?: number;
+    plannedTrackCount?: number;
 }
 
 export interface IMusicRecommendationDiagnostics {

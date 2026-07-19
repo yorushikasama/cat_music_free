@@ -576,7 +576,6 @@ export interface ILanguageData {
     // 对话框相关 - 下载
     "dialog.downloadDialog.title": string; // 发现新版本
     "dialog.downloadDialog.skipThisVersion": string; // 跳过此版本
-    "dialog.downloadDialog.downloadHint": string; // 下载方式提示
     "dialog.downloadDialog.backgroundDownload": string; // 后台下载
     "dialog.downloadDialog.backgroundDownloadDesc": string; // 后台下载说明
     "dialog.downloadDialog.backgroundDownloadStarted": string; // 已在后台开始下载
@@ -799,6 +798,18 @@ export interface ILanguageData {
     "aiRecommend.planning": string;
     "aiRecommend.resolving": string;
     "aiRecommend.backfilling": string;
+    "aiRecommend.processTitle": string;
+    "aiRecommend.processComplete": string;
+    "aiRecommend.processPlanReady": string;
+    "aiRecommend.processPlanning": string;
+    "aiRecommend.processPlanned": string;
+    "aiRecommend.processResolving": string;
+    "aiRecommend.processBackfilling": string;
+    "aiRecommend.conclusionReady": string;
+    "aiRecommend.conclusionPlayable": string;
+    "aiRecommend.conclusionPlanReady": string;
+    "aiRecommend.conclusionNoPlayable": string;
+    "aiRecommend.conclusionNoPlugins": string;
     "aiRecommend.partial": string;
     "aiRecommend.cancel": string;
     "aiRecommend.cancelled": string;
@@ -818,13 +829,6 @@ export interface ILanguageData {
     "aiRecommend.emptyDescription": string;
     "aiRecommend.setupTitle": string;
     "aiRecommend.setupDescription": string;
-    "aiRecommend.refineTitle": string;
-    "aiRecommend.refinePlaceholder": string;
-    "aiRecommend.refineGenerate": string;
-    "aiRecommend.refineFaster": string;
-    "aiRecommend.refineFewerVocals": string;
-    "aiRecommend.refineCantonese": string;
-    "aiRecommend.refineDifferentArtists": string;
     "aiRecommend.refresh": string;
     "aiRecommend.historyTitle": string;
     "aiRecommend.clearHistory": string;

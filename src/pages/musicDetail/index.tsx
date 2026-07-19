@@ -1,6 +1,6 @@
 import globalStyle from "@/constants/globalStyle";
 import useOrientation from "@/hooks/useOrientation";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import PageShell from "@/components/base/pageShell";
 import Background from "./components/background";
@@ -13,6 +13,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 
 export default function MusicDetail() {
     const orientation = useOrientation();
+    const [translatingLyric, setTranslatingLyric] = useState(false);
 
     useEffect(() => {
         const needAwake = Config.getConfig("basic.musicDetailAwake");
@@ -36,12 +37,18 @@ export default function MusicDetail() {
             <View style={style.bodyWrapper}>
                 <View style={globalStyle.flex1}>
                     <NavBar />
-                    <Content />
+                    <Content
+                        translatingLyric={translatingLyric}
+                        setTranslatingLyric={setTranslatingLyric}
+                    />
                     <Bottom />
                 </View>
                 {orientation === "horizontal" ? (
                     <View style={globalStyle.flex1}>
-                        <Lyric />
+                        <Lyric
+                            translating={translatingLyric}
+                            setTranslating={setTranslatingLyric}
+                        />
                     </View>
                 ) : null}
             </View>

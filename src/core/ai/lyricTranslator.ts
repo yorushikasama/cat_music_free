@@ -1,4 +1,8 @@
-import { AIError, createChatCompletion } from "./client";
+import {
+    AIError,
+    createChatCompletion,
+} from "./client";
+import { errorLog } from "@/utils/log";
 
 interface ISourceLine {
     lineIndex: number;
@@ -21,7 +25,16 @@ export interface ILyricTranslationResult {
 }
 
 const TIMED_LYRIC_PATTERN = /^((?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\])+)(.*)$/;
-const TRANSLATION_BATCH_SIZE = 40;
+const TRANSLATION_BATCH_SIZE = 24;
+const TRANSLATION_REQUEST_TIMEOUT_MS = 60000;
+
+function translationContentFingerprint(content: string) {
+    let hash = 5381;
+    for (let index = 0; index < content.length; index += 1) {
+        hash = (hash * 33 + content.charCodeAt(index)) % 4294967296;
+    }
+    return Math.floor(hash).toString(16).padStart(8, "0");
+}
 
 function parseResponseJson(content: string): ITranslationItem[] {
     const normalized = content
@@ -116,29 +129,62 @@ async function translateBatch(
     items: ITranslationItem[],
     targetLanguage: string,
 ) {
-    const response = await createChatCompletion(
-        [
-            {
-                role: "system",
-                content:
-                    "You translate song lyrics line by line. Detect the language of each line. " +
-                    "If a line is already primarily in the target language, return it unchanged with translated=false. " +
-                    "For mixed-language lines, preserve target-language words and proper names when natural, and translate the remaining meaning. " +
-                    "Preserve tone, imagery, and repeated phrases. Return strict JSON only in the form " +
-                    "{\"translations\":[{\"id\":0,\"text\":\"...\",\"translated\":true,\"sourceLanguage\":\"English\"}]}. " +
-                    "Return every input id exactly once. Do not include timestamps, markdown, explanations, or extra keys.",
-            },
-            {
-                role: "user",
-                content: JSON.stringify({
-                    targetLanguage,
-                    lyrics: items,
+    const messages = [
+        {
+            role: "system" as const,
+            content:
+                "You translate song lyrics line by line. Detect the language of each line. " +
+                "If a line is already primarily in the target language, return it unchanged with translated=false. " +
+                "For mixed-language lines, preserve target-language words and proper names when natural, and translate the remaining meaning. " +
+                "Preserve tone, imagery, and repeated phrases. Return strict JSON only in the form " +
+                "{\"translations\":[{\"id\":0,\"text\":\"...\",\"translated\":true,\"sourceLanguage\":\"English\"}]}. " +
+                "Return every input id exactly once. Do not include timestamps, markdown, explanations, or extra keys.",
+        },
+        {
+            role: "user" as const,
+            content: JSON.stringify({
+                targetLanguage,
+                lyrics: items,
+            }),
+        },
+    ];
+    let response = "";
+    try {
+        response = await createChatCompletion(messages, {
+            temperature: 0.2,
+            maxTokens: 1200,
+            timeout: TRANSLATION_REQUEST_TIMEOUT_MS,
+        });
+    } catch (error) {
+        if (error instanceof AIError) {
+            errorLog(
+                "AI lyric translation request failed",
+                JSON.stringify({
+                    code: error.code,
+                    status: error.status,
+                    batchSize: items.length,
+                    targetLanguageLength: targetLanguage.length,
                 }),
-            },
-        ],
-        { temperature: 0.2 },
-    );
-    const translations = parseResponseJson(response);
+            );
+        }
+        throw error;
+    }
+    let translations: ITranslationItem[];
+    try {
+        translations = parseResponseJson(response);
+    } catch (error) {
+        errorLog(
+            "AI lyric translation parsing failed",
+            JSON.stringify({
+                batchSize: items.length,
+                targetLanguageLength: targetLanguage.length,
+                contentLength: response.length,
+                contentFingerprint: translationContentFingerprint(response),
+                code: error instanceof AIError ? error.code : "unknown",
+            }),
+        );
+        throw error;
+    }
     const expectedIds = new Set(items.map(item => item.id));
     const returnedIds = translations.map(item => item.id);
     if (
@@ -146,6 +192,14 @@ async function translateBatch(
         new Set(returnedIds).size !== returnedIds.length ||
         returnedIds.some(id => !expectedIds.has(id))
     ) {
+        errorLog(
+            "AI lyric translation is incomplete",
+            JSON.stringify({
+                batchSize: items.length,
+                returnedCount: returnedIds.length,
+                uniqueReturnedCount: new Set(returnedIds).size,
+            }),
+        );
         throw new AIError(
             "incomplete-translation",
             "AI returned an incomplete lyric translation",

@@ -8,11 +8,36 @@ export interface IAIChatMessage {
     content: string;
 }
 
+interface IChatCompletionContentPart {
+    type?: string;
+    text?: string;
+    content?: string;
+}
+
+interface IChatCompletionMessage {
+    content?: string | Array<IChatCompletionContentPart | string> | null;
+    reasoning_content?: string | null;
+    reasoning?: string | null;
+    refusal?: string | null;
+    tool_calls?: unknown[];
+}
+
 interface IChatCompletionResponse {
     choices?: Array<{
-        message?: {
-            content?: string;
-        };
+        finish_reason?: string | null;
+        message?: IChatCompletionMessage;
+    }>;
+}
+
+export interface IAIResponseDiagnostic {
+    choiceCount: number;
+    choices: Array<{
+        finishReason?: string;
+        contentKind: string;
+        contentLength: number;
+        reasoningLength: number;
+        refusalLength: number;
+        toolCallCount: number;
     }>;
 }
 
@@ -153,8 +178,29 @@ export interface IAIChatCompletionResult {
     responseFormat: "json-object" | "prompt-only";
 }
 
+type AIRequestMode =
+    | "structured"
+    | "prompt"
+    | "reasoning-compatible"
+    | "reasoning-recovery";
+
+const REASONING_SENSITIVE_MODEL_PATTERN =
+    /(?:deepseek[-_.](?:v?[3-9]|r1|reasoner|reasoning|thinking|think)|(?:^|[-_./])(?:o[1-4]|r1|reasoner|reasoning|thinking|think)(?:$|[-_./])|gpt-[5-9]|(?:qwen|glm|kimi).*(?:thinking|reasoner))/i;
+
+/**
+ * Some OpenAI-compatible relays count hidden reasoning against max_tokens.
+ * A small cap can therefore produce a successful HTTP response with no final
+ * content. Keep their structured-output path prompt-driven and unbounded.
+ */
+export function isReasoningSensitiveModel(model: string) {
+    return REASONING_SENSITIVE_MODEL_PATTERN.test(model.trim());
+}
+
 function canRetryWithoutJsonMode(error: AIError) {
-    if (error.code === "json-mode-unsupported") {
+    if (
+        error.code === "json-mode-unsupported" ||
+        error.code === "empty-response"
+    ) {
         return true;
     }
     if (error.status !== 400 && error.status !== 422) {
@@ -163,6 +209,85 @@ function canRetryWithoutJsonMode(error: AIError) {
     return /response_format|json[_ -]?object|json mode|unsupported.*json/i.test(
         error.message,
     );
+}
+
+function responseExhaustedByReasoning(error: AIError) {
+    if (error.code !== "empty-response") {
+        return false;
+    }
+    const diagnostic = error.cause as IAIResponseDiagnostic | undefined;
+    return !!diagnostic?.choices.some(
+        choice =>
+            choice.finishReason === "length" &&
+            choice.contentLength === 0 &&
+            choice.reasoningLength > 0,
+    );
+}
+
+function normalizeChatCompletionContent(
+    value:
+        | string
+        | Array<IChatCompletionContentPart | string>
+        | null
+        | undefined,
+) {
+    if (typeof value === "string") {
+        return value.trim();
+    }
+    if (!Array.isArray(value)) {
+        return "";
+    }
+    return value
+        .map(part => {
+            if (typeof part === "string") {
+                return part;
+            }
+            if (!part || typeof part !== "object") {
+                return "";
+            }
+            return typeof part.text === "string"
+                ? part.text
+                : typeof part.content === "string"
+                    ? part.content
+                    : "";
+        })
+        .join("")
+        .trim();
+}
+
+function getMessageReasoningLength(message: IChatCompletionMessage | undefined) {
+    return [message?.reasoning_content, message?.reasoning]
+        .filter((value): value is string => typeof value === "string")
+        .join("")
+        .trim().length;
+}
+
+export function getChatCompletionContent(response: IChatCompletionResponse) {
+    return (
+        response.choices
+            ?.map(choice => normalizeChatCompletionContent(choice.message?.content))
+            .find(Boolean) ?? ""
+    );
+}
+
+export function getChatCompletionDiagnostic(
+    response: IChatCompletionResponse,
+): IAIResponseDiagnostic {
+    return {
+        choiceCount: response.choices?.length ?? 0,
+        choices: (response.choices ?? []).slice(0, 3).map(choice => ({
+            finishReason: choice.finish_reason ?? undefined,
+            contentKind: Array.isArray(choice.message?.content)
+                ? "parts"
+                : typeof choice.message?.content,
+            contentLength: normalizeChatCompletionContent(
+                choice.message?.content,
+            ).length,
+            reasoningLength: getMessageReasoningLength(choice.message),
+            refusalLength: choice.message?.refusal?.trim().length ?? 0,
+            toolCallCount: choice.message?.tool_calls?.length ?? 0,
+        })),
+    };
 }
 
 function getHost(baseUrl: string) {
@@ -179,16 +304,23 @@ function logAIRequestFailure(
     error: AIError,
     durationMs: number,
     responseFormat: "json-object" | "prompt-only",
+    requestMode: AIRequestMode,
+    maxTokens?: number,
 ) {
-    errorLog("AI request failed", {
-        operation,
-        host: getHost(config.baseUrl),
-        model: config.model,
-        code: error.code,
-        status: error.status,
-        durationMs,
-        responseFormat,
-    });
+    errorLog(
+        "AI request failed",
+        JSON.stringify({
+            operation,
+            host: getHost(config.baseUrl),
+            model: config.model,
+            code: error.code,
+            status: error.status,
+            durationMs,
+            responseFormat,
+            requestMode,
+            maxTokens: maxTokens ?? null,
+        }),
+    );
 }
 
 export async function getAIClientConfig(): Promise<IAIClientConfig> {
@@ -232,6 +364,9 @@ export async function createChatCompletionResult(
 
     const request = async (
         responseFormat: "json-object" | "prompt-only",
+        maxTokens: number | undefined,
+        requestMode: AIRequestMode,
+        attempt: number,
     ) => {
         const startedAt = Date.now();
         try {
@@ -241,8 +376,8 @@ export async function createChatCompletionResult(
                     model: config.model,
                     messages,
                     temperature: options?.temperature ?? 0.2,
-                    ...(options?.maxTokens
-                        ? { max_tokens: options.maxTokens }
+                    ...(maxTokens
+                        ? { max_tokens: maxTokens }
                         : {}),
                     ...(responseFormat === "json-object"
                         ? { response_format: { type: "json_object" } }
@@ -258,11 +393,38 @@ export async function createChatCompletionResult(
                 },
             );
 
-            const content = response.data.choices?.[0]?.message?.content?.trim();
+            const content = getChatCompletionContent(response.data);
+            const diagnostic = getChatCompletionDiagnostic(response.data);
+            errorLog(
+                "AI chat response received",
+                JSON.stringify({
+                    host: getHost(config.baseUrl),
+                    model: config.model,
+                    responseFormat,
+                    requestMode,
+                    attempt,
+                    maxTokens: maxTokens ?? null,
+                    durationMs: Date.now() - startedAt,
+                    ...diagnostic,
+                }),
+            );
             if (!content) {
+                errorLog(
+                    "AI returned no usable chat content",
+                    JSON.stringify({
+                        host: getHost(config.baseUrl),
+                        model: config.model,
+                        responseFormat,
+                        requestMode,
+                        attempt,
+                        maxTokens: maxTokens ?? null,
+                        ...diagnostic,
+                    }),
+                );
                 throw new AIError(
                     "empty-response",
                     "AI returned an empty response",
+                    { cause: diagnostic },
                 );
             }
             return { content, responseFormat };
@@ -274,6 +436,8 @@ export async function createChatCompletionResult(
                 aiError,
                 Date.now() - startedAt,
                 responseFormat,
+                requestMode,
+                maxTokens,
             );
             throw aiError;
         }
@@ -283,22 +447,66 @@ export async function createChatCompletionResult(
         options?.responseFormat === "json_object"
             ? "json-object"
             : options?.responseFormat ?? "prompt-only";
-    if (requestedFormat === "auto") {
-        try {
-            return await request("json-object");
-        } catch (error: any) {
-            if (!(error instanceof AIError) || !canRetryWithoutJsonMode(error)) {
-                throw error;
-            }
-            errorLog("AI JSON mode unsupported; retrying without response_format", {
+    const reasoningSensitive = isReasoningSensitiveModel(config.model);
+    const useReasoningCompatiblePrompt =
+        requestedFormat === "auto" && reasoningSensitive;
+    const initialResponseFormat =
+        requestedFormat === "prompt-only" || useReasoningCompatiblePrompt
+            ? "prompt-only"
+            : "json-object";
+    const initialRequestMode: AIRequestMode = useReasoningCompatiblePrompt
+        ? "reasoning-compatible"
+        : initialResponseFormat === "json-object"
+            ? "structured"
+            : "prompt";
+    const initialMaxTokens = reasoningSensitive
+        ? undefined
+        : options?.maxTokens;
+
+    try {
+        return await request(
+            initialResponseFormat,
+            initialMaxTokens,
+            initialRequestMode,
+            1,
+        );
+    } catch (error: any) {
+        if (!(error instanceof AIError)) {
+            throw error;
+        }
+        const retryWithoutJsonMode =
+            requestedFormat === "auto" &&
+            initialResponseFormat === "json-object" &&
+            canRetryWithoutJsonMode(error);
+        const retryForReasoning =
+            error.code === "empty-response" &&
+            (reasoningSensitive || responseExhaustedByReasoning(error));
+        if (!retryWithoutJsonMode && !retryForReasoning) {
+            throw error;
+        }
+
+        const requestMode: AIRequestMode = retryForReasoning
+            ? "reasoning-recovery"
+            : "prompt";
+        const maxTokens = retryForReasoning
+            ? undefined
+            : options?.maxTokens;
+        errorLog(
+            retryForReasoning
+                ? "AI response used only its reasoning budget; retrying without max_tokens"
+                : "AI JSON mode failed; retrying without response_format",
+            JSON.stringify({
                 host: getHost(config.baseUrl),
                 model: config.model,
+                code: error.code,
                 status: error.status,
-            });
-            return request("prompt-only");
-        }
+                responseFormat: initialResponseFormat,
+                initialMaxTokens: initialMaxTokens ?? null,
+                retryMaxTokens: maxTokens ?? null,
+            }),
+        );
+        return request("prompt-only", maxTokens, requestMode, 2);
     }
-    return request(requestedFormat);
 }
 
 export async function createChatCompletion(
@@ -353,7 +561,7 @@ export async function testAIConnection(
                 content: "Reply with OK only.",
             },
         ],
-        { temperature: 0, maxTokens: 64, timeout: 15000 },
+        { temperature: 0, maxTokens: 512, timeout: 30000 },
         configOverrides,
     );
     return result.length > 0;

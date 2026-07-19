@@ -1,6 +1,6 @@
 {
   "name": "CatMusicFree",
-  "version": "8.1.9",
+  "version": "8.1.10",
   "private": true,
   "license": "AGPL",
   "author": {
@@ -17,6 +17,10 @@
     "precommit": "lint-staged",
     "connect-mumu": "adb kill-server & adb connect localhost:7555",
     "build-android": "cd .\\android\\ && .\\gradlew assembleRelease",
+    "package:app": "node tools/release-app.mjs",
+    "package:prepare": "node tools/release-app.mjs --mode=prepare",
+    "package:resume": "node tools/release-app.mjs --resume",
+    "package:check": "node tools/release-app.mjs --dry-run",
     "release:app": "node tools/release-app.mjs",
     "release:resume": "node tools/release-app.mjs --resume",
     "release:check": "node tools/release-app.mjs --dry-run",

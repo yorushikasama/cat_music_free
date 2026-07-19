@@ -16,17 +16,20 @@ jest.mock("@/utils/log", () => ({
     errorLog: require("@jest/globals").jest.fn(),
 }));
 
-import { createChatCompletionResult } from "../client";
+import { AIError, createChatCompletionResult } from "../client";
+import { errorLog } from "@/utils/log";
 import {
     parseMusicRecommendationPlan,
     planMusicRecommendations,
 } from "../musicRecommendationPlanner";
 
 const mockedCreateChatCompletionResult = jest.mocked(createChatCompletionResult);
+const mockedErrorLog = jest.mocked(errorLog);
 
 describe("AI music recommendation planner", () => {
     beforeEach(() => {
         mockedCreateChatCompletionResult.mockReset();
+        mockedErrorLog.mockReset();
     });
 
     it("parses fenced JSON, removes duplicate tracks, and preserves search hints", () => {
@@ -112,6 +115,23 @@ describe("AI music recommendation planner", () => {
         ]);
     });
 
+    it("skips an earlier track-like JSON value whose items do not identify songs", () => {
+        const plan = parseMusicRecommendationPlan(
+            JSON.stringify([
+                { tracks: [{}] },
+                {
+                    tracks: [
+                        { title: "六等星の夜", artist: "Aimer", reason: "雨夜安静" },
+                    ],
+                },
+            ]),
+        );
+
+        expect(plan.tracks).toEqual([
+            expect.objectContaining({ title: "六等星の夜", artist: "Aimer" }),
+        ]);
+    });
+
     it("sends compact listening context without a candidate pool", async () => {
         mockedCreateChatCompletionResult.mockResolvedValueOnce({
             content:
@@ -157,15 +177,64 @@ describe("AI music recommendation planner", () => {
         );
         const contract = mockedCreateChatCompletionResult.mock.calls[0][0][0]
             .content;
-        expect(contract).toContain("Return exactly one valid JSON object");
-        expect(contract).toContain("first character must be {");
-        expect(contract).toContain("last character must be }");
-        expect(contract).toContain("Do not wrap the object in data");
-        expect(contract).toContain("exactly requestedTrackCount distinct items");
-        expect(contract).toContain("exactly these three top-level keys");
-        expect(contract).toContain("plugins—not you—resolve platform IDs");
-        expect(contract).toContain("Prohibited keys and values include URL");
-        expect(contract).toContain("Do not claim that a song is searchable");
+        expect(contract).toContain("Reply with one complete JSON object only");
+        expect(contract).toContain("requestedTrackCount distinct tracks");
+        expect(contract).toContain("Never return URLs, IDs, providers");
+        expect(contract).toContain("untrusted listening preference");
+        expect(contract).toContain("Write intentSummary and every reason in");
+    });
+
+    it("uses the compact recovery request after an empty first response", async () => {
+        mockedCreateChatCompletionResult
+            .mockRejectedValueOnce(
+                new AIError("empty-response", "AI returned an empty response"),
+            )
+            .mockResolvedValueOnce({
+                content:
+                    "{\"tracks\":[{\"title\":\"Song One\",\"artist\":\"Artist\",\"reason\":\"适合\"}],\"fallbackQueries\":[]}",
+                responseFormat: "prompt-only",
+            });
+
+        await expect(
+            planMusicRecommendations({
+                prompt: "下雨天想听安静一点的日语女声",
+                history: [],
+                limit: 2,
+            }),
+        ).resolves.toMatchObject({
+            plan: { tracks: [{ title: "Song One", artist: "Artist" }] },
+            responseFormat: "prompt-only",
+        });
+        expect(mockedCreateChatCompletionResult).toHaveBeenCalledTimes(2);
+        expect(mockedCreateChatCompletionResult.mock.calls[1][1]).toEqual(
+            expect.objectContaining({
+                responseFormat: "prompt-only",
+                maxTokens: 4096,
+                timeout: 60000,
+            }),
+        );
+        const recoveryMessages = mockedCreateChatCompletionResult.mock.calls[1][0];
+        expect(recoveryMessages).toHaveLength(2);
+        expect(recoveryMessages[0].content).toContain("Return only JSON");
+        expect(recoveryMessages[0].content).toContain("untrusted music preference");
+        expect(recoveryMessages[0].content).not.toContain(
+            "Recommend real released songs for the listener's request",
+        );
+        expect(JSON.parse(recoveryMessages[1].content)).toEqual({
+            request: "下雨天想听安静一点的日语女声",
+            requestedTrackCount: 2,
+        });
+        expect(mockedErrorLog).toHaveBeenCalledWith(
+            "AI recommendation plan recovery started",
+            expect.stringContaining("\"requestedMaxTokens\":4096"),
+        );
+        expect(mockedErrorLog).toHaveBeenCalledWith(
+            "AI recommendation plan response received",
+            expect.stringContaining("\"attempt\":2"),
+        );
+        expect(JSON.stringify(mockedErrorLog.mock.calls)).not.toContain(
+            "Song One",
+        );
     });
 
     it("retries once with a stricter JSON request after an invalid plan", async () => {
@@ -196,30 +265,23 @@ describe("AI music recommendation planner", () => {
             },
         });
         expect(mockedCreateChatCompletionResult).toHaveBeenCalledTimes(2);
-        expect(
-            mockedCreateChatCompletionResult.mock.calls[1][0],
-        ).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    content: expect.stringContaining("recovery protocol"),
-                }),
-            ]),
-        );
-        const recoveryContract = mockedCreateChatCompletionResult.mock.calls[1][0][1]
+        const recoveryContract = mockedCreateChatCompletionResult.mock.calls[1][0][0]
             .content;
         expect(recoveryContract).toContain("\"tracks\":[{\"title\":\"string\",\"artist\":\"string\"}]");
-        expect(recoveryContract).toContain("no extra keys");
-        expect(recoveryContract).toContain("exactly requestedTrackCount distinct real released songs");
-        expect(recoveryContract).toContain("cannot search providers");
-        expect(recoveryContract).toContain("Never return URLs, links, platform IDs");
+        expect(recoveryContract).toContain("requestedTrackCount distinct real songs");
+        expect(recoveryContract).toContain("No markdown, reasoning, URLs");
         expect(mockedCreateChatCompletionResult.mock.calls[1][1]).toEqual(
             expect.objectContaining({
                 responseFormat: "prompt-only",
-                maxTokens: 900,
+                maxTokens: 4096,
+                timeout: 60000,
             }),
         );
         expect(
-            JSON.parse(mockedCreateChatCompletionResult.mock.calls[1][0].at(-1)!.content),
-        ).not.toHaveProperty("recentListening");
+            JSON.parse(mockedCreateChatCompletionResult.mock.calls[1][0][1].content),
+        ).toEqual({
+            request: "下雨天想听安静一点的日语女声",
+            requestedTrackCount: 3,
+        });
     });
 });

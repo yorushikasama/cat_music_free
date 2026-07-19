@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import rpx from "@/utils/rpx";
 
@@ -26,15 +26,15 @@ import IconButton from "@/components/base/iconButton";
 
 interface ILyricOperationsProps {
     scrollToCurrentLrcItem: () => void;
+    translating: boolean;
+    setTranslating: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function LyricOperations(props: ILyricOperationsProps) {
-    const { scrollToCurrentLrcItem } = props;
+    const { scrollToCurrentLrcItem, translating, setTranslating } = props;
 
     const detailFontSize = useAppConfig("lyric.detailFontSize");
     const { t } = useI18N();
-    const [translating, setTranslating] = useState(false);
-
     const { hasTranslation } = useLyricState();
     const showTranslation = PersistStatus.useValue(
         "lyric.showTranslation",
