@@ -495,6 +495,18 @@ async function retryOperation(label, operation, retries = 2) {
     throw new Error(`${label} failed after ${retries + 1} attempts: ${lastError?.message || lastError}`);
 }
 
+function isNotFoundError(error) {
+    return /(?:^|\D)404(?:\D|$)|not found/i.test(
+        String(error?.message || error),
+    );
+}
+
+function isReleaseRecord(value) {
+    return !!value
+        && typeof value === "object"
+        && (typeof value.id === "number" || typeof value.id === "string");
+}
+
 async function ensureGithubRelease({ version, tagName, body }) {
     const token = await getGithubToken();
     if (!token) {
@@ -586,12 +598,36 @@ async function ensureGiteeRelease({ version, tagName, body }) {
     const repo = getEnv("GITEE_REPO", DEFAULT_GITEE_REPO);
     const api = `https://gitee.com/api/v5/repos/${owner}/${repo}`;
     const tokenParam = `access_token=${encodeURIComponent(token)}`;
-    try {
-        return await requestJson(`${api}/releases/tags/${tagName}?${tokenParam}`);
-    } catch (error) {
-        if (!String(error.message).startsWith("404 ")) {
-            throw error;
+    const findExistingRelease = async () => {
+        try {
+            const release = await requestJson(
+                `${api}/releases/tags/${tagName}?${tokenParam}`,
+            );
+            if (isReleaseRecord(release)) {
+                return release;
+            }
+        } catch (error) {
+            if (!isNotFoundError(error)) {
+                throw error;
+            }
         }
+
+        const releases = await requestJson(
+            `${api}/releases?${tokenParam}&page=1&per_page=100`,
+        );
+        const values = Array.isArray(releases)
+            ? releases
+            : Array.isArray(releases?.releases)
+                ? releases.releases
+                : [];
+        return values.find(
+            release => isReleaseRecord(release) && release.tag_name === tagName,
+        );
+    };
+
+    const existing = await findExistingRelease();
+    if (existing) {
+        return existing;
     }
     const params = new URLSearchParams({
         access_token: token,
@@ -601,7 +637,21 @@ async function ensureGiteeRelease({ version, tagName, body }) {
         target_commitish: "main",
         prerelease: "false",
     });
-    return requestJson(`${api}/releases`, { method: "POST", body: params });
+    const created = await requestJson(`${api}/releases`, {
+        method: "POST",
+        body: params,
+    });
+    if (isReleaseRecord(created)) {
+        return created;
+    }
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        await delay(1000 * (attempt + 1));
+        const release = await findExistingRelease();
+        if (release) {
+            return release;
+        }
+    }
+    throw new Error(`Gitee release was not created for ${tagName}.`);
 }
 
 async function uploadGiteeAsset(release, apkPath, assetName, expectedSha256, downloadUrl, context) {
@@ -650,18 +700,30 @@ async function ensureGiteaRelease({ version, tagName, body }) {
     }
     const owner = getEnv("GITEA_OWNER", DEFAULT_GITEA_OWNER);
     const repo = getEnv("GITEA_REPO", DEFAULT_GITEA_REPO);
-    const headers = { Authorization: `token ${token}`, Accept: "application/json" };
     const api = `${baseUrl}/api/v1/repos/${owner}/${repo}`;
+    const requestGiteaJson = async (url, options = {}) => {
+        const method = String(options.method || "GET").toUpperCase();
+        const headers = [
+            `Authorization: token ${token}`,
+            "Accept: application/json",
+        ];
+        const args = ["-X", method];
+        if (options.body !== undefined) {
+            headers.push("Content-Type: application/json");
+            args.push("--data-binary", options.body);
+        }
+        args.push(url);
+        return runCurlJson(args, headers);
+    };
     try {
-        return await requestJson(`${api}/releases/tags/${tagName}`, { headers });
+        return await requestGiteaJson(`${api}/releases/tags/${tagName}`);
     } catch (error) {
-        if (!String(error.message).startsWith("404 ")) {
+        if (!isNotFoundError(error)) {
             throw error;
         }
     }
-    return requestJson(`${api}/releases`, {
+    return requestGiteaJson(`${api}/releases`, {
         method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
             tag_name: tagName,
             target_commitish: "main",
