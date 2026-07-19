@@ -31,8 +31,6 @@ export default class LyricParser {
 
     private extra: Record<string, any>;
 
-    private lastSearchIndex = 0;
-
     public hasTranslation = false;
     public lyricSource?: ILyric.ILyricSource;
 
@@ -106,7 +104,6 @@ export default class LyricParser {
     getPosition(position: number): IParsedLrcItem | null {
         position = position - (this.meta?.offset ?? 0);
         if (!this.lrcItems[0] || position < this.lrcItems[0].time) {
-            this.lastSearchIndex = 0;
             return null;
         }
         let lo = 0;
@@ -119,7 +116,6 @@ export default class LyricParser {
                 hi = mid - 1;
             }
         }
-        this.lastSearchIndex = lo;
         return this.lrcItems[lo];
     }
 

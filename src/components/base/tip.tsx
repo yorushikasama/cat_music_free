@@ -235,7 +235,7 @@ export default function Tip({
     const handlePress = useCallback(() => {
         if (!childRef.current) return;
 
-        childRef.current.measure((x, y, width, height, pageX, pageY) => {
+        childRef.current.measure((_x, _y, width, height, pageX, pageY) => {
             setChildRect({
                 x: pageX,
                 y: pageY,

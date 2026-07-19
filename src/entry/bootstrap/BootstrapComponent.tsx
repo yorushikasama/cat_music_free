@@ -37,10 +37,10 @@ export function BootstrapComponent() {
             showDialog("LoadingDialog", {
                 title: i18n.t("dialog.loading.reinitializeTrackPlayer"), 
                 promise: initTrackPlayer(),
-                onResolve(data, hideDialog) {
+                onResolve(_data, hideDialog) {
                     hideDialog();
                 },
-                onReject(reason, hideDialog) {
+                onReject(_reason, hideDialog) {
                     hideDialog();
                 },
             });
