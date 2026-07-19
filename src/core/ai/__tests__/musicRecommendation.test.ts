@@ -70,7 +70,7 @@ describe("AI music recommendation", () => {
         ]);
         expect(mockedCreateChatCompletion).toHaveBeenLastCalledWith(
             expect.any(Array),
-            expect.objectContaining({ responseFormat: "json_object" }),
+            expect.objectContaining({ responseFormat: "auto" }),
         );
     });
 

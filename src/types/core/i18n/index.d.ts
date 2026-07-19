@@ -731,6 +731,10 @@ export interface ILanguageData {
     "aiSettings.targetLanguageDescription": string;
     "aiSettings.testConnection": string;
     "aiSettings.testing": string;
+    "aiSettings.testRecommendation": string;
+    "aiSettings.testingRecommendation": string;
+    "aiSettings.recommendationTestSuccess": string;
+    "aiSettings.recommendationTestFailed": string;
     "aiSettings.incomplete": string;
     "aiSettings.testSuccess": string;
     "aiSettings.testFailed": string;
@@ -759,6 +763,11 @@ export interface ILanguageData {
     "aiError.noPlugins": string;
     "aiError.noTranslatableLyrics": string;
     "aiError.incompleteTranslation": string;
+    "aiError.timeout": string;
+    "aiError.unauthorized": string;
+    "aiError.rateLimited": string;
+    "aiError.modelNotFound": string;
+    "aiError.jsonModeUnsupported": string;
     "aiError.aborted": string;
     "aiTranslation.configureFirst": string;
     "aiTranslation.started": string;
@@ -787,6 +796,12 @@ export interface ILanguageData {
     "aiRecommend.sceneExplore": string;
     "aiRecommend.generate": string;
     "aiRecommend.generating": string;
+    "aiRecommend.planning": string;
+    "aiRecommend.resolving": string;
+    "aiRecommend.backfilling": string;
+    "aiRecommend.partial": string;
+    "aiRecommend.cancel": string;
+    "aiRecommend.cancelled": string;
     "aiRecommend.forYou": string;
     "aiRecommend.playAll": string;
     "aiRecommend.saveToPlaylist": string;
@@ -836,6 +851,11 @@ export interface ILanguageData {
     "aiError.noPlugins": string;
     "aiError.noTranslatableLyrics": string;
     "aiError.incompleteTranslation": string;
+    "aiError.timeout": string;
+    "aiError.unauthorized": string;
+    "aiError.rateLimited": string;
+    "aiError.modelNotFound": string;
+    "aiError.jsonModeUnsupported": string;
     "aiError.aborted": string;
 
     particleEffect: string; // 粒子特效

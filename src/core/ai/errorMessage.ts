@@ -14,6 +14,11 @@ const ERROR_KEYS: Record<AIErrorCode, keyof ILanguageData> = {
     "no-plugins": "aiError.noPlugins",
     "no-translatable-lyrics": "aiError.noTranslatableLyrics",
     "incomplete-translation": "aiError.incompleteTranslation",
+    timeout: "aiError.timeout",
+    unauthorized: "aiError.unauthorized",
+    "rate-limited": "aiError.rateLimited",
+    "model-not-found": "aiError.modelNotFound",
+    "json-mode-unsupported": "aiError.jsonModeUnsupported",
     aborted: "aiError.aborted",
 };
 

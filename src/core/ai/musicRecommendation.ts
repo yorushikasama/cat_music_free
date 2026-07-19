@@ -1,15 +1,14 @@
 import { AIError, createChatCompletion } from "./client";
+import type {
+    IAIRecommendedMusic,
+    MusicRecommendationExplorationLevel,
+} from "./musicRecommendationTypes";
 import { getMediaUniqueKey } from "@/utils/mediaUtils";
 
-export interface IAIRecommendedMusic {
-    music: IMusic.IMusicItem;
-    reason: string;
-}
-
-export type MusicRecommendationExplorationLevel =
-    | "familiar"
-    | "balanced"
-    | "explore";
+export type {
+    IAIRecommendedMusic,
+    MusicRecommendationExplorationLevel,
+} from "./musicRecommendationTypes";
 
 interface IRecommendationResponseItem {
     id?: string | number;
@@ -320,7 +319,7 @@ export async function recommendMusicWithAI(params: {
         {
             temperature: 0.55,
             maxTokens: 1400,
-            responseFormat: "json_object",
+            responseFormat: "auto",
             signal,
         },
     );

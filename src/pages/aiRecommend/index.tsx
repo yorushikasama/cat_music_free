@@ -15,20 +15,26 @@ import {
     clearLikedMusicRecommendationIds,
     clearMusicRecommendationCache,
     clearMusicRecommendationHistory,
-    collectMusicRecommendationCandidates,
     ensureAIDataSharingConsent,
+    generateMusicRecommendations,
     getIgnoredMusicRecommendationIds,
+    getIgnoredMusicRecommendationTracks,
+    getMusicRecommendationIdentity,
     getLikedMusicRecommendationIds,
+    getLikedMusicRecommendationTracks,
     getLocalizedAIErrorMessage,
     getMusicRecommendationCache,
     getMusicRecommendationHistory,
     ignoreMusicRecommendation,
+    ignoreMusicRecommendationTrack,
     isAIConfigured,
     likeMusicRecommendation,
+    likeMusicRecommendationTrack,
     MusicRecommendationExplorationLevel,
-    recommendMusicWithAI,
     setMusicRecommendationCache,
     unlikeMusicRecommendation,
+    unlikeMusicRecommendationTrack,
+    type IMusicRecommendationProgress,
 } from "@/core/ai";
 import { useAppConfig } from "@/core/appConfig";
 import { useI18N } from "@/core/i18n";
@@ -110,12 +116,21 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
     const [ignoredMusicIds, setIgnoredMusicIds] = useState(() =>
         getIgnoredMusicRecommendationIds(),
     );
+    const [ignoredTrackFingerprints, setIgnoredTrackFingerprints] = useState(
+        () => new Set(getIgnoredMusicRecommendationTracks().keys()),
+    );
     const recommendations = useMemo(
         () =>
             allRecommendations.filter(
-                ({ music }) => !ignoredMusicIds.has(getMediaUniqueKey(music)),
+                item =>
+                    !ignoredMusicIds.has(getMediaUniqueKey(item.music)) &&
+                    !ignoredTrackFingerprints.has(
+                        item.identity?.fingerprint ??
+                            getMusicRecommendationIdentity(item.music)
+                                .fingerprint,
+                    ),
             ),
-        [allRecommendations, ignoredMusicIds],
+        [allRecommendations, ignoredMusicIds, ignoredTrackFingerprints],
     );
     const [generatedPrompt, setGeneratedPrompt] = useState(
         initialCacheRef.current?.prompt ?? "",
@@ -123,11 +138,17 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
     const [cachedAt, setCachedAt] = useState(
         initialCacheRef.current?.createdAt,
     );
+    const [partialResult, setPartialResult] = useState(
+        initialCacheRef.current?.partial === true,
+    );
     const [exploration, setExploration] =
         useState<MusicRecommendationExplorationLevel>(
             initialCacheRef.current?.exploration ?? "balanced",
         );
     const [loading, setLoading] = useState(false);
+    const [progress, setProgress] = useState<IMusicRecommendationProgress | null>(
+        null,
+    );
     const [error, setError] = useState("");
     const [refinement, setRefinement] = useState("");
     const [historyEntries, setHistoryEntries] = useState(() =>
@@ -135,6 +156,9 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
     );
     const [likedMusicIds, setLikedMusicIds] = useState(() =>
         getLikedMusicRecommendationIds(),
+    );
+    const [likedTrackFingerprints, setLikedTrackFingerprints] = useState(
+        () => new Set(getLikedMusicRecommendationTracks().keys()),
     );
     const refinementOptions = useMemo(
         () => [
@@ -251,58 +275,46 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
             };
             activeRequestRef.current = request;
             setLoading(true);
+            setProgress({ stage: "planning" });
             setError("");
             try {
-                const ignored = getIgnoredMusicRecommendationIds();
                 const refinementInstruction = requestedRefinement?.trim();
-                const fetchedCandidates =
-                    await collectMusicRecommendationCandidates(
-                        prompt.trim(),
-                        history,
-                        exploration,
-                    );
-                if (activeRequestRef.current?.id !== request.id) {
-                    return;
-                }
-                const excludedIds = new Set(
-                    replaceCurrent
-                        ? recommendations.map(item =>
-                            getMediaUniqueKey(item.music),
-                        )
-                        : [],
-                );
-                const candidates = Array.from(
-                    new Map(
-                        [
-                            ...fetchedCandidates,
-                            ...recommendations.map(item => item.music),
-                        ]
-                            .filter(music => {
-                                const id = getMediaUniqueKey(music);
-                                return !ignored.has(id) && !excludedIds.has(id);
-                            })
-                            .map(
-                                music =>
-                                    [getMediaUniqueKey(music), music] as const,
-                            ),
-                    ).values(),
-                );
-                const next = await recommendMusicWithAI({
-                    prompt: prompt.trim(),
-                    candidates,
-                    history,
-                    previousRecommendations: refinementInstruction
+                const previousRecommendations = replaceCurrent
+                    ? []
+                    : refinementInstruction
                         ? recommendations
-                        : undefined,
+                        : undefined;
+                const result = await generateMusicRecommendations({
+                    prompt: prompt.trim(),
+                    history,
+                    previousRecommendations,
                     refinement: refinementInstruction,
-                    likedMusicIds: Array.from(likedMusicIds),
+                    likedTracks: Array.from(
+                        getLikedMusicRecommendationTracks().values(),
+                    ),
+                    ignoredTracks: Array.from(
+                        getIgnoredMusicRecommendationTracks().values(),
+                    ),
                     exploration,
                     signal: request.controller.signal,
+                    onProgress: nextProgress => {
+                        if (activeRequestRef.current?.id === request.id) {
+                            setProgress(nextProgress);
+                        }
+                    },
+                    onRecommendations: next => {
+                        if (activeRequestRef.current?.id === request.id) {
+                            if (!recommendations.length) {
+                                setAllRecommendations(next);
+                            }
+                        }
+                    },
                 });
                 if (activeRequestRef.current?.id !== request.id) {
                     return;
                 }
-                setAllRecommendations(next);
+                setAllRecommendations(result.recommendations);
+                setPartialResult(result.partial);
                 setGeneratedPrompt(
                     refinementInstruction
                         ? `${prompt.trim()} · ${refinementInstruction}`
@@ -315,14 +327,19 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                         ? `${prompt.trim()} · ${refinementInstruction}`
                         : prompt.trim(),
                     createdAt,
-                    recommendations: next,
+                    recommendations: result.recommendations,
                     exploration,
+                    version: 2 as const,
+                    partial: result.partial,
+                    plan: result.plan,
+                    diagnostics: result.diagnostics,
                 };
                 setMusicRecommendationCache(cache);
                 addMusicRecommendationHistory(cache);
                 setHistoryEntries(getMusicRecommendationHistory());
             } catch (reason: any) {
                 if (reason instanceof AIError && reason.code === "aborted") {
+                    Toast.success(t("aiRecommend.cancelled"));
                     return;
                 }
                 const message = getLocalizedAIErrorMessage(reason);
@@ -332,19 +349,40 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                 if (activeRequestRef.current?.id === request.id) {
                     activeRequestRef.current = null;
                     setLoading(false);
+                    setProgress(null);
                 }
             }
         },
         [
             exploration,
             history,
-            likedMusicIds,
             openSettings,
             prompt,
             recommendations,
             t,
         ],
     );
+
+    const progressLabel = useMemo(() => {
+        if (!progress) {
+            return "";
+        }
+        if (progress.stage === "planning") {
+            return t("aiRecommend.planning");
+        }
+        if (progress.stage === "resolving") {
+            return t("aiRecommend.resolving", {
+                completed: progress.completed ?? 0,
+                total: progress.total ?? 0,
+            });
+        }
+        if (progress.stage === "backfilling") {
+            return t("aiRecommend.backfilling", {
+                matched: progress.matched ?? 0,
+            });
+        }
+        return t("aiRecommend.generating");
+    }, [progress, t]);
 
     return (
         <PageShell
@@ -593,10 +631,37 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                         )}
                         <ThemeText fontWeight="semibold" color={colors.primary}>
                             {loading
-                                ? t("aiRecommend.generating")
+                                ? progressLabel || t("aiRecommend.generating")
                                 : t("aiRecommend.generate")}
                         </ThemeText>
                     </TouchableOpacity>
+                    {loading ? (
+                        <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel={t("aiRecommend.cancel")}
+                            activeOpacity={0.72}
+                            onPress={() => activeRequestRef.current?.controller.abort()}
+                            style={[
+                                styles.cancelButton,
+                                {
+                                    backgroundColor: colors.surfaceSecondary,
+                                    borderColor:
+                                        colors.controlBorder ?? colors.divider,
+                                },
+                            ]}>
+                            <Icon
+                                name="x-mark"
+                                size={rpx(18)}
+                                color={colors.textSecondary}
+                            />
+                            <ThemeText
+                                fontSize="description"
+                                fontWeight="semibold"
+                                fontColor="textSecondary">
+                                {t("aiRecommend.cancel")}
+                            </ThemeText>
+                        </TouchableOpacity>
+                    ) : null}
                 </View>
 
                 {historyEntries.length ? (
@@ -638,6 +703,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                             entry.recommendations,
                                         );
                                         setCachedAt(entry.createdAt);
+                                        setPartialResult(entry.partial === true);
                                         setExploration(
                                             entry.exploration ?? "balanced",
                                         );
@@ -681,6 +747,16 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                 fontColor="textSecondary"
                                 numberOfLines={1}>
                                 {generatedPrompt}
+                            </ThemeText>
+                        ) : null}
+                        {partialResult ? (
+                            <ThemeText
+                                fontSize="tag"
+                                fontColor="textSecondary"
+                                numberOfLines={1}>
+                                {t("aiRecommend.partial", {
+                                    count: recommendations.length,
+                                })}
                             </ThemeText>
                         ) : null}
                     </View>
@@ -770,36 +846,41 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                             onPress={() => {
                                 clearIgnoredMusicRecommendationIds();
                                 setIgnoredMusicIds(new Set());
+                                setIgnoredTrackFingerprints(new Set());
                                 Toast.success(t("aiRecommend.ignoredReset"));
                             }}>
                             <ThemeText fontSize="tag" color={colors.primary}>
                                 {t("aiRecommend.resetIgnored")}
                             </ThemeText>
                         </TouchableOpacity>
-                        {likedMusicIds.size || recommendations.length ? (
-                            <TouchableOpacity
-                                accessibilityRole="button"
-                                accessibilityLabel={t(
-                                    "aiRecommend.clearPreferences",
-                                )}
-                                activeOpacity={0.7}
-                                style={styles.headerAction}
-                                onPress={() => {
-                                    clearIgnoredMusicRecommendationIds();
-                                    clearLikedMusicRecommendationIds();
-                                    setIgnoredMusicIds(new Set());
-                                    setLikedMusicIds(new Set());
-                                    Toast.success(
-                                        t("aiRecommend.preferencesCleared"),
-                                    );
-                                }}>
-                                <ThemeText
-                                    fontSize="tag"
-                                    fontColor="textSecondary">
-                                    {t("aiRecommend.clearPreferences")}
-                                </ThemeText>
-                            </TouchableOpacity>
-                        ) : null}
+                        {likedMusicIds.size ||
+                        likedTrackFingerprints.size ||
+                        recommendations.length ? (
+                                <TouchableOpacity
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t(
+                                        "aiRecommend.clearPreferences",
+                                    )}
+                                    activeOpacity={0.7}
+                                    style={styles.headerAction}
+                                    onPress={() => {
+                                        clearIgnoredMusicRecommendationIds();
+                                        clearLikedMusicRecommendationIds();
+                                        setIgnoredMusicIds(new Set());
+                                        setLikedMusicIds(new Set());
+                                        setIgnoredTrackFingerprints(new Set());
+                                        setLikedTrackFingerprints(new Set());
+                                        Toast.success(
+                                            t("aiRecommend.preferencesCleared"),
+                                        );
+                                    }}>
+                                    <ThemeText
+                                        fontSize="tag"
+                                        fontColor="textSecondary">
+                                        {t("aiRecommend.clearPreferences")}
+                                    </ThemeText>
+                                </TouchableOpacity>
+                            ) : null}
                         {cachedAt ? (
                             <TouchableOpacity
                                 accessibilityRole="button"
@@ -811,6 +892,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     setAllRecommendations([]);
                                     setGeneratedPrompt("");
                                     setCachedAt(undefined);
+                                    setPartialResult(false);
                                 }}>
                                 <ThemeText
                                     fontSize="tag"
@@ -966,9 +1048,14 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                     />
                 ) : null}
 
-                {recommendations.map(({ music, reason }, index) => {
+                {recommendations.map((item, index) => {
+                    const { music, reason } = item;
                     const musicId = getMediaUniqueKey(music);
-                    const liked = likedMusicIds.has(musicId);
+                    const identity =
+                        item.identity ?? getMusicRecommendationIdentity(music);
+                    const liked =
+                        likedMusicIds.has(musicId) ||
+                        likedTrackFingerprints.has(identity.fingerprint);
                     return (
                         <View
                             key={musicId}
@@ -983,18 +1070,24 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                 onItemPress={() =>
                                     TrackPlayer.playWithReplacePlayList(
                                         music,
-                                        recommendations.map(item => item.music),
+                                        recommendations.map(
+                                            recommendation => recommendation.music,
+                                        ),
                                     )
                                 }
                             />
                             <View style={styles.reasonRow}>
-                                <ThemeText
-                                    fontSize="tag"
-                                    fontColor="textSecondary"
-                                    numberOfLines={2}
-                                    style={styles.reason}>
-                                    {reason}
-                                </ThemeText>
+                                {reason ? (
+                                    <ThemeText
+                                        fontSize="tag"
+                                        fontColor="textSecondary"
+                                        numberOfLines={2}
+                                        style={styles.reason}>
+                                        {reason}
+                                    </ThemeText>
+                                ) : (
+                                    <View style={styles.reason} />
+                                )}
                                 <TouchableOpacity
                                     accessibilityRole="button"
                                     accessibilityLabel={t(
@@ -1004,9 +1097,15 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     style={styles.ignoreButton}
                                     onPress={() => {
                                         ignoreMusicRecommendation(musicId);
+                                        ignoreMusicRecommendationTrack(identity);
                                         setIgnoredMusicIds(current => {
                                             const next = new Set(current);
                                             next.add(musicId);
+                                            return next;
+                                        });
+                                        setIgnoredTrackFingerprints(current => {
+                                            const next = new Set(current);
+                                            next.add(identity.fingerprint);
                                             return next;
                                         });
                                         setMusicRecommendationCache({
@@ -1014,6 +1113,7 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                             createdAt: cachedAt ?? Date.now(),
                                             recommendations: allRecommendations,
                                             exploration,
+                                            version: 2,
                                         });
                                     }}>
                                     <ThemeText
@@ -1033,11 +1133,20 @@ function AIRecommendPage({ embedded = false }: IAIRecommendPageProps) {
                                     onPress={() => {
                                         if (liked) {
                                             unlikeMusicRecommendation(musicId);
+                                            unlikeMusicRecommendationTrack(
+                                                identity.fingerprint,
+                                            );
                                         } else {
                                             likeMusicRecommendation(musicId);
+                                            likeMusicRecommendationTrack(identity);
                                         }
                                         setLikedMusicIds(
                                             getLikedMusicRecommendationIds(),
+                                        );
+                                        setLikedTrackFingerprints(
+                                            new Set(
+                                                getLikedMusicRecommendationTracks().keys(),
+                                            ),
                                         );
                                     }}>
                                     <ThemeText
@@ -1152,6 +1261,15 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         gap: spacing.sm,
         borderRadius: radius.sm,
+    },
+    cancelButton: {
+        minHeight: rpx(48),
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        borderRadius: radius.sm,
+        borderWidth: StyleSheet.hairlineWidth,
     },
     loadingButton: {
         opacity: 0.65,

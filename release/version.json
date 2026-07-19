@@ -1,13 +1,13 @@
 {
-  "version": "8.1.8",
+  "version": "8.1.9",
   "changeLog": [
-    "全面完善异步交互反馈：AI 翻译、搜索、下载、插件等操作会即时显示状态并防止重复触发",
-    "面板和对话框在任务执行期间防止误关闭，补齐成功、失败与取消反馈",
-    "优化下载入队、权限授权、备份恢复和文件选择等高频流程的可感知性"
+    "重构AI推荐链路：AI仅规划歌曲标题、歌手与检索线索，音乐源插件负责搜索和解析可播放资源",
+    "增强AI结构化响应：兼容常见JSON变体，并在截断或无效响应后使用紧凑恢复协议",
+    "完善AI推荐页的偏好、历史、取消、部分结果和播放验证体验"
   ],
   "download": [
-    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.8/app-arm64-v8a-release.apk",
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.8/app-arm64-v8a-release.apk",
-    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.8/app-arm64-v8a-release.apk"
+    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.9/app-arm64-v8a-release.apk",
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.9/app-arm64-v8a-release.apk",
+    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.9/app-arm64-v8a-release.apk"
   ]
 }

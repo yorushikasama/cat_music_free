@@ -13,6 +13,7 @@ import {
     revokeAIDataSharingConsent,
     setAIApiKey,
     testAIConnection,
+    testMusicRecommendationCompatibility,
 } from "@/core/ai";
 import { useI18N } from "@/core/i18n";
 import useColors from "@/hooks/useColors";
@@ -49,6 +50,7 @@ export default function AISetting() {
             : "",
     );
     const [testing, setTesting] = useState(false);
+    const [testingRecommendation, setTestingRecommendation] = useState(false);
     const [fetchingModels, setFetchingModels] = useState(false);
     const [saving, setSaving] = useState(false);
     const draftConfigured = !!(
@@ -108,7 +110,7 @@ export default function AISetting() {
     }
 
     async function getModels() {
-        if (fetchingModels || testing || saving) {
+        if (fetchingModels || testing || testingRecommendation || saving) {
             return;
         }
         if (!baseUrl.trim()) {
@@ -149,7 +151,7 @@ export default function AISetting() {
     }
 
     async function testConnection() {
-        if (testing || fetchingModels || saving) {
+        if (testing || testingRecommendation || fetchingModels || saving) {
             return;
         }
         if (!draftConfigured) {
@@ -177,6 +179,35 @@ export default function AISetting() {
             );
         } finally {
             setTesting(false);
+        }
+    }
+
+    async function testRecommendationCompatibility() {
+        if (testing || testingRecommendation || fetchingModels || saving) {
+            return;
+        }
+        if (!draftConfigured) {
+            Toast.warn(t("aiSettings.incomplete"));
+            return;
+        }
+
+        setTestingRecommendation(true);
+        try {
+            await save();
+            await testMusicRecommendationCompatibility({
+                baseUrl,
+                apiKey: apiKey.trim() || undefined,
+                model,
+            });
+            Toast.success(t("aiSettings.recommendationTestSuccess"));
+        } catch (error: any) {
+            Toast.warn(
+                t("aiSettings.recommendationTestFailed", {
+                    reason: getLocalizedAIErrorMessage(error),
+                }),
+            );
+        } finally {
+            setTestingRecommendation(false);
         }
     }
 
@@ -361,7 +392,9 @@ export default function AISetting() {
                                     disabled:
                                         fetchingModels || testing || saving,
                                 }}
-                                disabled={fetchingModels || testing || saving}
+                                disabled={
+                                    fetchingModels || testing || testingRecommendation || saving
+                                }
                                 onPress={getModels}
                                 style={[
                                     styles.fetchButton,
@@ -445,16 +478,35 @@ export default function AISetting() {
                             : t("aiSettings.testConnection")
                     }
                     loading={testing}
-                    disabled={testing || fetchingModels || saving}
+                    disabled={
+                        testing || testingRecommendation || fetchingModels || saving
+                    }
                     backgroundColor={colors.surfaceSecondary}
                     textColor={colors.text}
                     onPress={testConnection}
                 />
                 <ActionButton
+                    icon="strategy"
+                    label={
+                        testingRecommendation
+                            ? t("aiSettings.testingRecommendation")
+                            : t("aiSettings.testRecommendation")
+                    }
+                    loading={testingRecommendation}
+                    disabled={
+                        testing || testingRecommendation || fetchingModels || saving
+                    }
+                    backgroundColor={colors.surfaceSecondary}
+                    textColor={colors.text}
+                    onPress={testRecommendationCompatibility}
+                />
+                <ActionButton
                     icon="check"
                     label={t("common.save")}
                     loading={saving}
-                    disabled={saving || testing || fetchingModels}
+                    disabled={
+                        saving || testing || testingRecommendation || fetchingModels
+                    }
                     backgroundColor={primaryTint}
                     textColor={colors.primary}
                     onPress={saveSettings}
@@ -504,7 +556,7 @@ function ActionButton({
     backgroundColor,
     textColor,
 }: {
-    icon: "check-circle-outline" | "check";
+    icon: "check-circle-outline" | "check" | "strategy";
     label: string;
     onPress: () => void;
     disabled?: boolean;
@@ -636,13 +688,13 @@ const styles = StyleSheet.create({
         borderRadius: radius.sm,
     },
     actions: {
-        flexDirection: "row",
-        gap: spacing.md,
+        flexDirection: "column",
+        gap: spacing.sm,
         paddingHorizontal: spacing.md,
         marginTop: spacing.xl,
     },
     actionButton: {
-        flex: 1,
+        width: "100%",
         minHeight: rpx(72),
         flexDirection: "row",
         alignItems: "center",

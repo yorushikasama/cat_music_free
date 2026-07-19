@@ -1,4 +1,5 @@
 import Config from "@/core/appConfig";
+import { errorLog } from "@/utils/log";
 import axios from "axios";
 import { getAIApiKey } from "./secretStore";
 
@@ -39,19 +40,26 @@ export type AIErrorCode =
     | "no-plugins"
     | "no-translatable-lyrics"
     | "incomplete-translation"
+    | "timeout"
+    | "unauthorized"
+    | "rate-limited"
+    | "model-not-found"
+    | "json-mode-unsupported"
     | "aborted";
 
 export class AIError extends Error {
     public readonly cause?: unknown;
+    public readonly status?: number;
 
     constructor(
         public readonly code: AIErrorCode,
         message: string,
-        options?: { cause?: unknown },
+        options?: { cause?: unknown; status?: number },
     ) {
         super(message);
         this.name = "AIError";
         this.cause = options?.cause;
+        this.status = options?.status;
     }
 }
 
@@ -101,13 +109,86 @@ function getAIRequestError(error: any, fallback: string) {
             cause: error,
         });
     }
+    const status = Number(error?.response?.status);
     const message = String(
         error?.response?.data?.error?.message ??
             error?.response?.data?.message ??
             error?.message ??
             fallback,
     );
-    return new AIError("request-failed", message, { cause: error });
+    if (error?.code === "ECONNABORTED" || /timeout/i.test(message)) {
+        return new AIError("timeout", message, { cause: error, status });
+    }
+    if (status === 401 || status === 403) {
+        return new AIError("unauthorized", message, { cause: error, status });
+    }
+    if (status === 429) {
+        return new AIError("rate-limited", message, { cause: error, status });
+    }
+    if (
+        (status === 400 || status === 422) &&
+        /response_format|json[_ -]?object|json mode|unsupported.*json/i.test(
+            message,
+        )
+    ) {
+        return new AIError("json-mode-unsupported", message, {
+            cause: error,
+            status,
+        });
+    }
+    if (status === 404 || /model.+(?:not found|does not exist)/i.test(message)) {
+        return new AIError("model-not-found", message, { cause: error, status });
+    }
+    return new AIError("request-failed", message, { cause: error, status });
+}
+
+export type AIResponseFormatMode =
+    | "auto"
+    | "json-object"
+    | "json_object"
+    | "prompt-only";
+
+export interface IAIChatCompletionResult {
+    content: string;
+    responseFormat: "json-object" | "prompt-only";
+}
+
+function canRetryWithoutJsonMode(error: AIError) {
+    if (error.code === "json-mode-unsupported") {
+        return true;
+    }
+    if (error.status !== 400 && error.status !== 422) {
+        return false;
+    }
+    return /response_format|json[_ -]?object|json mode|unsupported.*json/i.test(
+        error.message,
+    );
+}
+
+function getHost(baseUrl: string) {
+    try {
+        return new URL(baseUrl).host;
+    } catch {
+        return "unknown";
+    }
+}
+
+function logAIRequestFailure(
+    operation: string,
+    config: IAIClientConfig,
+    error: AIError,
+    durationMs: number,
+    responseFormat: "json-object" | "prompt-only",
+) {
+    errorLog("AI request failed", {
+        operation,
+        host: getHost(config.baseUrl),
+        model: config.model,
+        code: error.code,
+        status: error.status,
+        durationMs,
+        responseFormat,
+    });
 }
 
 export async function getAIClientConfig(): Promise<IAIClientConfig> {
@@ -130,16 +211,17 @@ export async function isAIConfigured() {
     }
 }
 
-export async function createChatCompletion(
+export async function createChatCompletionResult(
     messages: IAIChatMessage[],
     options?: {
         temperature?: number;
         maxTokens?: number;
         signal?: AbortSignal;
-        responseFormat?: "json_object";
+        responseFormat?: AIResponseFormatMode;
+        timeout?: number;
     },
     configOverrides?: Partial<IAIClientConfig>,
-) {
+): Promise<IAIChatCompletionResult> {
     const config = await resolveAIClientConfig(configOverrides);
     if (!config.apiKey) {
         throw new AIError("missing-api-key", "AI API Key is required");
@@ -148,41 +230,91 @@ export async function createChatCompletion(
         throw new AIError("missing-model", "AI model is required");
     }
 
-    try {
-        const response = await axios.post<IChatCompletionResponse>(
-            `${config.baseUrl}/chat/completions`,
-            {
-                model: config.model,
-                messages,
-                temperature: options?.temperature ?? 0.2,
-                ...(options?.maxTokens
-                    ? { max_tokens: options.maxTokens }
-                    : {}),
-                ...(options?.responseFormat
-                    ? { response_format: { type: options.responseFormat } }
-                    : {}),
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${config.apiKey}`,
-                    "Content-Type": "application/json",
+    const request = async (
+        responseFormat: "json-object" | "prompt-only",
+    ) => {
+        const startedAt = Date.now();
+        try {
+            const response = await axios.post<IChatCompletionResponse>(
+                `${config.baseUrl}/chat/completions`,
+                {
+                    model: config.model,
+                    messages,
+                    temperature: options?.temperature ?? 0.2,
+                    ...(options?.maxTokens
+                        ? { max_tokens: options.maxTokens }
+                        : {}),
+                    ...(responseFormat === "json-object"
+                        ? { response_format: { type: "json_object" } }
+                        : {}),
                 },
-                timeout: 60000,
-                signal: options?.signal,
-            },
-        );
-
-        const content = response.data.choices?.[0]?.message?.content?.trim();
-        if (!content) {
-            throw new AIError(
-                "empty-response",
-                "AI returned an empty response",
+                {
+                    headers: {
+                        Authorization: `Bearer ${config.apiKey}`,
+                        "Content-Type": "application/json",
+                    },
+                    timeout: options?.timeout ?? 30000,
+                    signal: options?.signal,
+                },
             );
+
+            const content = response.data.choices?.[0]?.message?.content?.trim();
+            if (!content) {
+                throw new AIError(
+                    "empty-response",
+                    "AI returned an empty response",
+                );
+            }
+            return { content, responseFormat };
+        } catch (error: any) {
+            const aiError = getAIRequestError(error, "AI request failed");
+            logAIRequestFailure(
+                "chat-completion",
+                config,
+                aiError,
+                Date.now() - startedAt,
+                responseFormat,
+            );
+            throw aiError;
         }
-        return content;
-    } catch (error: any) {
-        throw getAIRequestError(error, "AI request failed");
+    };
+
+    const requestedFormat =
+        options?.responseFormat === "json_object"
+            ? "json-object"
+            : options?.responseFormat ?? "prompt-only";
+    if (requestedFormat === "auto") {
+        try {
+            return await request("json-object");
+        } catch (error: any) {
+            if (!(error instanceof AIError) || !canRetryWithoutJsonMode(error)) {
+                throw error;
+            }
+            errorLog("AI JSON mode unsupported; retrying without response_format", {
+                host: getHost(config.baseUrl),
+                model: config.model,
+                status: error.status,
+            });
+            return request("prompt-only");
+        }
     }
+    return request(requestedFormat);
+}
+
+export async function createChatCompletion(
+    messages: IAIChatMessage[],
+    options?: {
+        temperature?: number;
+        maxTokens?: number;
+        signal?: AbortSignal;
+        responseFormat?: AIResponseFormatMode;
+        timeout?: number;
+    },
+    configOverrides?: Partial<IAIClientConfig>,
+) {
+    return (
+        await createChatCompletionResult(messages, options, configOverrides)
+    ).content;
 }
 
 export async function fetchAIModels(
@@ -214,15 +346,15 @@ export async function fetchAIModels(
 export async function testAIConnection(
     configOverrides?: Partial<IAIClientConfig>,
 ) {
-    const content = await createChatCompletion(
+    const result = await createChatCompletion(
         [
             {
                 role: "user",
                 content: "Reply with OK only.",
             },
         ],
-        { temperature: 0, maxTokens: 64 },
+        { temperature: 0, maxTokens: 64, timeout: 15000 },
         configOverrides,
     );
-    return content.length > 0;
+    return result.length > 0;
 }
