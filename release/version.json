@@ -1,14 +1,11 @@
 {
-  "version": "8.1.10",
+  "version": "8.1.11",
   "changeLog": [
-    "修复 AI 推荐推理模型空内容并增强兼容恢复",
-    "优化 AI 推荐计划、中文摘要与复杂提示词处理",
-    "改进歌词翻译状态和错误恢复",
-    "新增一键发版自动化流程"
+    "优化 AI 推荐范围：熟悉、平衡、探索采用明确差异化策略，并完善推荐说明与测试"
   ],
   "download": [
-    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.10/app-arm64-v8a-release.apk",
-    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.10/app-arm64-v8a-release.apk",
-    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.10/app-arm64-v8a-release.apk"
+    "https://gitee.com/qianmeng_a/cat_music_free/releases/download/v8.1.11/app-arm64-v8a-release.apk",
+    "https://github.com/yorushikasama/cat_music_free/releases/download/v8.1.11/app-arm64-v8a-release.apk",
+    "https://gitea.com/yorushikasama/cat_music_free/releases/download/v8.1.11/app-arm64-v8a-release.apk"
   ]
 }
