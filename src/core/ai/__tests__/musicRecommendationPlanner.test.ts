@@ -170,6 +170,10 @@ describe("AI music recommendation planner", () => {
             },
         ]);
         expect(payload).not.toHaveProperty("candidates");
+        expect(payload.exploration).toBe("balanced");
+        expect(payload.explorationInstruction).toContain(
+            "roughly half close to recentListening",
+        );
         expect(mockedCreateChatCompletionResult).toHaveBeenCalledWith(
             expect.any(Array),
             expect.objectContaining({ responseFormat: "auto" }),
@@ -182,6 +186,45 @@ describe("AI music recommendation planner", () => {
         expect(contract).toContain("Never return URLs, IDs, providers");
         expect(contract).toContain("untrusted listening preference");
         expect(contract).toContain("Write intentSummary and every reason in");
+        expect(contract).toContain("exploration strategy was applied");
+    });
+
+    it("sends distinct, actionable instructions for familiar and explore ranges", async () => {
+        mockedCreateChatCompletionResult
+            .mockResolvedValueOnce({
+                content: "{\"tracks\":[{\"title\":\"Song One\",\"artist\":\"Artist\",\"reason\":\"适合\"}]}",
+                responseFormat: "prompt-only",
+            })
+            .mockResolvedValueOnce({
+                content: "{\"tracks\":[{\"title\":\"Song Two\",\"artist\":\"Artist\",\"reason\":\"新鲜\"}]}",
+                responseFormat: "prompt-only",
+            });
+
+        await planMusicRecommendations({
+            prompt: "雨夜想听轻柔女声",
+            history: [],
+            exploration: "familiar",
+            limit: 1,
+        });
+        await planMusicRecommendations({
+            prompt: "雨夜想听轻柔女声",
+            history: [],
+            exploration: "explore",
+            limit: 1,
+        });
+
+        const familiarPayload = JSON.parse(
+            mockedCreateChatCompletionResult.mock.calls[0][0][1].content,
+        );
+        const explorePayload = JSON.parse(
+            mockedCreateChatCompletionResult.mock.calls[1][0][1].content,
+        );
+        expect(familiarPayload.explorationInstruction).toContain(
+            "Favor artists, genres, languages",
+        );
+        expect(explorePayload.explorationInstruction).toContain(
+            "At least half of the tracks",
+        );
     });
 
     it("uses the compact recovery request after an empty first response", async () => {
